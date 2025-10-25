@@ -1324,9 +1324,30 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   useEffect(() => {
     if (detailsVisible && selectedActivity) {
-      detailSheetRef.current?.snapToIndex(0);
+      console.log('[ActivityLogDashboard] Bottom sheet opening:', {
+        detailsVisible,
+        selectedActivityId: selectedActivity.id,
+        refExists: !!detailSheetRef.current,
+      });
+
+      // Ensure ref exists before calling snapToIndex
+      if (detailSheetRef.current) {
+        try {
+          detailSheetRef.current.snapToIndex(0);
+        } catch (error) {
+          console.error('[ActivityLogDashboard] Error opening bottom sheet:', error);
+        }
+      } else {
+        console.error('[ActivityLogDashboard] detailSheetRef.current is null!');
+      }
     } else {
-      detailSheetRef.current?.close();
+      if (detailSheetRef.current) {
+        try {
+          detailSheetRef.current.close();
+        } catch (error) {
+          console.error('[ActivityLogDashboard] Error closing bottom sheet:', error);
+        }
+      }
     }
   }, [detailsVisible, selectedActivity]);
 
@@ -1883,6 +1904,20 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   );
 
   const handleOpenDetails = useCallback((activity) => {
+    if (!activity) {
+      console.warn('[ActivityLogDashboard] handleOpenDetails called with null activity');
+      return;
+    }
+
+    console.log('[ActivityLogDashboard] Opening activity details:', {
+      id: activity.id,
+      action_type: activity.action_type,
+    });
+
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Update state to open bottom sheet
     setSelectedActivity(activity);
     setAdvancedActivity(null);
     setAdvancedModalVisible(false);

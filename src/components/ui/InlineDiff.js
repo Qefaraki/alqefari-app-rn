@@ -2,10 +2,11 @@
  * InlineDiff Component
  * Visual before/after comparison for activity log changes
  * Shows old → new values with proper RTL support and color coding
+ * Now supports photo/image field display
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Platform, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from './tokens';
 import { formatFieldValue } from '../../services/activityLogTranslations';
@@ -14,8 +15,259 @@ import { formatDateByPreference } from '../../utils/dateDisplay';
 import { gregorianToHijri } from '../../utils/hijriConverter';
 import { toArabicNumerals } from '../../utils/dateUtils';
 
+// Helper: Detect if field is a photo field
+const isPhotoField = (field) => {
+  if (!field) return false;
+  return field === 'photo_url' ||
+         field === 'photo' ||
+         field?.toLowerCase().includes('photo') ||
+         field?.toLowerCase().includes('image');
+};
+
+// Helper: Detect if value is a photo URL
+const isPhotoURL = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  return (value.startsWith('http://') || value.startsWith('https://')) &&
+         (value.includes('supabase') ||
+          value.includes('storage') ||
+          value.match(/\.(jpg|jpeg|png|webp|gif)$/i));
+};
+
+/**
+ * PhotoDiff Sub-Component
+ * Renders photo changes with thumbnails or full-size images
+ */
+const PhotoDiff = ({ oldValue, newValue, showLabels = false, changeType }) => {
+  const [oldImageError, setOldImageError] = useState(false);
+  const [newImageError, setNewImageError] = useState(false);
+  const [oldImageLoaded, setOldImageLoaded] = useState(false);
+  const [newImageLoaded, setNewImageLoaded] = useState(false);
+
+  // For expanded view with labels
+  if (showLabels) {
+    return (
+      <View style={styles.photoDiffExpanded}>
+        {/* OLD PHOTO CARD */}
+        <View style={[styles.photoCard, styles.oldPhotoCard]}>
+          <Text style={styles.diffLabel}>القيمة القديمة</Text>
+          {changeType === 'removed' ? (
+            <View style={styles.photoPlaceholder}>
+              <Ionicons
+                name="image-outline"
+                size={40}
+                color={tokens.colors.textMuted}
+              />
+              <Text style={styles.photoRemoved}>تم حذف الصورة</Text>
+            </View>
+          ) : isPhotoURL(oldValue) ? (
+            <View style={styles.photoContainer}>
+              {!oldImageLoaded && (
+                <ActivityIndicator
+                  size="large"
+                  color={tokens.colors.textMuted}
+                  style={styles.photoLoader}
+                />
+              )}
+              <Image
+                source={{ uri: oldValue }}
+                style={styles.photoLarge}
+                onLoad={() => setOldImageLoaded(true)}
+                onError={() => setOldImageError(true)}
+              />
+              {oldImageError && (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={40}
+                    color={tokens.colors.diff.removed}
+                  />
+                  <Text style={styles.photoError}>فشل تحميل الصورة</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Ionicons
+                name="image-outline"
+                size={40}
+                color={tokens.colors.textMuted}
+              />
+              <Text style={styles.photoRemoved}>لا توجد صورة</Text>
+            </View>
+          )}
+        </View>
+
+        {/* ARROW */}
+        <Ionicons
+          name="arrow-back"
+          size={20}
+          color={tokens.colors.textMuted}
+          style={styles.arrowIcon}
+        />
+
+        {/* NEW PHOTO CARD */}
+        <View style={[styles.photoCard, styles.newPhotoCard]}>
+          <Text style={styles.diffLabel}>القيمة الجديدة</Text>
+          {changeType === 'added' ? (
+            isPhotoURL(newValue) ? (
+              <View style={styles.photoContainer}>
+                {!newImageLoaded && (
+                  <ActivityIndicator
+                    size="large"
+                    color={tokens.colors.textMuted}
+                    style={styles.photoLoader}
+                  />
+                )}
+                <Image
+                  source={{ uri: newValue }}
+                  style={styles.photoLarge}
+                  onLoad={() => setNewImageLoaded(true)}
+                  onError={() => setNewImageError(true)}
+                />
+                {newImageError && (
+                  <View style={styles.photoPlaceholder}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={40}
+                      color={tokens.colors.diff.added}
+                    />
+                    <Text style={styles.photoError}>فشل تحميل الصورة</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons
+                  name="image-outline"
+                  size={40}
+                  color={tokens.colors.textMuted}
+                />
+                <Text style={styles.photoRemoved}>لا توجد صورة</Text>
+              </View>
+            )
+          ) : (
+            <View style={styles.photoContainer}>
+              {!newImageLoaded && (
+                <ActivityIndicator
+                  size="large"
+                  color={tokens.colors.textMuted}
+                  style={styles.photoLoader}
+                />
+              )}
+              <Image
+                source={{ uri: newValue }}
+                style={styles.photoLarge}
+                onLoad={() => setNewImageLoaded(true)}
+                onError={() => setNewImageError(true)}
+              />
+              {newImageError && (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={40}
+                    color={tokens.colors.diff.added}
+                  />
+                  <Text style={styles.photoError}>فشل تحميل الصورة</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Inline view with thumbnails (collapsed)
+  return (
+    <View style={styles.photoDiffInline}>
+      {/* Change icon */}
+      <Ionicons
+        name={changeType === 'added' ? 'add-circle' : changeType === 'removed' ? 'remove-circle' : 'create-outline'}
+        size={16}
+        color={
+          changeType === 'added'
+            ? tokens.colors.diff.added
+            : changeType === 'removed'
+            ? tokens.colors.diff.removed
+            : tokens.colors.diff.modified
+        }
+        style={styles.diffIcon}
+      />
+
+      {/* OLD PHOTO THUMBNAIL */}
+      {changeType !== 'added' && (
+        <>
+          {isPhotoURL(oldValue) ? (
+            <View style={styles.photoThumbnailContainer}>
+              {!oldImageLoaded && <ActivityIndicator size="small" color={tokens.colors.textMuted} />}
+              <Image
+                source={{ uri: oldValue }}
+                style={styles.photoThumbnail}
+                onLoad={() => setOldImageLoaded(true)}
+                onError={() => setOldImageError(true)}
+              />
+              {oldImageError && (
+                <View style={styles.photoThumbnailError}>
+                  <Ionicons name="alert-circle-outline" size={14} color={tokens.colors.diff.removed} />
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={[styles.photoThumbnail, styles.photoThumbnailEmpty]}>
+              <Ionicons name="image-outline" size={12} color={tokens.colors.textMuted} />
+            </View>
+          )}
+        </>
+      )}
+
+      {/* ARROW */}
+      {changeType === 'modified' && (
+        <Ionicons
+          name="arrow-back"
+          size={14}
+          color={tokens.colors.textMuted}
+        />
+      )}
+
+      {/* NEW PHOTO THUMBNAIL */}
+      {changeType !== 'removed' && (
+        <>
+          {isPhotoURL(newValue) ? (
+            <View style={styles.photoThumbnailContainer}>
+              {!newImageLoaded && <ActivityIndicator size="small" color={tokens.colors.textMuted} />}
+              <Image
+                source={{ uri: newValue }}
+                style={styles.photoThumbnail}
+                onLoad={() => setNewImageLoaded(true)}
+                onError={() => setNewImageError(true)}
+              />
+              {newImageError && (
+                <View style={styles.photoThumbnailError}>
+                  <Ionicons name="alert-circle-outline" size={14} color={tokens.colors.diff.added} />
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={[styles.photoThumbnail, styles.photoThumbnailEmpty]}>
+              <Ionicons name="image-outline" size={12} color={tokens.colors.textMuted} />
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+};
+
 const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
   const { settings } = useSettings();
+
+  // Determine change type (used for all rendering)
+  const changeType = !oldValue ? 'added' : !newValue ? 'removed' : 'modified';
+
+  // EARLY RETURN: If this is a photo field, use PhotoDiff component
+  if (isPhotoField(field)) {
+    return <PhotoDiff oldValue={oldValue} newValue={newValue} showLabels={showLabels} changeType={changeType} />;
+  }
 
   // Format timestamp fields with user's date preferences + time
   const formatTimestamp = (value) => {
@@ -65,9 +317,6 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
     oldStr = formatFieldValue(field, oldValue);
     newStr = formatFieldValue(field, newValue);
   }
-
-  // Determine change type
-  const changeType = !oldValue ? 'added' : !newValue ? 'removed' : 'modified';
 
   // Icon based on change type
   const icon = changeType === 'added' ? 'add-circle' :
@@ -256,6 +505,109 @@ const styles = StyleSheet.create({
   },
   arrowIcon: {
     marginTop: 12, // Align with card content
+  },
+
+  // ===== PHOTO DIFF STYLES =====
+
+  // Inline photo diff (collapsed view with thumbnails)
+  photoDiffInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  photoThumbnailContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoThumbnail: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    backgroundColor: tokens.colors.background,
+    borderWidth: 1,
+    borderColor: tokens.colors.border,
+  },
+  photoThumbnailEmpty: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: tokens.colors.diff.addedBg,
+    borderColor: tokens.colors.diff.added,
+  },
+  photoThumbnailError: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 6,
+  },
+
+  // Expanded photo diff (side-by-side cards with labels)
+  photoDiffExpanded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  photoCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 200,
+  },
+  oldPhotoCard: {
+    backgroundColor: tokens.colors.diff.removedBg,
+    borderColor: `${tokens.colors.diff.removed}30`,
+  },
+  newPhotoCard: {
+    backgroundColor: tokens.colors.diff.addedBg,
+    borderColor: `${tokens.colors.diff.added}30`,
+  },
+  photoContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+    minHeight: 150,
+  },
+  photoLarge: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+    resizeMode: 'contain',
+  },
+  photoLoader: {
+    position: 'absolute',
+  },
+  photoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    minHeight: 120,
+  },
+  photoRemoved: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+    color: tokens.colors.textMuted,
+    marginTop: 8,
+  },
+  photoError: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+    color: tokens.colors.text,
+    marginTop: 8,
   },
 });
 
