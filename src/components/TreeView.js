@@ -362,15 +362,50 @@ const TreeView = ({
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
 
-  // Check if we already have preloaded data
+  // Phase 3B: Cache validation for optimistic rendering
+  // Validates that cached structure data is complete and not corrupted
+  const validateCacheStructure = (nodes) => {
+    if (!nodes || nodes.length === 0) return false;
+    if (nodes.length < 50) return false; // Too small = partial cache
+    // Check first 5 nodes for required structure fields (hid, generation, father_id)
+    return nodes.slice(0, 5).every(n =>
+      n.hid !== undefined &&
+      n.generation !== undefined &&
+      n.father_id !== undefined
+    );
+  };
+
+  // Check if we already have valid cached structure data
+  const hasCachedStructure = validateCacheStructure(treeData);
   const hasPreloadedData = treeData && treeData.length > 0;
 
-  // Initialize loading state - skip if we have preloaded data
-  // Phase 3B: For progressive loading, skip skeleton entirely (tree appears instantly)
-  const [isLoading, setIsLoading] = useState(USE_PROGRESSIVE_LOADING ? false : !hasPreloadedData);
-  const [showSkeleton, setShowSkeleton] = useState(USE_PROGRESSIVE_LOADING ? false : !hasPreloadedData);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING ? 0 : (hasPreloadedData ? 0 : 1))).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING ? 1 : (hasPreloadedData ? 1 : 0))).current;
+  // Phase 3B: Log cache status for observability
+  if (USE_PROGRESSIVE_LOADING) {
+    if (hasCachedStructure) {
+      console.log(`💾 [TreeView] Cache hit: ${treeData.length} nodes cached and valid`);
+    } else if (hasPreloadedData) {
+      console.log(`⚠️ [TreeView] Partial/corrupted cache detected: ${treeData.length} nodes. Showing skeleton, waiting for fresh data.`);
+    } else {
+      console.log('[TreeView] Cache miss: No cached structure. Showing skeleton, loading from network.');
+    }
+  }
+
+  // Initialize loading state - Phase 3B: Optimistic rendering
+  // For progressive mode: Show skeleton only if no valid cache
+  // Cached launches: Tree appears instantly from cache, no skeleton needed
+  const [isLoading, setIsLoading] = useState(
+    USE_PROGRESSIVE_LOADING
+      ? !hasCachedStructure  // Show skeleton only if cache invalid/missing
+      : !hasPreloadedData
+  );
+  const [showSkeleton, setShowSkeleton] = useState(
+    USE_PROGRESSIVE_LOADING
+      ? !hasCachedStructure  // Show skeleton only if cache invalid/missing
+      : !hasPreloadedData
+  );
+  // Initialize animations: Phase 3B - Show cached content immediately, hide skeleton
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING && hasCachedStructure ? 0 : (hasPreloadedData ? 0 : 1))).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING && hasCachedStructure ? 1 : (hasPreloadedData ? 1 : 0))).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
@@ -645,6 +680,43 @@ const TreeView = ({
       })
     : null;
 
+  // Phase 3B: Sync progressive loading state when Phase 1 completes
+  // When progressiveResult indicates loading is done, hide skeleton
+  // This uses the hook's isLoading state (which tracks Phase 1 completion)
+  useEffect(() => {
+    if (USE_PROGRESSIVE_LOADING && progressiveResult &&
+        !progressiveResult.isLoading && isLoading) {
+      // Phase 1 complete, structure loaded and layout calculated
+      console.log('[TreeView] Progressive loading Phase 1 complete, hiding skeleton');
+      setIsLoading(false);
+      setShowSkeleton(false);
+    }
+  }, [progressiveResult?.isLoading, isLoading]);
+
+  // Phase 3B: Handle fresh data transitions when new data arrives from progressive loading
+  // Detects when fresh data differs from cached data and manages smooth merging
+  useEffect(() => {
+    if (!USE_PROGRESSIVE_LOADING || !progressiveResult?.treeData) return;
+
+    // Check if fresh data differs from what we have
+    const freshDataLength = progressiveResult.treeData.length;
+    const currentDataLength = treeData.length;
+
+    if (freshDataLength !== currentDataLength) {
+      // Data changed - log the transition
+      console.log(`🔄 [TreeView] Data update: ${currentDataLength} → ${freshDataLength} nodes`);
+
+      // If we showed cached content and now have fresh data, note the update
+      if (hasCachedStructure && freshDataLength > currentDataLength) {
+        console.log(`✨ [TreeView] Fresh data merged: +${freshDataLength - currentDataLength} new nodes`);
+      }
+
+      // The store update happens through progressive loading mechanism
+      // Layout will automatically recalculate due to layoutKeys dependency
+      // d3 determinism ensures positions remain stable (same input = same output)
+    }
+  }, [progressiveResult?.treeData, treeData.length, hasCachedStructure]);
+
   // Unified API: Both loading strategies update the Zustand store
   // For progressive loading, we create stub functions since it handles loading internally
   const { loadTreeData, handleRetry } = USE_PROGRESSIVE_LOADING
@@ -676,32 +748,54 @@ const TreeView = ({
   }, [treeData]);
 
   // Calculate layout - based on layout keys and showPhotos prop
+  // Phase 3B: Add error handling with fallback to prevent app crash on corrupted cache
   const { nodes, connections } = useMemo(() => {
     if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
     }
 
-    // Phase 1 Day 4d: Performance monitoring
-    const layoutStartTime = performance.now();
-    const layout = calculateTreeLayout(treeData, showPhotos);
-    const layoutDuration = performance.now() - layoutStartTime;
+    try {
+      // Phase 1 Day 4d: Performance monitoring
+      const layoutStartTime = performance.now();
+      const layout = calculateTreeLayout(treeData, showPhotos);
+      const layoutDuration = performance.now() - layoutStartTime;
 
-    // Log layout performance
-    performanceMonitor.logLayoutTime(layoutDuration, treeData.length);
+      // Log layout performance
+      performanceMonitor.logLayoutTime(layoutDuration, treeData.length);
 
-    // NOTE: Root node -80 offset is now baked into treeLayout.js
-    // No adjustedNodes transformation needed anymore
-    // Layout returns final positions (node.y includes root offset + top-alignment)
+      // Log layout success with timing
+      if (USE_PROGRESSIVE_LOADING && hasCachedStructure) {
+        console.log(`⚡ [TreeView] Layout from cache computed in ${layoutDuration.toFixed(0)}ms (${treeData.length} nodes)`);
+      }
 
-    // DEBUG: Log canvas coordinates summary
-    if (layout.nodes.length > 0) {
-      console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
-      console.log(`  TreeData length: ${treeData.length}`);
-      console.log(`  Show photos: ${showPhotos}`);
+      // NOTE: Root node -80 offset is now baked into treeLayout.js
+      // No adjustedNodes transformation needed anymore
+      // Layout returns final positions (node.y includes root offset + top-alignment)
+
+      // DEBUG: Log canvas coordinates summary
+      if (layout.nodes.length > 0) {
+        console.log('🎯 LAYOUT CALCULATED:');
+        console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
+        console.log(`  TreeData length: ${treeData.length}`);
+        console.log(`  Show photos: ${showPhotos}`);
+      }
+
+      return { nodes: layout.nodes, connections: layout.connections };
+    } catch (error) {
+      // Phase 3B: Error recovery for corrupted cache or layout computation failure
+      console.error('❌ [TreeView] Layout computation failed:', error);
+
+      // If we were showing cached content and it fails, clear cache and show skeleton
+      if (USE_PROGRESSIVE_LOADING && hasCachedStructure) {
+        console.warn('⚠️ [TreeView] Clearing corrupted cache and showing skeleton');
+        useTreeStore.getState().clearTreeData();
+        setIsLoading(true);
+        setShowSkeleton(true);
+      }
+
+      // Return empty to prevent crash (next render will have fresh data or skeleton)
+      return { nodes: [], connections: [] };
     }
-
-    return { nodes: layout.nodes, connections: layout.connections };
   }, [layoutKeys, showPhotos]);
 
   // Build indices for node lookup and relationships with O(N) complexity
