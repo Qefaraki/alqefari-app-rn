@@ -1,5 +1,48 @@
 # Profile Field Mapping - Maintenance Checklist
 
+## 🔒 CRITICAL: Version Field for Concurrent Edit Protection
+
+**⚠️ When loading children for editing, ALWAYS include the `version` field!**
+
+The `version` field enables **optimistic locking** to prevent concurrent edit conflicts. This is CRITICAL for:
+- QuickAddOverlay (quick child management)
+- Any modal that edits existing profiles
+- Batch operations like reordering
+
+### What Happens Without Version Field:
+- ❌ All children default to `version: 1`
+- ❌ Two users can edit simultaneously without conflict detection
+- ❌ Last save wins (data corruption)
+
+### Safe Query Pattern:
+```javascript
+// ✅ CORRECT: Include version
+const { data } = await supabase
+  .from("profiles")
+  .select(`id, name, version, gender, mother_id, ...`)
+  .or(`father_id.eq.${parentId},mother_id.eq.${parentId}`)
+  .is("deleted_at", null);
+
+// ❌ WRONG: Missing version
+const { data } = await supabase
+  .from("profiles")
+  .select(`id, name, gender, mother_id, ...`)  // ← Missing version!
+  .or(`father_id.eq.${parentId},mother_id.eq.${parentId}`);
+```
+
+### Affected Components:
+- **ChildrenManager.js** (line 42-54) - Must SELECT version ✅
+- **DraggableChildrenList.js** - Check if loads children independently
+- **Any custom child-loading query** - Must include version
+
+### Detection:
+Developer mode will log a warning if version is missing:
+```
+[QuickAdd] ⚠️ Child missing version field - concurrent edits will not be protected!
+```
+
+---
+
 ## ⚠️ CRITICAL WARNING: Schema Mismatch Can Break Search!
 
 **On January 16, 2025, search broke completely because `search_name_chain()` was missing `professional_title` and `title_abbreviation` fields.**

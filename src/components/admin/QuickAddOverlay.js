@@ -163,21 +163,34 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
           }
           return orderA - orderB;
         })
-        .map((s, index) => ({
-          ...s,
-          isNew: false,
-          isExisting: true,
-          isEdited: false,
-          mother_id: s?.mother_id || s?.parent2 || null,
-          mother_name: s?.mother_name || null,
-          sibling_order: s.sibling_order ?? index,  // ✅ PRESERVE database value
-          original_sibling_order: s.sibling_order ?? index,
-          original_snapshot: {
-            name: s.name,
-            gender: s.gender,
+        .map((s, index) => {
+          // ⚠️ DEVELOPER SAFETY CHECK: Ensure version field is present
+          // This prevents concurrent edit conflicts (optimistic locking)
+          if (__DEV__ && s.version === undefined) {
+            console.error('[QuickAdd] ⚠️ Child missing version field - concurrent edits will not be protected!', {
+              id: s.id,
+              name: s.name,
+              loadedKeys: Object.keys(s).sort(),
+              suggestion: 'Ensure the data-loading query includes the "version" field. Check ChildrenManager.js, DraggableChildrenList.js, or the RPC function being used.'
+            });
+          }
+
+          return {
+            ...s,
+            isNew: false,
+            isExisting: true,
+            isEdited: false,
             mother_id: s?.mother_id || s?.parent2 || null,
-          },
-        }));
+            mother_name: s?.mother_name || null,
+            sibling_order: s.sibling_order ?? index,  // ✅ PRESERVE database value
+            original_sibling_order: s.sibling_order ?? index,
+            original_snapshot: {
+              name: s.name,
+              gender: s.gender,
+              mother_id: s?.mother_id || s?.parent2 || null,
+            },
+          };
+        });
 
       // Detect duplicates in the loaded data
       const duplicates = detectDuplicates(sortedSiblings);

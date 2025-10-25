@@ -49,6 +49,7 @@ const ChildrenManager = ({ profile, onUpdate, isAdmin }) => {
           generation,
           sibling_order,
           photo_url,
+          version,
           mother_id,
           mother:profiles!mother_id(id, name)
         `,
