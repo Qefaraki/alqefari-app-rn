@@ -129,6 +129,21 @@ class FamilyNameService {
   }
 
   /**
+   * Filter out gender markers (بنت, بن, ابن, بنة) from a name array
+   * Used for cleaning name chains for display and search
+   * @param {array} nameArray - Array of name words
+   * @returns {array} - Filtered array without gender markers
+   */
+  filterGenderMarkers(nameArray) {
+    if (!Array.isArray(nameArray)) return [];
+
+    // Gender markers that appear in Arabic name genealogies
+    const genderMarkers = ['بنت', 'بن', 'ابن', 'بنة'];
+
+    return nameArray.filter(word => !genderMarkers.includes(word));
+  }
+
+  /**
    * Format display name with family origin
    * @param {string} name - Person's name
    * @param {string} familyOrigin - Family origin

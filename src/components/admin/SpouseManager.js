@@ -36,12 +36,6 @@ import BranchTreeModal from "../BranchTreeModal";
  * 5. Success animation → auto-dismiss
  */
 
-// Helper: Filter out gender markers (بنت, بن) from name chain
-const filterGenderMarkers = (nameArray) => {
-  const genderMarkers = ['بنت', 'بن'];
-  return nameArray.filter(word => !genderMarkers.includes(word));
-};
-
 export default function SpouseManager({ visible, person, onClose, onSpouseAdded, prefilledName }) {
   // Simplified 3-state machine
   const [stage, setStage] = useState("SEARCH"); // SEARCH, CREATE, SUCCESS
@@ -66,8 +60,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       // Parse full name for search
       const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
 
-      // Display clean name chain: firstName + middle names (no بنت/بن, no surname)
-      const cleanNames = [parsed.firstName, ...filterGenderMarkers(parsed.middleChain)];
+      // Display clean name chain: firstName + middle names (no gender markers, no surname)
+      const cleanNames = [parsed.firstName, ...familyNameService.filterGenderMarkers(parsed.middleChain)];
       setFullName(cleanNames.join(' '));
 
       setParsedData(parsed);
@@ -184,7 +178,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
     try {
       // Build full name array: firstName + middle names (no gender markers like بنت/بن)
-      const cleanNames = [parsed.firstName, ...filterGenderMarkers(parsed.middleChain)];
+      const cleanNames = [parsed.firstName, ...familyNameService.filterGenderMarkers(parsed.middleChain)];
       const names = cleanNames.filter(n => n.length > 0);
 
       // Call RPC with correct 3-parameter signature
