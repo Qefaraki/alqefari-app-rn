@@ -1252,7 +1252,7 @@ export default function SettingsPageModern({ user }) {
             />
           )}
           {/* QR Code Sharing - Only for linked profiles with HID */}
-          {currentUser && !isGuestMode && userProfile?.hid && (
+          {currentUser && !isGuestMode && userProfile?.hid && userProfile?.user_id && (
             <SettingsCell
               label="رمز QR للملف"
               description="شارك ملفك مع العائلة"
@@ -1396,7 +1396,7 @@ export default function SettingsPageModern({ user }) {
       />
 
       {/* Share Profile Sheet */}
-      {showShareSheet && userProfile?.hid && (
+      {showShareSheet && userProfile?.hid && userProfile?.user_id && (
         <ShareProfileSheet
           visible={showShareSheet}
           onClose={() => setShowShareSheet(false)}

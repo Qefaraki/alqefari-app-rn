@@ -43,12 +43,19 @@ export default function ProfileQRCode({
       return;
     }
 
+    // Validate that link was generated successfully
+    if (!profileLink || profileLink.length === 0) {
+      console.error('[QRCode] Failed to generate profile link for HID:', hid);
+      setQrError(true);
+      return;
+    }
+
     const timer = setTimeout(() => {
       setQrReady(true);
     }, 16); // 16ms = 1 frame at 60fps
 
     return () => clearTimeout(timer);
-  }, [hid]);
+  }, [hid, profileLink]);
 
   // Error state
   if (qrError || !hid) {

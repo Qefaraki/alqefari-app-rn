@@ -5,7 +5,7 @@
  * Supports universal links (https://alqefari.com/profile/HID) and custom scheme (alqefari://).
  *
  * Features:
- * - HID validation (H + 1-6 digits)
+ * - HID validation (H-format: H1-H999999, R-format: R1, R1.1, R1.1.1, etc.)
  * - Profile link generation with optional inviter tracking
  * - Deep link handling with network guard and progressive loading integration
  * - Enrichment for non-enriched profiles before navigation
@@ -18,8 +18,11 @@ import NetInfo from '@react-native-community/netinfo';
 import { useTreeStore } from '../stores/useTreeStore';
 import profilesService from '../services/profiles';
 
-// HID format: H followed by 1-6 digits (H1 to H999999)
-export const HID_REGEX = /^H\d{1,6}$/;
+// HID format: H or R followed by digits or dot-separated digits
+// Examples: H1, H12345, R1, R1.1, R1.1.1.1.1.1
+// H-format: Standard profiles (H1 to H999999)
+// R-format: Root node branch profiles (R1, R1.1, R1.1.1, etc.)
+export const HID_REGEX = /^[HR][\d.]*\d$/;
 
 /**
  * Validates a Human ID (HID) format
