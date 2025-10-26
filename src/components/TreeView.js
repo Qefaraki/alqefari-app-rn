@@ -184,10 +184,11 @@ import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
 import MarriageEditor from "./admin/MarriageEditor";
 import skiaImageCache from "../services/skiaImageCache";
-import { useBatchedSkiaImage } from "../hooks/useBatchedSkiaImage";
+import { useBatchedSkiaImageWithMorph } from "../hooks/useBatchedSkiaImageWithMorph";
 import NodeContextMenu from "./admin/NodeContextMenu";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
+import NavigationPills from "./ui/NavigationPills";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkStatusIndicator from "./NetworkStatusIndicator";
@@ -529,23 +530,50 @@ const TreeView = ({
     const nodeBuckets = nodeBucketsRef.current;
     const bucketTimers = bucketTimersRef.current;
 
-    const current = nodeBuckets.get(nodeId) || 256;
+    const current = nodeBuckets.get(nodeId) || 80; // Start with lower default to allow upgrades
     const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 512;
+
+    // Debug high-pixel scenarios
+    if (__DEV__ && pixelSize >= 200) {
+      console.log(
+        `[BucketHysteresis] ${nodeId}: pixelSize=${pixelSize.toFixed(0)}, current=${current}px, target=${target}px`
+      );
+    }
 
     // Apply hysteresis
     if (target > current && pixelSize < current * (1 + BUCKET_HYSTERESIS)) {
+      if (__DEV__ && pixelSize >= 200) {
+        console.log(
+          `[BucketHysteresis] ${nodeId}: BLOCKED upgrade by hysteresis: ${pixelSize.toFixed(0)} < ${(current * (1 + BUCKET_HYSTERESIS)).toFixed(0)}`
+        );
+      }
       return current; // Stay at current
     }
     if (target < current && pixelSize > current * (1 - BUCKET_HYSTERESIS)) {
+      if (__DEV__ && pixelSize >= 200) {
+        console.log(
+          `[BucketHysteresis] ${nodeId}: BLOCKED downgrade by hysteresis: ${pixelSize.toFixed(0)} > ${(current * (1 - BUCKET_HYSTERESIS)).toFixed(0)}`
+        );
+      }
       return current; // Stay at current
     }
 
     // Debounce upgrades
     if (target > current) {
+      if (__DEV__ && pixelSize >= 200) {
+        console.log(
+          `[BucketHysteresis] ${nodeId}: DEBOUNCING upgrade ${current}px → ${target}px (150ms delay)`
+        );
+      }
       clearTimeout(bucketTimers.get(nodeId));
       bucketTimers.set(
         nodeId,
         setTimeout(() => {
+          if (__DEV__ && pixelSize >= 200) {
+            console.log(
+              `[BucketHysteresis] ${nodeId}: APPLIED delayed upgrade ${current}px → ${target}px`
+            );
+          }
           nodeBuckets.set(nodeId, target);
         }, BUCKET_DEBOUNCE_MS),
       );
@@ -2264,12 +2292,12 @@ const TreeView = ({
           getCachedParagraph={getCachedParagraph}
           SaduIcon={SaduIcon}
           SaduIconG2={G2SaduIcon}
-          useBatchedSkiaImage={useBatchedSkiaImage}
+          useBatchedSkiaImage={useBatchedSkiaImageWithMorph}
           nodeFramesRef={nodeFramesRef}
         />
       );
     },
-    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImage],
+    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2547,6 +2575,11 @@ const TreeView = ({
       <SearchBar
         onSelectResult={handleSearchResultSelect}
         onClearHighlight={clearAllHighlights}
+      />
+
+      <NavigationPills
+        onNavigate={navigateToNode}
+        nodes={nodes}
       />
 
       <NavigateToRootButton

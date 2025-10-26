@@ -57,6 +57,54 @@ export default function TreeScreen() {
     clearConflictingCaches();
   }, []); // Empty dependency array = run once on mount
 
+  // Debug: Profile data verification 
+  useEffect(() => {
+    const debugProfileData = () => {
+      if (!user || !profile) return;
+
+      const { nodesMap, treeData } = useTreeStore.getState();
+      
+      console.log('[TREE DEBUG] Profile data verification:', {
+        authUser: {
+          id: user.id,
+          email: user.email,
+        },
+        authProfile: profile ? {
+          id: profile.id,
+          name: profile.name,
+          hid: profile.hid,
+          user_id: profile.user_id,
+          fieldCount: Object.keys(profile).length,
+          hasVersion: !!profile.version
+        } : null,
+        treeStore: {
+          totalProfiles: treeData.length,
+          nodesMapSize: nodesMap.size,
+          profileInTree: profile?.id ? !!nodesMap.get(profile.id) : false,
+        }
+      });
+
+      // Check if user's profile is in tree
+      if (profile?.id) {
+        const treeProfile = nodesMap.get(profile.id);
+        console.log('[TREE DEBUG] User profile in tree:', {
+          found: !!treeProfile,
+          data: treeProfile ? {
+            id: treeProfile.id,
+            name: treeProfile.name,
+            hid: treeProfile.hid,
+            fieldCount: Object.keys(treeProfile).length,
+            hasVersion: !!treeProfile.version
+          } : null
+        });
+      }
+    };
+
+    // Delay to allow tree loading to complete
+    const timer = setTimeout(debugProfileData, 2000);
+    return () => clearTimeout(timer);
+  }, [user, profile]);
+
   const checkLinkStatus = async () => {
     try {
       if (user) {

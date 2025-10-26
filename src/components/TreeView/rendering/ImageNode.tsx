@@ -317,6 +317,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const renderCountRef = React.useRef(0);
     const lastBucketRef = React.useRef<number | null>(null);
     const lastIsUpgradingRef = React.useRef(false);
+    const previousImageRef = React.useRef<any>(null); // Track previous image for morph transitions
 
     // Determine if image should load
     const shouldLoad = shouldLoadImage(tier, url, showPhotos);
@@ -333,7 +334,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Log bucket selection changes - debug only
     React.useEffect(() => {
-      if (__DEV__ && false && bucket !== lastBucketRef.current) { // Disabled to reduce spam
+      if (__DEV__ && bucket !== lastBucketRef.current) { // Enable for debugging bucket selection
         console.log(
           `[ImageNode] ${nodeId}: Bucket changed: ${lastBucketRef.current || 'init'} → ${bucket}px (pixelSize: ${pixelSize.toFixed(0)}, scale: ${scale.toFixed(1)})`
         );
@@ -341,12 +342,15 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       lastBucketRef.current = bucket;
     }, [bucket, nodeId, pixelSize, scale]);
 
-    // Scale prop logging disabled to reduce spam
-    // React.useEffect(() => {
-    //   console.log(
-    //     `[ImageNode] ${nodeId}: Received scale=${scale.toFixed(2)}, bucket=${bucket}px, pixelSize=${pixelSize.toFixed(0)}`
-    //   );
-    // }, [scale, bucket, pixelSize, nodeId]);
+    // Debug bucket math at high zoom levels
+    React.useEffect(() => {
+      if (__DEV__ && scale >= 2.5) {
+        const targetSize = pixelSize * 1.2;
+        console.log(
+          `[ImageNode] ${nodeId}: HIGH ZOOM scale=${scale.toFixed(2)}, width=${width}, pixelSize=${pixelSize.toFixed(0)}, targetSize=${targetSize.toFixed(0)}, bucket=${bucket}px`
+        );
+      }
+    }, [scale, bucket, pixelSize, nodeId, width]);
 
     // Load image with batched loading and upgrade tracking
     const imageResult = shouldLoad ? useBatchedSkiaImage(url, bucket, 'visible') : null;
@@ -357,19 +361,55 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const isUpgrading = imageResult?.isUpgrading || false;
     const currentBucket = imageResult?.currentBucket || null;
 
-    // Log upgrade flag changes - debug only
+    // Track previous image for morph transitions
     React.useEffect(() => {
-      if (__DEV__ && false && isUpgrading !== lastIsUpgradingRef.current) { // Disabled to reduce spam
+      if (isUpgrading && image) {
+        // When upgrade happens, the current image becomes the "high-res" image
+        // We need to get the previous lower-res image from cache
+        const previousBucket = lastBucketRef.current;
+        if (previousBucket && previousBucket < (currentBucket || 0)) {
+          // Try to get the previous bucket's image from cache for crossfade
+          import('../../../services/skiaImageCache').then((module) => {
+            const skiaImageCache = module.default;
+            const previousUrl = skiaImageCache.urlForBucket(url, previousBucket);
+            const previousImage = skiaImageCache.get(previousUrl);
+            if (previousImage) {
+              previousImageRef.current = previousImage;
+              if (__DEV__) {
+                console.log(
+                  `[ImageNode] ${nodeId}: Morph transition ready: ${previousBucket}px → ${currentBucket}px`
+                );
+              }
+            }
+          });
+        }
+      }
+      
+      // Log upgrade flag changes - debug only
+      if (__DEV__ && isUpgrading !== lastIsUpgradingRef.current) {
         console.log(
           `[ImageNode] ${nodeId}: Upgrade flag: ${lastIsUpgradingRef.current} → ${isUpgrading} (currentBucket: ${currentBucket}px)`
         );
       }
       lastIsUpgradingRef.current = isUpgrading;
-    }, [isUpgrading, nodeId, currentBucket]);
+    }, [isUpgrading, nodeId, currentBucket, image, url]);
 
     // Morph animation - only triggers at extreme zoom
     const { lowResOpacity, highResOpacity, highResScale, isAnimating } =
       usePhotoMorphTransition(isUpgrading, scale, true);
+    
+    // Clear previous image after animation completes to prevent memory leaks
+    React.useEffect(() => {
+      if (!isAnimating && previousImageRef.current) {
+        const timer = setTimeout(() => {
+          previousImageRef.current = null;
+          if (__DEV__) {
+            console.log(`[ImageNode] ${nodeId}: Cleared previous image after morph transition`);
+          }
+        }, 100); // Small delay to ensure animation finished
+        return () => clearTimeout(timer);
+      }
+    }, [isAnimating, nodeId]);
 
     // Render count logging disabled to reduce spam
     // React.useEffect(() => {
@@ -397,8 +437,27 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     }
 
     // Show loaded image with optional morph animation
-    // For now: render single image normally (morph requires keeping track of previous bucket's image)
-    // Enhanced version will render dual images during transition
+    // Use morph transition if we have both images and animation is active
+    const previousImage = previousImageRef.current;
+    if (isAnimating && previousImage && image && previousImage !== image) {
+      if (__DEV__) {
+        console.log(`[ImageNode] ${nodeId}: Rendering morph transition (scale: ${scale.toFixed(1)})`);
+      }
+      return renderMorphTransition(
+        previousImage, // Low-res image (fading out)
+        image, // High-res image (fading in) 
+        x,
+        y,
+        width,
+        height,
+        cornerRadius,
+        lowResOpacity,
+        highResOpacity,
+        highResScale
+      );
+    }
+    
+    // Default: render single image
     return renderLoadedImage(image, x, y, width, height, cornerRadius);
   }
 );

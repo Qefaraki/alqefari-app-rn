@@ -107,24 +107,49 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
 
+    console.log('[PROFILE SHEET DEBUG] Resolving person data for:', selectedPersonId, {
+      treeStoreSize: nodesMap.size,
+      hasMunasibProfile: !!munasibProfile,
+      munasibProfileId: munasibProfile?.id
+    });
+
     // 1. Try tree store (Al-Qefari family members with HID)
     const treeNode = nodesMap.get(selectedPersonId);
     if (treeNode) {
+      console.log('[PROFILE SHEET DEBUG] ✅ Found in tree store:', {
+        id: treeNode.id,
+        name: treeNode.name,
+        hid: treeNode.hid,
+        fieldCount: Object.keys(treeNode).length,
+        hasVersion: !!treeNode.version,
+        source: 'treeStore'
+      });
       return treeNode;
+    } else {
+      console.log('[PROFILE SHEET DEBUG] ❌ Not found in tree store');
     }
 
     // 2. Try Munasib state (spouses from outside family, hid=NULL)
     if (munasibProfile?.id === selectedPersonId) {
-      console.log('[ProfileSheetWrapper] Person loaded from Munasib state:', {
+      console.log('[PROFILE SHEET DEBUG] ✅ Found in Munasib state:', {
+        id: munasibProfile.id,
         name: munasibProfile.name,
         isMunasib: true,
+        fieldCount: Object.keys(munasibProfile).length,
+        hasVersion: !!munasibProfile.version,
         source: 'munasibProfile'
       });
       return munasibProfile;
+    } else {
+      console.log('[PROFILE SHEET DEBUG] ❌ Not found in Munasib state');
     }
 
     // 3. Still loading or not found
-    console.log('[ProfileSheetWrapper] Person not loaded yet');
+    console.warn('[PROFILE SHEET DEBUG] ⚠️ Person not found in either source:', {
+      selectedPersonId,
+      treeStoreHasData: nodesMap.size > 0,
+      munasibAvailable: !!munasibProfile
+    });
     return null;
   }, [selectedPersonId, nodesMap, munasibProfile]);
 

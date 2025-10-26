@@ -331,6 +331,35 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const { checkBeforeAction } = useNetworkGuard();
   const { profile: userProfile } = useAuth();
 
+  // Debug: Profile data verification
+  useEffect(() => {
+    console.log('[PROFILE VIEWER DEBUG] Received data:', {
+      person: person ? {
+        id: person.id,
+        name: person.name,
+        hid: person.hid,
+        hasVersion: !!person.version,
+        fieldCount: Object.keys(person).length,
+        fields: Object.keys(person).sort()
+      } : null,
+      userProfile: userProfile ? {
+        id: userProfile.id,
+        name: userProfile.name,
+        hid: userProfile.hid,
+        hasVersion: !!userProfile.version,
+        fieldCount: Object.keys(userProfile).length
+      } : null,
+      isUserViewingOwnProfile: person?.id === userProfile?.id,
+      source: person ? 'person prop provided' : 'person prop missing'
+    });
+
+    if (!person) {
+      console.warn('[PROFILE VIEWER DEBUG] ⚠️ No person data provided to ProfileViewer');
+    } else if (Object.keys(person).length < 10) {
+      console.warn('[PROFILE VIEWER DEBUG] ⚠️ Person data appears incomplete, only has:', Object.keys(person));
+    }
+  }, [person, userProfile]);
+
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);

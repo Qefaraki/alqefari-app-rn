@@ -79,11 +79,29 @@ class AuthStateMachine {
         this.user = session.user;
 
         // Try to get profile
-        const { data: profile } = await supabase
+        console.log('[AUTH DEBUG] Loading profile for user:', session.user.id);
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('user_id', session.user.id)
           .single();
+
+        console.log('[AUTH DEBUG] Profile query result:', { 
+          profile: profile ? {
+            id: profile.id,
+            name: profile.name,
+            hid: profile.hid,
+            user_id: profile.user_id,
+            hasVersion: !!profile.version,
+            fieldCount: Object.keys(profile).length
+          } : null,
+          error: profileError?.message || null,
+          errorCode: profileError?.code || null
+        });
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('[AUTH DEBUG] Profile loading failed:', profileError);
+        }
 
         this.profile = profile;
         this.currentState = AuthStates.AUTHENTICATED;
