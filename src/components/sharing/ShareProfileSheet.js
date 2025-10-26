@@ -26,7 +26,7 @@ import {
   Animated,
   Image,
 } from 'react-native';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ProfileQRCode from './ProfileQRCode';
@@ -101,6 +101,20 @@ export default function ShareProfileSheet({
       onClose();
     }
   }, [onClose]);
+
+  // Render backdrop with dimmed overlay
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        opacity={0.5}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
 
   // Copy link handler
   const handleCopyLink = useCallback(async () => {
@@ -197,6 +211,9 @@ export default function ShareProfileSheet({
       ref={bottomSheetRef}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
+      onDismiss={onClose}
+      backdropComponent={renderBackdrop}
+      animateOnMount
       enablePanDownToClose
       backgroundStyle={styles.sheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
