@@ -1250,8 +1250,8 @@ export default function SettingsPageModern({ user }) {
               rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
             />
           )}
-          {/* QR Code Sharing - Only for linked profiles */}
-          {currentUser && !isGuestMode && userProfile && (
+          {/* QR Code Sharing - Only for linked profiles with HID */}
+          {currentUser && !isGuestMode && userProfile?.hid && (
             <SettingsCell
               label="رمز QR للملف"
               description="شارك ملفك مع العائلة"
@@ -1395,7 +1395,7 @@ export default function SettingsPageModern({ user }) {
       />
 
       {/* Share Profile Sheet */}
-      {showShareSheet && userProfile && (
+      {showShareSheet && userProfile?.hid && (
         <ShareProfileSheet
           visible={showShareSheet}
           onClose={() => setShowShareSheet(false)}
