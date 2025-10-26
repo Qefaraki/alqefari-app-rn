@@ -142,6 +142,25 @@ const tokens = {
       labelFontSize: 12,
       labelFontWeight: '500',
     },
+    // Pattern 5: Contact Actions (call/email quick action cards)
+    contactActions: {
+      cardHeight: 88,
+      cardGap: 12,
+      iconSize: 24,
+      labelFontSize: 13,
+      labelFontWeight: '600',
+      valueFontSize: 15,
+      valueFontWeight: '400',
+    },
+    // Data Fields Categorization specs
+    dataFieldCategories: {
+      headerFontSize: 13,
+      headerFontWeight: '600',
+      headerColor: 'textMuted',  // Reference to colors.najdi.textMuted
+      dividerOpacity: 0.2,
+      categoryGap: 12,  // Space before category header
+      alternateRowOpacity: 0.05,  // Subtle background alternation
+    },
   },
 };
 

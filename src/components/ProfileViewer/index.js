@@ -30,7 +30,6 @@ import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
-import ContactCard from './ViewMode/cards/ContactCard';
 import FamilyList from './ViewMode/cards/FamilyList';
 import TimelineCard from './ViewMode/cards/TimelineCard';
 import PhotosCard from './ViewMode/cards/PhotosCard';
@@ -40,6 +39,7 @@ import {
   DataFieldsSection,
   SocialMediaSection,
   LifeEventsSection,
+  ContactActionsSection,
 } from './ViewMode/sections';
 import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
 import FamilyCardSkeleton from '../ui/skeletons/FamilyCardSkeleton';
@@ -149,7 +149,7 @@ const ViewModeContent = React.memo(({
       <>
         <TimelineCard timeline={person?.timeline} />
         <ProfessionalCard person={person} />
-        <ContactCard person={person} />
+        <ContactActionsSection phone={person?.phone} email={person?.email} />
       </>
     )}
 
