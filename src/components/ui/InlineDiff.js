@@ -34,6 +34,64 @@ const isPhotoURL = (value) => {
 };
 
 /**
+ * Helper: Detect relationship operations and return human-readable message
+ * Returns null if not a relationship operation (use default formatting)
+ */
+const getRelationshipMessage = (field, oldValue, newValue) => {
+  // Marriage deletion (soft delete)
+  if (field === 'deleted_at' && !oldValue && newValue) {
+    return { old: 'نشط', new: 'تم حذف الزوجة' };
+  }
+
+  // Marriage restoration
+  if (field === 'deleted_at' && oldValue && !newValue) {
+    return { old: 'محذوف', new: 'تم استرجاع الزوجة' };
+  }
+
+  // Mother addition
+  if (field === 'mother_id' && !oldValue && newValue) {
+    return { old: '—', new: 'تمت إضافة الأم' };
+  }
+
+  // Mother deletion
+  if (field === 'mother_id' && oldValue && !newValue) {
+    return { old: 'كانت موجودة', new: 'تم حذف الأم' };
+  }
+
+  // Mother update/change
+  if (field === 'mother_id' && oldValue && newValue) {
+    return { old: 'أم سابقة', new: 'تم تغيير الأم' };
+  }
+
+  // Father addition
+  if (field === 'father_id' && !oldValue && newValue) {
+    return { old: '—', new: 'تمت إضافة الأب' };
+  }
+
+  // Father deletion
+  if (field === 'father_id' && oldValue && !newValue) {
+    return { old: 'كان موجود', new: 'تم حذف الأب' };
+  }
+
+  // Father update/change
+  if (field === 'father_id' && oldValue && newValue) {
+    return { old: 'أب سابق', new: 'تم تغيير الأب' };
+  }
+
+  // Spouse addition
+  if (field === 'spouse_id' && !oldValue && newValue) {
+    return { old: '—', new: 'تمت إضافة الزوج/الزوجة' };
+  }
+
+  // Spouse deletion
+  if (field === 'spouse_id' && oldValue && !newValue) {
+    return { old: 'كان موجود', new: 'تم حذف الزوج/الزوجة' };
+  }
+
+  return null; // Not a relationship operation, use default formatting
+};
+
+/**
  * PhotoDiff Sub-Component
  * Renders photo changes with thumbnails or full-size images
  */
@@ -308,9 +366,16 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
     }
   };
 
+  // Check for relationship operations first (marriage, parent changes)
+  const relationshipMsg = getRelationshipMessage(field, oldValue, newValue);
+
   // Format values for display
   let oldStr, newStr;
-  if (field === 'created_at' || field === 'updated_at') {
+  if (relationshipMsg) {
+    // Use human-readable relationship message
+    oldStr = relationshipMsg.old;
+    newStr = relationshipMsg.new;
+  } else if (field === 'created_at' || field === 'updated_at') {
     oldStr = formatTimestamp(oldValue);
     newStr = formatTimestamp(newValue);
   } else {

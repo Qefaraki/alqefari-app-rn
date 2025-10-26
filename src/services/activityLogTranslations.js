@@ -54,6 +54,12 @@ export const FIELD_LABELS = {
   // Metadata
   created_at: 'تاريخ الإنشاء',
   updated_at: 'آخر تحديث',
+  deleted_at: 'حالة الحذف',
+
+  // Relationships
+  marriage: 'الزواج',
+  spouse: 'الزوج/الزوجة',
+  spouse_id: 'معرف الزوج/الزوجة',
 
   // Additional fields from recent migrations
   dob_data: 'بيانات الميلاد',
@@ -241,6 +247,30 @@ export const VALUE_FORMATTERS = {
 
   // NOTE: created_at and updated_at are now formatted in InlineDiff component
   // using formatDateByPreference() to respect user's calendar/format settings
+
+  // Relationship fields - Handle UUIDs and deleted_at
+  deleted_at: (value) => {
+    if (!value || value === null) return 'نشط'; // null = not deleted
+    return 'محذوف'; // timestamp = deleted
+  },
+
+  father_id: (value) => {
+    if (!value || value === null) return '—';
+    // Don't show raw UUID, show update indicator
+    return 'تم التحديث';
+  },
+
+  mother_id: (value) => {
+    if (!value || value === null) return '—';
+    // Don't show raw UUID, show update indicator
+    return 'تم التحديث';
+  },
+
+  spouse_id: (value) => {
+    if (!value || value === null) return '—';
+    // Don't show raw UUID, show update indicator
+    return 'تم التحديث';
+  },
 };
 
 // Format a field value for display
