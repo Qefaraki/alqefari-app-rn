@@ -286,7 +286,7 @@ describe('SelectionHandler', () => {
     });
 
     test('should detect tap on photo node at center', () => {
-      // Photo node at (200, 300), size 38x75 (card bounds; photo extends 6px beyond)
+      // Photo node at (200, 300), size 50x75 (card bounds; photo fills card)
       // Transform identity, so screen = canvas
       const tapEvent = { x: 200, y: 300 };
 
@@ -296,8 +296,8 @@ describe('SelectionHandler', () => {
     });
 
     test('should detect tap at edge of photo node', () => {
-      // Photo node bounds: 200 ± 19 (width 38), 300 ± 37.5 (height 75)
-      const tapEvent = { x: 219, y: 337 }; // Just inside bottom-right edge
+      // Photo node bounds: 200 ± 25 (width 50), 300 ± 37.5 (height 75)
+      const tapEvent = { x: 225, y: 337 }; // Just inside bottom-right edge
 
       const result = detectNodeTap(tapEvent, mockState);
 
@@ -305,7 +305,7 @@ describe('SelectionHandler', () => {
     });
 
     test('should not detect tap outside photo node', () => {
-      const tapEvent = { x: 220, y: 300 }; // Just outside right edge (boundary at 219)
+      const tapEvent = { x: 226, y: 300 }; // Just outside right edge (boundary at 225)
 
       const result = detectNodeTap(tapEvent, mockState);
 
@@ -313,7 +313,7 @@ describe('SelectionHandler', () => {
     });
 
     test('should detect tap on text-only node', () => {
-      // Text-only node at (400, 300), size 38x35 (card width)
+      // Text-only node at (400, 300), size 50x35 (card width)
       const tapEvent = { x: 400, y: 300 };
 
       const result = detectNodeTap(tapEvent, mockState);
@@ -322,7 +322,7 @@ describe('SelectionHandler', () => {
     });
 
     test('should handle smaller height of text-only node', () => {
-      // Text-only node bounds: 400 ± 19x, 300 ± 17.5y
+      // Text-only node bounds: 400 ± 25x, 300 ± 17.5y
       const tapEvent = { x: 400, y: 318 }; // Just outside bottom edge
 
       const result = detectNodeTap(tapEvent, mockState);
