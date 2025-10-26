@@ -103,6 +103,15 @@ export const handleSupabaseError = (error) => {
     };
   }
 
+  // Gallery photo limit error
+  if (errorMessage.includes('GALLERY_LIMIT_REACHED')) {
+    return {
+      type: 'validation',
+      message: 'لا يمكن إضافة أكثر من ٦ صور للمعرض',
+      originalError: error,
+    };
+  }
+
   // Permission errors
   if (errorCode === 'PGRST204' || errorMessage.includes('permission')) {
     return {
