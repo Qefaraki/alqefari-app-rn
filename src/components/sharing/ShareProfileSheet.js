@@ -16,7 +16,7 @@
  * />
  */
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,8 +25,9 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
 } from 'react-native';
-import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ProfileQRCode from './ProfileQRCode';
@@ -59,69 +60,9 @@ export default function ShareProfileSheet({
   mode = 'share', // 'share' | 'invite'
   inviterProfile,
 }) {
-  console.log('[DEBUG ShareSheet] ===== COMPONENT FUNCTION CALLED =====', {
-    visible,
-    profileExists: !!profile,
-    profileHid: profile?.hid,
-    mode,
-  });
-
-  const bottomSheetRef = useRef(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;
-
-  // Snap points: compact (42%) and expanded (85%) for accessibility
-  const snapPoints = useMemo(() => ['42%', '85%'], []);
-
-  // Debug: Log when component mounts/updates
-  useEffect(() => {
-    console.log('[DEBUG ShareSheet] Mounted/Updated with:', {
-      visible,
-      profileHid: profile?.hid,
-      profileUserId: profile?.user_id,
-      hasBottomSheetRef: !!bottomSheetRef.current,
-    });
-  }, [visible, profile?.hid, profile?.user_id]);
-
-  // Control sheet visibility based on visible prop
-  useEffect(() => {
-    console.log('[DEBUG ShareSheet] Visibility useEffect triggered:', {
-      visible,
-      refExists: !!bottomSheetRef.current,
-    });
-
-    if (visible) {
-      // Open modal when visible becomes true
-      console.log('[DEBUG ShareSheet] Attempting to present() modal');
-      bottomSheetRef.current?.present();
-    } else {
-      // Close modal when visible becomes false
-      console.log('[DEBUG ShareSheet] Attempting to dismiss() modal');
-      bottomSheetRef.current?.dismiss();
-    }
-  }, [visible]);
-
-  // Handle sheet changes
-  const handleSheetChanges = useCallback((index) => {
-    if (index === -1) {
-      onClose();
-    }
-  }, [onClose]);
-
-  // Render backdrop with dimmed overlay
-  const renderBackdrop = useCallback(
-    (props) => (
-      <BottomSheetBackdrop
-        {...props}
-        opacity={0.5}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
 
   // Copy link handler
   const handleCopyLink = useCallback(async () => {
@@ -210,24 +151,29 @@ export default function ShareProfileSheet({
     return mode === 'invite' ? 'إرسال دعوة' : 'مشاركة عبر واتساب';
   }, [mode]);
 
-  // BottomSheetModal handles its own visibility - no early return needed
-  console.log('[DEBUG ShareSheet] Rendering BottomSheetModal component');
-
   return (
-    <BottomSheetModal
-      ref={bottomSheetRef}
-      snapPoints={snapPoints}
-      onChange={handleSheetChanges}
-      onDismiss={onClose}
-      backdropComponent={renderBackdrop}
-      animateOnMount
-      enablePanDownToClose
-      backgroundStyle={styles.sheetBackground}
-      handleIndicatorStyle={styles.handleIndicator}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+      transparent={false}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.modalContainer}>
+        {/* Close Button */}
+        <View style={styles.closeButtonContainer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={28} color={COLORS.saduNight} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.container}>
         {/* Profile Header */}
-        <View style={styles.header}>
+        <View style={styles.profileHeader}>
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
             {profile?.photo_url ? (
@@ -329,37 +275,33 @@ export default function ShareProfileSheet({
           <Text style={styles.toastText}>تم النسخ ✓</Text>
         </Animated.View>
       </View>
-    </BottomSheetModal>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  sheetBackground: {
+  modalContainer: {
+    flex: 1,
     backgroundColor: COLORS.alJassWhite,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
   },
-  handleIndicator: {
-    backgroundColor: COLORS.camelHairBeige,
-    width: 48,
-    height: 5,
-    borderRadius: 999,
-    opacity: 0.4,
+  closeButtonContainer: {
+    paddingTop: SPACING.sm,
+  },
+  closeButton: {
+    alignSelf: 'flex-end',
+    padding: SPACING.md,
+    marginEnd: SPACING.lg,
   },
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xxxl,
   },
 
-  // Header Section
-  header: {
+  // Profile Header Section
+  profileHeader: {
     alignItems: 'center',
     marginBottom: SPACING.xxl,
   },
