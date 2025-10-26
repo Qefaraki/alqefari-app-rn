@@ -384,7 +384,7 @@ export default function SettingsPageModern({ user }) {
       // Cache miss - fetch from database
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, father_id, user_id, photo_url, professional_title, title_abbreviation")
+        .select("id, name, father_id, user_id, hid, photo_url, professional_title, title_abbreviation")
         .eq('user_id', user.id)
         .single();
 
