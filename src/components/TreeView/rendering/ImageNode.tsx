@@ -34,7 +34,7 @@
 
 import React from 'react';
 import { PixelRatio } from 'react-native';
-import { Group, Circle, RoundedRect, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
+import { Group, RoundedRect, rrect, rect, Image as SkiaImage } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
 
@@ -176,19 +176,19 @@ export function renderImageSkeleton(
 }
 
 /**
- * Render loaded image with rounded square mask
+ * Render loaded image with rounded square clipping
  *
  * Displays image clipped to rounded square shape.
- * Uses alpha mask for clean edge rendering.
+ * Uses Group.clip for clean edge rendering.
  *
  * @param image - Loaded Skia image
  * @param x - Top-left X position
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param cornerRadius - Corner radius for rounded square mask
+ * @param cornerRadius - Corner radius for rounded square clipping
  * @param opacity - Optional opacity shared value for animations
- * @returns Group with masked image
+ * @returns Group with clipped image
  */
 export function renderLoadedImage(
   image: any,
@@ -199,21 +199,17 @@ export function renderLoadedImage(
   cornerRadius: number,
   opacity?: any
 ): JSX.Element {
+  const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
   return (
-    <Group opacity={opacity}>
-      <Mask
-        mode="alpha"
-        mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
-      >
-        <SkiaImage
-          image={image}
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fit="cover"
-        />
-      </Mask>
+    <Group clip={clipPath} opacity={opacity}>
+      <SkiaImage
+        image={image}
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fit="cover"
+      />
     </Group>
   );
 }
@@ -230,7 +226,7 @@ export function renderLoadedImage(
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param cornerRadius - Corner radius for rounded square mask
+ * @param cornerRadius - Corner radius for rounded square clipping
  * @param lowResOpacity - Animated opacity for low-res (1 → 0)
  * @param highResOpacity - Animated opacity for high-res (0 → 1)
  * @param highResScale - Animated scale for high-res (0.98 → 1.0)
@@ -250,48 +246,40 @@ export function renderMorphTransition(
 ): JSX.Element {
   const centerX = x + width / 2;
   const centerY = y + height / 2;
+  const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
 
   return (
     <Group>
       {/* Low-res image fading out */}
-      <Group opacity={lowResOpacity}>
-        <Mask
-          mode="alpha"
-          mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
-        >
-          <SkiaImage
-            image={lowResImage}
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            fit="cover"
-          />
-        </Mask>
+      <Group clip={clipPath} opacity={lowResOpacity}>
+        <SkiaImage
+          image={lowResImage}
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fit="cover"
+        />
       </Group>
 
       {/* High-res image fading in with scale pop */}
       <Group opacity={highResOpacity}>
         <Group
+          clip={clipPath}
           origin={{
             x: centerX,
             y: centerY,
           }}
           transform={[{ scaleX: highResScale }, { scaleY: highResScale }]}
         >
-          <Mask
-            mode="alpha"
-            mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
-          >
-            <SkiaImage
-              image={highResImage}
-              x={x}
-              y={y}
-              width={width}
-              height={height}
-              fit="cover"
-            />
-          </Mask>
+          <SkiaImage
+            image={highResImage}
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fit="cover"
+          />
         </Group>
       </Group>
     </Group>
