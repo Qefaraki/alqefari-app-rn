@@ -296,6 +296,20 @@ const EnhancedHero = ({
 
       {/* Action Buttons - Top Right (Absolute) */}
       <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onMenuPress}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="المزيد من الخيارات"
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={heroTokens.actionButtonSize}
+            color={colors.najdi.text}
+          />
+        </TouchableOpacity>
         {canEdit && (
           <TouchableOpacity
             style={styles.actionButton}
@@ -312,20 +326,6 @@ const EnhancedHero = ({
             />
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onMenuPress}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="المزيد من الخيارات"
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={heroTokens.actionButtonSize}
-            color={colors.najdi.text}
-          />
-        </TouchableOpacity>
       </View>
 
       {/* Avatar - Centered */}
