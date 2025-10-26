@@ -4,6 +4,7 @@ import {
   TextInput,
   Text,
   Pressable,
+  TouchableOpacity,
   Keyboard,
   Animated,
   Platform,
@@ -49,8 +50,20 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       return { rootNode: null, g2Branches: [], hasData: false };
     }
 
+    console.log('🔍 SearchBar: Processing', nodes.length, 'nodes for navigation');
+
     // Find root node (generation 1, no father_id)
     const rootNode = nodes.find(n => !n.father_id && n.generation === 1);
+    console.log('🌳 Root node found:', rootNode ? rootNode.name : 'NONE FOUND');
+    
+    if (rootNode) {
+      console.log('🌳 Root node details:', {
+        id: rootNode.id,
+        name: rootNode.name,
+        generation: rootNode.generation,
+        father_id: rootNode.father_id
+      });
+    }
 
     // Find main G2 branches (generation 2 with children, sorted by sibling order)
     const g2Branches = nodes
@@ -61,6 +74,8 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         name: extractFirstName(node.name),
         fullName: node.name
       }));
+
+    console.log('👥 G2 branches found:', g2Branches.length, g2Branches.map(b => b.name));
 
     const hasData = rootNode || g2Branches.length > 0;
     return { rootNode, g2Branches, hasData };
@@ -600,56 +615,56 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
                 </Animated.View>
               )}
             </Pressable>
+
+            {/* Navigation Pills - INSIDE opacity wrapper for synchronization */}
+            {navigationData.hasData && (
+              <View style={styles.pillsContainer}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pillsContent}
+                  style={styles.pillsScrollView}
+                >
+                  {/* Root Node Pill */}
+                  {navigationData.rootNode && (
+                    <TouchableOpacity
+                      style={[styles.pill, styles.rootPill]}
+                      onPress={() => handlePillPress(navigationData.rootNode.id, getRootDisplayName(navigationData.rootNode))}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
+                    >
+                      <Text style={[styles.pillText, styles.rootPillText]} numberOfLines={1}>
+                        {getRootDisplayName(navigationData.rootNode)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Divider */}
+                  {navigationData.rootNode && navigationData.g2Branches.length > 0 && (
+                    <View style={styles.pillDivider} />
+                  )}
+
+                  {/* G2 Branch Pills */}
+                  {navigationData.g2Branches.map((branch) => (
+                    <TouchableOpacity
+                      key={branch.id}
+                      style={[styles.pill, styles.branchPill]}
+                      onPress={() => handlePillPress(branch.id, branch.name)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
+                    >
+                      <Text style={[styles.pillText, styles.branchPillText]} numberOfLines={1}>
+                        {branch.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
           </Animated.View>
-
-          {/* Navigation Pills - Same opacity as SearchBar */}
-          {navigationData.hasData && (
-            <View style={styles.pillsContainer}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.pillsContent}
-                style={styles.pillsScrollView}
-              >
-                {/* Root Node Pill */}
-                {navigationData.rootNode && (
-                  <TouchableOpacity
-                    style={[styles.pill, styles.rootPill]}
-                    onPress={() => handlePillPress(navigationData.rootNode.id, getRootDisplayName(navigationData.rootNode))}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
-                  >
-                    <Text style={[styles.pillText, styles.rootPillText]} numberOfLines={1}>
-                      {getRootDisplayName(navigationData.rootNode)}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Divider */}
-                {navigationData.rootNode && navigationData.g2Branches.length > 0 && (
-                  <View style={styles.pillDivider} />
-                )}
-
-                {/* G2 Branch Pills */}
-                {navigationData.g2Branches.map((branch) => (
-                  <TouchableOpacity
-                    key={branch.id}
-                    style={[styles.pill, styles.branchPill]}
-                    onPress={() => handlePillPress(branch.id, branch.name)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
-                  >
-                    <Text style={[styles.pillText, styles.branchPillText]} numberOfLines={1}>
-                      {branch.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
         </Animated.View>
 
         {showResults && results.length > 0 && (
@@ -691,11 +706,18 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
 
 // Helper function to get root node display name
 const getRootDisplayName = (rootNode) => {
-  if (!rootNode || !rootNode.name) return 'الجذر';
+  console.log('🏷️  getRootDisplayName called with:', rootNode);
+  
+  if (!rootNode || !rootNode.name) {
+    console.log('🏷️  No root node or name, returning fallback');
+    return 'الجذر';
+  }
   
   // For root node, show the full name including parentheses
   // Example: "سليمان (ابو القفارات)" -> "سليمان (ابو القفارات)"
-  return rootNode.name.trim();
+  const displayName = rootNode.name.trim();
+  console.log('🏷️  Root display name:', displayName);
+  return displayName;
 };
 
 // Helper function to extract first name from full Arabic name

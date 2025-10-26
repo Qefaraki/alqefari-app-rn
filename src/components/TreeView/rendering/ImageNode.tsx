@@ -334,7 +334,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Log bucket selection changes - debug only
     React.useEffect(() => {
-      if (__DEV__ && bucket !== lastBucketRef.current) { // Enable for debugging bucket selection
+      if (__DEV__ && false && bucket !== lastBucketRef.current) { // Disabled to reduce spam
         console.log(
           `[ImageNode] ${nodeId}: Bucket changed: ${lastBucketRef.current || 'init'} → ${bucket}px (pixelSize: ${pixelSize.toFixed(0)}, scale: ${scale.toFixed(1)})`
         );
@@ -342,9 +342,9 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       lastBucketRef.current = bucket;
     }, [bucket, nodeId, pixelSize, scale]);
 
-    // Debug bucket math at high zoom levels
+    // Debug bucket math at high zoom levels (disabled to reduce spam)
     React.useEffect(() => {
-      if (__DEV__ && scale >= 2.5) {
+      if (__DEV__ && false && scale >= 2.5) {
         const targetSize = pixelSize * 1.2;
         console.log(
           `[ImageNode] ${nodeId}: HIGH ZOOM scale=${scale.toFixed(2)}, width=${width}, pixelSize=${pixelSize.toFixed(0)}, targetSize=${targetSize.toFixed(0)}, bucket=${bucket}px`
@@ -377,7 +377,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
               previousImageRef.current = previousImage;
               if (__DEV__) {
                 console.log(
-                  `[ImageNode] ${nodeId}: Morph transition ready: ${previousBucket}px → ${currentBucket}px`
+                  `[PhotoMorph] ${nodeId}: Transition ready: ${previousBucket}px → ${currentBucket}px`
                 );
               }
             }
@@ -385,8 +385,8 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         }
       }
       
-      // Log upgrade flag changes - debug only
-      if (__DEV__ && isUpgrading !== lastIsUpgradingRef.current) {
+      // Log upgrade flag changes - debug only (disabled to reduce spam)
+      if (__DEV__ && false && isUpgrading !== lastIsUpgradingRef.current) {
         console.log(
           `[ImageNode] ${nodeId}: Upgrade flag: ${lastIsUpgradingRef.current} → ${isUpgrading} (currentBucket: ${currentBucket}px)`
         );
@@ -404,7 +404,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         const timer = setTimeout(() => {
           previousImageRef.current = null;
           if (__DEV__) {
-            console.log(`[ImageNode] ${nodeId}: Cleared previous image after morph transition`);
+            console.log(`[PhotoMorph] ${nodeId}: Cleared previous image after transition`);
           }
         }, 100); // Small delay to ensure animation finished
         return () => clearTimeout(timer);
@@ -441,7 +441,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const previousImage = previousImageRef.current;
     if (isAnimating && previousImage && image && previousImage !== image) {
       if (__DEV__) {
-        console.log(`[ImageNode] ${nodeId}: Rendering morph transition (scale: ${scale.toFixed(1)})`);
+        console.log(`[PhotoMorph] ${nodeId}: 🎬 ANIMATING morph transition (scale: ${scale.toFixed(1)})`);
       }
       return renderMorphTransition(
         previousImage, // Low-res image (fading out)

@@ -19,6 +19,7 @@
   - Phase 3B: Progressive Loading (0.45 MB structure + viewport enrichment)
     - **[Test Plan](docs/PROGRESSIVE_LOADING_TEST_PLAN.md)** - 50+ test cases
     - **[Integration Checklist](docs/PROGRESSIVE_LOADING_INTEGRATION_CHECKLIST.md)** - Verification & deployment
+    - **[Pitfalls & Solutions](docs/PROGRESSIVE_LOADING_PITFALLS.md)** - Self-view data completeness issue & prevention
   - Architecture, testing, audits, and daily logs
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED

@@ -532,8 +532,8 @@ const TreeView = ({
     const current = nodeBuckets.get(nodeId) || 80; // Start with lower default to allow upgrades
     const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 512;
 
-    // Debug high-pixel scenarios
-    if (__DEV__ && pixelSize >= 200) {
+    // Debug high-pixel scenarios (disabled to reduce spam)
+    if (__DEV__ && false && pixelSize >= 200) {
       console.log(
         `[BucketHysteresis] ${nodeId}: pixelSize=${pixelSize.toFixed(0)}, current=${current}px, target=${target}px`
       );
@@ -541,7 +541,7 @@ const TreeView = ({
 
     // Apply hysteresis
     if (target > current && pixelSize < current * (1 + BUCKET_HYSTERESIS)) {
-      if (__DEV__ && pixelSize >= 200) {
+      if (__DEV__ && false && pixelSize >= 200) {
         console.log(
           `[BucketHysteresis] ${nodeId}: BLOCKED upgrade by hysteresis: ${pixelSize.toFixed(0)} < ${(current * (1 + BUCKET_HYSTERESIS)).toFixed(0)}`
         );
@@ -549,7 +549,7 @@ const TreeView = ({
       return current; // Stay at current
     }
     if (target < current && pixelSize > current * (1 - BUCKET_HYSTERESIS)) {
-      if (__DEV__ && pixelSize >= 200) {
+      if (__DEV__ && false && pixelSize >= 200) {
         console.log(
           `[BucketHysteresis] ${nodeId}: BLOCKED downgrade by hysteresis: ${pixelSize.toFixed(0)} > ${(current * (1 - BUCKET_HYSTERESIS)).toFixed(0)}`
         );
@@ -559,7 +559,7 @@ const TreeView = ({
 
     // Debounce upgrades
     if (target > current) {
-      if (__DEV__ && pixelSize >= 200) {
+      if (__DEV__ && false && pixelSize >= 200) {
         console.log(
           `[BucketHysteresis] ${nodeId}: DEBOUNCING upgrade ${current}px → ${target}px (150ms delay)`
         );
@@ -568,7 +568,7 @@ const TreeView = ({
       bucketTimers.set(
         nodeId,
         setTimeout(() => {
-          if (__DEV__ && pixelSize >= 200) {
+          if (__DEV__ && false && pixelSize >= 200) {
             console.log(
               `[BucketHysteresis] ${nodeId}: APPLIED delayed upgrade ${current}px → ${target}px`
             );
@@ -583,6 +583,54 @@ const TreeView = ({
     nodeBuckets.set(nodeId, target);
     return target;
   }, []);
+
+  // Distance-based bucket selection with viewport center priority
+  const selectBucketWithDistance = useCallback((nodeId, pixelSize, nodeX, nodeY) => {
+    const nodeBuckets = nodeBucketsRef.current;
+    const bucketTimers = bucketTimersRef.current;
+
+    // Calculate distance from viewport center
+    const dx = nodeX - viewportCenter.x;
+    const dy = nodeY - viewportCenter.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Define quality zones based on distance from center
+    const screenDiagonal = Math.sqrt(dimensions.width * dimensions.width + dimensions.height * dimensions.height);
+    const maxDistance = screenDiagonal / currentTransform.scale;
+    const normalizedDistance = Math.min(distance / maxDistance, 1.0);
+
+    // Quality multiplier based on distance (center = 1.5x, edge = 1.0x)
+    const qualityMultiplier = 1.5 - normalizedDistance * 0.5;
+    const adjustedPixelSize = pixelSize * qualityMultiplier;
+
+    // Use original hysteresis logic with adjusted pixel size
+    const current = nodeBuckets.get(nodeId) || 80;
+    const target = IMAGE_BUCKETS.find((b) => b >= adjustedPixelSize) || 1024;
+
+    // Apply hysteresis (same logic as original function)
+    if (target > current && adjustedPixelSize < current * (1 + BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+    if (target < current && adjustedPixelSize > current * (1 - BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+
+    // Debounce upgrades
+    if (target > current) {
+      clearTimeout(bucketTimers.get(nodeId));
+      bucketTimers.set(
+        nodeId,
+        setTimeout(() => {
+          nodeBuckets.set(nodeId, target);
+        }, BUCKET_DEBOUNCE_MS),
+      );
+      return current;
+    }
+
+    // Immediate downgrade
+    nodeBuckets.set(nodeId, target);
+    return target;
+  }, [viewportCenter.x, viewportCenter.y, dimensions.width, dimensions.height, currentTransform.scale]);
 
   // Phase 2: Use extracted calculateLODTier function (wrapping for local tierState access)
   const calculateLODTierLocal = useCallback((scale) => {
@@ -923,6 +971,14 @@ const TreeView = ({
       maxX: (-currentTransform.x + dimensions.width + dynamicMarginX) / currentTransform.scale,
       minY: (-currentTransform.y - dynamicMarginY) / currentTransform.scale,
       maxY: (-currentTransform.y + dimensions.height + dynamicMarginY) / currentTransform.scale,
+    };
+  }, [currentTransform.x, currentTransform.y, currentTransform.scale, dimensions.width, dimensions.height]);
+
+  // Calculate viewport center in canvas coordinates for distance-based quality
+  const viewportCenter = useMemo(() => {
+    return {
+      x: (-currentTransform.x + dimensions.width / 2) / currentTransform.scale,
+      y: (-currentTransform.y + dimensions.height / 2) / currentTransform.scale,
     };
   }, [currentTransform.x, currentTransform.y, currentTransform.scale, dimensions.width, dimensions.height]);
 
@@ -2313,18 +2369,6 @@ const TreeView = ({
   // Updated by syncTransform callback after gestures end
   // Note: currentTransform and visibleBounds now declared at top of component
   const [tier, setTier] = useState(1);
-  
-  // Track live scale for image bucket selection (fixes scale propagation issue)
-  const [liveScale, setLiveScale] = useState(stage.scale);
-  
-  // Update liveScale when shared scale changes (for bucket selection during gestures)
-  useAnimatedReaction(
-    () => scale.value,
-    (current) => {
-      'worklet';
-      runOnJS(setLiveScale)(current);
-    },
-  );
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
@@ -2361,7 +2405,7 @@ const TreeView = ({
       const modifiedNode = {
         ...node,
         _tier: 1, // Always T1 (full cards)
-        _scale: liveScale, // Use live scale for bucket selection during gestures
+        _scale: currentTransform.scale,
         _showPhoto: showPhotos, // Use user-controlled photo visibility prop
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
@@ -2371,7 +2415,7 @@ const TreeView = ({
     [
       tier,
       showPhotos, // Changed from currentTransform.scale
-      liveScale, // Live scale for bucket selection
+      currentTransform.scale,
       renderNode,
       renderTier2Node,
       selectBucketWithHysteresis,
