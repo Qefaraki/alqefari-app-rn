@@ -1870,9 +1870,12 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       return;
     }
 
-    console.log('[ActivityLogDashboard] Opening activity details:', {
+    // Identify source: batch operation vs individual activity
+    const source = activity.operation_group_id ? 'batch-operation' : 'individual';
+    console.log(`[ActivityLogDashboard] Opening ${source} details:`, {
       id: activity.id,
       action_type: activity.action_type,
+      operation_group_id: activity.operation_group_id || 'N/A',
     });
 
     // Haptic feedback
