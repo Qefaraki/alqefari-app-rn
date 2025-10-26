@@ -456,6 +456,19 @@ const TreeView = ({
     },
   );
 
+  // CRITICAL FIX: Sync scale value to React state DURING gestures
+  // This ensures nodes get updated scale values while pinch-zooming
+  // Without this, nodes would only get scale updates AFTER pinch ends
+  useAnimatedReaction(
+    () => scale.value,
+    (currentScale) => {
+      runOnJS(setCurrentTransform)((prev) => ({
+        ...prev,
+        scale: currentScale,
+      }));
+    },
+  );
+
   // LOD tier state with hysteresis (Phase 2: Using extracted createTierState)
   const tierState = useRef(createTierState(1.0));
 
