@@ -213,6 +213,8 @@ export function createPinchGesture(
     })
     .onEnd(() => {
       'worklet';
+      console.log(`[GestureHandler] Pinch onEnd: scale=${scale.value.toFixed(2)}`);
+
       // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
@@ -221,6 +223,7 @@ export function createPinchGesture(
 
       // Sync React state after pinch completes
       if (callbacks.onGestureEnd) {
+        console.log('[GestureHandler] Calling onGestureEnd callback');
         runOnJS(callbacks.onGestureEnd)();
       }
     });

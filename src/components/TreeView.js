@@ -912,6 +912,11 @@ const TreeView = ({
       scale: scale.value,
     };
 
+    console.log(
+      `[TreeView] syncTransform: scale=${current.scale.toFixed(2)}, ` +
+        `x=${current.x.toFixed(0)}, y=${current.y.toFixed(0)}`
+    );
+
     setCurrentTransform(current);
     setCurrentScale(current.scale);
 

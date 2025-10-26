@@ -346,6 +346,13 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       }
     }, [bucket, nodeId, pixelSize, scale]);
 
+    // Log scale prop changes (diagnostic for scale sync issue)
+    React.useEffect(() => {
+      console.log(
+        `[ImageNode] ${nodeId}: Received scale=${scale.toFixed(2)}, bucket=${bucket}px, pixelSize=${pixelSize.toFixed(0)}`
+      );
+    }, [scale, bucket, pixelSize, nodeId]);
+
     // Load image with batched loading and upgrade tracking
     const imageResult = shouldLoad ? useBatchedSkiaImage(url, bucket, 'visible') : null;
 
