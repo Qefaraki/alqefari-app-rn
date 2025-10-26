@@ -34,15 +34,9 @@ export function useProgressiveTreeView(stage = null, dimensions = null) {
       return { nodes: [], connections: [] };
     }
 
-    console.log(`📐 [Phase 2] Calculating layout for ${structure.length} nodes...`);
-    const startTime = performance.now();
-
     // Calculate layout with showPhotos=false (text-only heights)
     // This ensures layout is stable even when photos load later
     const layout = calculateTreeLayout(structure, false);
-
-    const duration = performance.now() - startTime;
-    console.log(`✅ [Phase 2] Layout calculated in ${duration.toFixed(0)}ms`);
 
     return layout;
   }, [structure]);

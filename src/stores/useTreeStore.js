@@ -72,7 +72,7 @@ export const useTreeStore = create((set, get) => ({
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
 
   setTreeData: (data) => {
-    // Phase 3B: Validate cache quality - check if data is valid and ready for display
+    // Validate cache quality - check if data is valid and ready for display
     // Criteria: At least 50 nodes + first 5 nodes have required fields
     const isValidCache = data &&
       data.length >= 50 &&
@@ -81,23 +81,6 @@ export const useTreeStore = create((set, get) => ({
         n.generation !== undefined &&
         n.father_id !== undefined
       );
-
-    // DEBUG: Log first 3 nodes to verify all fields including version
-    if (data && data.length > 0) {
-      console.log('📦 [useTreeStore] setTreeData called with', data.length, `nodes, schema v${  TREE_DATA_SCHEMA_VERSION}`);
-      console.log('📦 Cache quality:', isValidCache ? '✅ Valid' : '❌ Invalid');
-      console.log('📦 First node keys:', Object.keys(data[0]).sort());
-      console.log('📦 Sample nodes (first 3):');
-      data.slice(0, 3).forEach((node, i) => {
-        console.log(`  [${i}] ${node.name}:`, {
-          id: node.id,
-          hasVersion: 'version' in node,
-          version: node.version,
-          hasKunya: !!node.kunya,
-          kunya: node.kunya || 'null'
-        });
-      });
-    }
 
     return set({
       treeData: data || [],
@@ -123,14 +106,6 @@ export const useTreeStore = create((set, get) => ({
     set((state) => {
       const existingNode = state.nodesMap.get(nodeId);
 
-      // DEBUG: Log version changes
-      console.log("🔄 [useTreeStore] Updating node:", {
-        name: updatedData.name || existingNode?.name,
-        oldVersion: existingNode?.version,
-        newVersion: updatedData.version,
-        versionIncremented: updatedData.version > (existingNode?.version || 0)
-      });
-
       // Create new array with the updated node
       const newTreeData = state.treeData.map((node) =>
         node.id === nodeId ? { ...node, ...updatedData } : node,
@@ -141,9 +116,6 @@ export const useTreeStore = create((set, get) => ({
       if (existingNode) {
         const mergedNode = { ...existingNode, ...updatedData };
         newNodesMap.set(nodeId, mergedNode);
-
-        // DEBUG: Confirm version in Map
-        console.log("✅ [useTreeStore] Node updated in Map with version:", mergedNode.version);
       }
 
       return {

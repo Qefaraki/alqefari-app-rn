@@ -38,7 +38,6 @@ export function useStructureLoader() {
 
           // Use cache if it has >= 50 profiles (indicates valid, populated structure)
           if (cachedStructure && cachedStructure.length >= 50) {
-            console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
             setStructure(cachedStructure);
             useTreeStore.getState().setTreeData(cachedStructure);
             setIsLoading(false);
@@ -47,49 +46,34 @@ export function useStructureLoader() {
           }
         }
       } catch (cacheError) {
-        console.warn('[Phase 1] Cache load failed, will fetch from network:', cacheError);
         // Continue to network fetch
       }
 
-      // Phase 1b: Network check
+      // Network check
       const networkStore = useNetworkStore.getState();
       if (!networkStore.isOnline()) {
-        console.error('❌ [Phase 1] Network offline');
         setError('network');
         setIsLoading(false);
         return;
       }
 
-      // Phase 1c: Load structure from backend
-      console.log('📦 [Phase 1] Loading tree structure...');
-      const startTime = performance.now();
-
+      // Load structure from backend
       const { data, error: fetchError } = await profilesService.getStructureOnly();
 
       if (fetchError || !data) {
-        console.error('❌ [Phase 1] Failed to load structure:', fetchError);
         setError(fetchError || 'unknown');
         setIsLoading(false);
         return;
       }
 
-      const duration = performance.now() - startTime;
-      const sizeMB = (data.length * 158 / 1024 / 1024).toFixed(2);
-
-      console.log(
-        `✅ [Phase 1] Structure loaded: ${data.length} profiles (${sizeMB} MB) in ${duration.toFixed(0)}ms`
-      );
-
-      // Phase 1d: Save to AsyncStorage cache (v4: fresh data without nodeWidth)
+      // Save to AsyncStorage cache (v4: fresh data without nodeWidth)
       try {
         await AsyncStorage.setItem('tree-structure-v4', JSON.stringify(data));
-        console.log(`💾 [Phase 1] Structure cached to AsyncStorage`);
       } catch (cacheError) {
-        console.warn('[Phase 1] Failed to cache structure (optional):', cacheError);
         // Cache failure is non-critical
       }
 
-      // Phase 1e: Update store
+      // Update store
       setStructure(data);
       useTreeStore.getState().setTreeData(data);
       useTreeStore.getState().setCachedSchemaVersion(TREE_STRUCTURE_SCHEMA_VERSION);
@@ -97,7 +81,7 @@ export function useStructureLoader() {
       setIsLoading(false);
       setError(null);
     } catch (err) {
-      console.error('❌ [Phase 1] Structure load exception:', err);
+      console.error('Structure load exception:', err);
       setError('unknown');
       setIsLoading(false);
     }

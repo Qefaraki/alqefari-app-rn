@@ -224,13 +224,6 @@ const BUCKET_DEBOUNCE_MS = 150; // ms
 // Set to false to use traditional full-tree loading
 const USE_PROGRESSIVE_LOADING = true;
 
-// Log which mode is being used
-if (USE_PROGRESSIVE_LOADING) {
-  console.log('🚀 [TreeView] PROGRESSIVE LOADING MODE ENABLED - Expecting 3 phases (structure → layout → enrichment)');
-} else {
-  console.log('📦 [TreeView] TRADITIONAL LOADING MODE - Full tree loading');
-}
-
 // Create font manager/provider once
 let fontMgr = null;
 let arabicFontProvider = null;
@@ -2110,11 +2103,6 @@ const TreeView = ({
             strokeWidth={LINE_WIDTH}
           />,
         );
-      }
-
-      // RECOMMENDED: Performance logging
-      if (__DEV__) {
-        console.log(`[TreeView] Built ${edgeCount} edge paths in ${performance.now() - startTime}ms`);
       }
 
       return { elements: paths, count: edgeCount };

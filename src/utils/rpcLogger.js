@@ -40,10 +40,9 @@ export function wrapRPCWithLogging(originalRpc) {
             '\nDetails:', details || 'N/A'
           );
         }
-      } else if (__DEV__) {
-        // Only log success in dev mode (1 line, clean format)
-        console.log(`[RPC] ${functionName} (${duration}ms)`);
       }
+      // Note: Removed dev-mode RPC success logging to reduce console spam
+      // Only errors and exceptions are logged now
 
       return response;
     } catch (error) {

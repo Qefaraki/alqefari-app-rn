@@ -915,33 +915,17 @@ const ActivityDetailsSheet = React.forwardRef(
                 {meaningfulFields.length === 0 && (
                   <Text style={styles.sheetValueMuted}>لا توجد تفاصيل إضافية</Text>
                 )}
-                {meaningfulFields.map((field) => {
-                  const oldValue = formatSimpleValue(activity.old_data?.[field]);
-                  const newValue = formatSimpleValue(activity.new_data?.[field]);
-                  return (
-                    <View key={field} style={styles.changeCard}>
-                      <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
-                      <View style={styles.changeCardValues}>
-                        <View style={[styles.changeValueBox, styles.changeValueBoxOld]}>
-                          <Text style={styles.changeValueBoxLabel}>قبل</Text>
-                          <Text style={styles.changeValueBoxText}>{oldValue}</Text>
-                        </View>
-                        <SFIcon
-                          name="arrow.right"
-                          fallback="arrow-forward"
-                          rtlFallback="arrow-back"
-                          size={14}
-                          color={tokens.colors.najdi.text}
-                          style={styles.changeArrow}
-                        />
-                        <View style={[styles.changeValueBox, styles.changeValueBoxNew]}>
-                          <Text style={styles.changeValueBoxLabel}>بعد</Text>
-                          <Text style={[styles.changeValueBoxText, styles.changeValueBoxTextNew]}>{newValue}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
+                {meaningfulFields.map((field) => (
+                  <View key={field} style={styles.changeCard}>
+                    <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
+                    <InlineDiff
+                      field={field}
+                      oldValue={activity.old_data?.[field]}
+                      newValue={activity.new_data?.[field]}
+                      showLabels={true}
+                    />
+                  </View>
+                ))}
               </View>
 
               <View style={styles.sheetSection}>
@@ -1918,7 +1902,8 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Update state to open bottom sheet
-    setSelectedActivity(activity);
+    // Use spread operator to force new object reference - ensures useEffect triggers even for same activity
+    setSelectedActivity({ ...activity });
     setAdvancedActivity(null);
     setAdvancedModalVisible(false);
     setDetailsVisible(true);

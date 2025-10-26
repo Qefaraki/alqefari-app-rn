@@ -78,18 +78,12 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       // Single state update (triggers 1 layout recalc instead of 18)
       treeStore.setTreeData(newTreeData);
 
-      const duration = performance.now() - startTime;
-      console.log(
-        `✅ [Phase 3] Batched ${updates.length} enrichments in ${duration.toFixed(0)}ms`
-      );
-
       // ✅ CRITICAL FIX: Clear AFTER successful update (was clearing before, causing data loss on error)
       pendingUpdatesRef.current.clear();
     } catch (error) {
-      console.error('❌ [Phase 3] Batch flush failed:', error);
+      console.error('Batch flush failed:', error);
       // ✅ CRITICAL FIX: DO NOT clear on error - let retry happen on next enrichment
       // If we clear here, pending updates are lost forever
-      console.warn('⚠️ [Phase 3] Pending updates retained for retry on next enrichment');
     }
   }, []);
 
@@ -110,32 +104,25 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       const requestId = ++currentRequestIdRef.current;
 
       try {
-        console.log(
-          `📦 [Phase 3] Enriching ${visibleNodeIds.length} visible nodes...`
-        );
-        const startTime = performance.now();
-
         const { data, error } = await profilesService.enrichVisibleNodes(
           visibleNodeIds
         );
 
         // Discard stale request if newer one was issued
         if (requestId !== currentRequestIdRef.current) {
-          console.log('⚠️ [Phase 3] Stale enrichment request, discarding');
           return;
         }
 
         if (error) {
-          console.error('❌ [Phase 3] Enrichment failed:', error);
+          console.error('Enrichment failed:', error);
           return;
         }
 
         if (!data || data.length === 0) {
-          console.log('✅ [Phase 3] No new profiles to enrich');
           return;
         }
 
-        // Phase 1: Batch accumulation instead of direct updateNode
+        // Batch accumulation instead of direct updateNode
         data.forEach(enrichedProfile => {
           // Accumulate in pending batch
           pendingUpdatesRef.current.set(enrichedProfile.id, enrichedProfile);
@@ -152,7 +139,6 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
         if (!maxWaitTimeoutRef.current) {
           maxWaitTimeoutRef.current = setTimeout(() => {
             // Force flush after 300ms even if scrolling continues
-            console.log('⏰ [Phase 3] maxWait timeout - forcing batch flush');
             flushBatch();
             maxWaitTimeoutRef.current = null;
           }, 300);
@@ -166,13 +152,8 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
           }
           flushBatch();
         }, 100);
-
-        const duration = performance.now() - startTime;
-        console.log(
-          `📦 [Phase 3] Queued ${data.length} nodes for batch enrichment (${duration.toFixed(0)}ms)`
-        );
       } catch (err) {
-        console.error('❌ [Phase 3] Enrichment exception:', err);
+        console.error('Enrichment exception:', err);
       }
     }, 300);
 
@@ -198,10 +179,6 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
       // Synchronous flush on unmount to prevent data loss
       if (pendingUpdatesRef.current.size > 0) {
-        console.log(
-          `⚠️ [Phase 3] Flushing ${pendingUpdatesRef.current.size} pending updates on unmount`
-        );
-
         const updates = Array.from(pendingUpdatesRef.current.values());
         const treeStore = useTreeStore.getState();
         const updatesMap = new Map(updates.map(u => [u.id, u]));

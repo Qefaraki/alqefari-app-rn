@@ -171,7 +171,6 @@ class SkiaImageCache {
           // Confirm API availability on first success
           if (this.transformationAvailable === null) {
             this.transformationAvailable = true;
-            console.log("[Image Cache] ✅ Transformation API confirmed working on first image load");
           }
         } else {
           // Transformation failed
