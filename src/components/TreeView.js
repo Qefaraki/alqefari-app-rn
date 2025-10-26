@@ -188,7 +188,6 @@ import { useBatchedSkiaImageWithMorph } from "../hooks/useBatchedSkiaImageWithMo
 import NodeContextMenu from "./admin/NodeContextMenu";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
-import NavigationPills from "./ui/NavigationPills";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkStatusIndicator from "./NetworkStatusIndicator";
@@ -2314,6 +2313,18 @@ const TreeView = ({
   // Updated by syncTransform callback after gestures end
   // Note: currentTransform and visibleBounds now declared at top of component
   const [tier, setTier] = useState(1);
+  
+  // Track live scale for image bucket selection (fixes scale propagation issue)
+  const [liveScale, setLiveScale] = useState(stage.scale);
+  
+  // Update liveScale when shared scale changes (for bucket selection during gestures)
+  useAnimatedReaction(
+    () => scale.value,
+    (current) => {
+      'worklet';
+      runOnJS(setLiveScale)(current);
+    },
+  );
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
@@ -2350,7 +2361,7 @@ const TreeView = ({
       const modifiedNode = {
         ...node,
         _tier: 1, // Always T1 (full cards)
-        _scale: currentTransform.scale,
+        _scale: liveScale, // Use live scale for bucket selection during gestures
         _showPhoto: showPhotos, // Use user-controlled photo visibility prop
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
@@ -2360,6 +2371,7 @@ const TreeView = ({
     [
       tier,
       showPhotos, // Changed from currentTransform.scale
+      liveScale, // Live scale for bucket selection
       renderNode,
       renderTier2Node,
       selectBucketWithHysteresis,
@@ -2575,9 +2587,6 @@ const TreeView = ({
       <SearchBar
         onSelectResult={handleSearchResultSelect}
         onClearHighlight={clearAllHighlights}
-      />
-
-      <NavigationPills
         onNavigate={navigateToNode}
         nodes={nodes}
       />

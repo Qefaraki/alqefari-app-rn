@@ -4,10 +4,12 @@ import { runOnUI } from "react-native-reanimated";
 import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
+import { useAuth } from "../contexts/AuthContextSimple";
 import { supabase } from "../services/supabase";
 
 const ProfileSheetWrapper = ({ editMode }) => {
   const { isAdminMode } = useAdminMode();
+  const { profile: userProfile } = useAuth();
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const nodesMap = useTreeStore((s) => s.nodesMap);
@@ -110,8 +112,22 @@ const ProfileSheetWrapper = ({ editMode }) => {
     console.log('[PROFILE SHEET DEBUG] Resolving person data for:', selectedPersonId, {
       treeStoreSize: nodesMap.size,
       hasMunasibProfile: !!munasibProfile,
-      munasibProfileId: munasibProfile?.id
+      munasibProfileId: munasibProfile?.id,
+      userProfileId: userProfile?.id,
+      isViewingOwnProfile: userProfile?.id === selectedPersonId
     });
+
+    // PRIORITY FIX: Use complete auth profile for self-view (45 fields vs 10 fields from tree store)
+    if (userProfile?.id === selectedPersonId && userProfile) {
+      console.log('[PROFILE SHEET DEBUG] ✅ Using complete auth profile for self-view:', {
+        id: userProfile.id,
+        name: userProfile.name,
+        fieldCount: Object.keys(userProfile).length,
+        hasVersion: !!userProfile.version,
+        source: 'authProfile'
+      });
+      return userProfile;
+    }
 
     // 1. Try tree store (Al-Qefari family members with HID)
     const treeNode = nodesMap.get(selectedPersonId);
@@ -151,7 +167,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
       munasibAvailable: !!munasibProfile
     });
     return null;
-  }, [selectedPersonId, nodesMap, munasibProfile]);
+  }, [selectedPersonId, nodesMap, munasibProfile, userProfile]);
 
   // Critical: Reset profileSheetProgress when switching between modals
   useEffect(() => {

@@ -24,8 +24,9 @@ import { useAdminMode } from "../contexts/AdminModeContext";
 import { useNetworkGuard } from "../hooks/useNetworkGuard";
 import useDynamicTypography from "../hooks/useDynamicTypography";
 import SearchResultCard from "./search/SearchResultCard";
+import tokens from "./ui/tokens";
 
-const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
+const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], style }) => {
   const [query, setQuery] = useState("");
   const { height: windowHeight } = useWindowDimensions();
   const resultsMaxHeight = Math.min(windowHeight * 0.55, 420);
@@ -41,6 +42,29 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const getTypography = useDynamicTypography();
   const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
   const fontFamilyArabic = Platform.OS === "ios" ? "SF Arabic" : "Roboto";
+
+  // Navigation pills data extraction
+  const navigationData = useMemo(() => {
+    if (!nodes || nodes.length === 0 || !onNavigate) {
+      return { rootNode: null, g2Branches: [], hasData: false };
+    }
+
+    // Find root node (generation 1, no father_id)
+    const rootNode = nodes.find(n => !n.father_id && n.generation === 1);
+
+    // Find main G2 branches (generation 2 with children, sorted by sibling order)
+    const g2Branches = nodes
+      .filter(n => n.generation === 2 && (n._hasChildren || hasDescendants(n.id, nodes)))
+      .sort((a, b) => (a.sibling_order || 0) - (b.sibling_order || 0))
+      .map(node => ({
+        id: node.id,
+        name: extractFirstName(node.name),
+        fullName: node.name
+      }));
+
+    const hasData = rootNode || g2Branches.length > 0;
+    return { rootNode, g2Branches, hasData };
+  }, [nodes, onNavigate]);
 
   // Get profile sheet state from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -423,6 +447,15 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     }
   }, [onClearHighlight]);
 
+  // Navigation pills handler
+  const handlePillPress = useCallback((nodeId, nodeName) => {
+    if (onNavigate) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      console.log('🧭 Navigation pill pressed:', nodeName);
+      onNavigate(nodeId);
+    }
+  }, [onNavigate]);
+
   const handleFocus = () => {
     setIsFocused(true);
     // Subtle press animation like Google Maps
@@ -568,6 +601,55 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
               )}
             </Pressable>
           </Animated.View>
+
+          {/* Navigation Pills - Same opacity as SearchBar */}
+          {navigationData.hasData && (
+            <View style={styles.pillsContainer}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pillsContent}
+                style={styles.pillsScrollView}
+              >
+                {/* Root Node Pill */}
+                {navigationData.rootNode && (
+                  <TouchableOpacity
+                    style={[styles.pill, styles.rootPill]}
+                    onPress={() => handlePillPress(navigationData.rootNode.id, getRootDisplayName(navigationData.rootNode))}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
+                  >
+                    <Text style={[styles.pillText, styles.rootPillText]} numberOfLines={1}>
+                      {getRootDisplayName(navigationData.rootNode)}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Divider */}
+                {navigationData.rootNode && navigationData.g2Branches.length > 0 && (
+                  <View style={styles.pillDivider} />
+                )}
+
+                {/* G2 Branch Pills */}
+                {navigationData.g2Branches.map((branch) => (
+                  <TouchableOpacity
+                    key={branch.id}
+                    style={[styles.pill, styles.branchPill]}
+                    onPress={() => handlePillPress(branch.id, branch.name)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
+                  >
+                    <Text style={[styles.pillText, styles.branchPillText]} numberOfLines={1}>
+                      {branch.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
         </Animated.View>
 
         {showResults && results.length > 0 && (
@@ -604,6 +686,30 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         )}
       </View>
     </>
+  );
+};
+
+// Helper function to get root node display name
+const getRootDisplayName = (rootNode) => {
+  if (!rootNode || !rootNode.name) return 'الجذر';
+  
+  // For root node, show the full name including parentheses
+  // Example: "سليمان (ابو القفارات)" -> "سليمان (ابو القفارات)"
+  return rootNode.name.trim();
+};
+
+// Helper function to extract first name from full Arabic name
+const extractFirstName = (fullName) => {
+  if (!fullName) return '';
+  // Split by space and take the first part
+  return fullName.trim().split(' ')[0];
+};
+
+// Helper function to check if a node has descendants
+const hasDescendants = (nodeId, nodes) => {
+  return nodes.some(node => 
+    node.father_id === nodeId || 
+    node.mother_id === nodeId
   );
 };
 
@@ -684,6 +790,70 @@ const styles = StyleSheet.create({
   },
   resultsContentWrapper: {
     paddingVertical: 4,
+  },
+  // Navigation Pills styles
+  pillsContainer: {
+    marginTop: 8,
+  },
+  pillsScrollView: {
+    flexGrow: 0,
+  },
+  pillsContent: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    gap: 8,
+    backgroundColor: `${tokens.colors.najdi.background}95`, // Semi-transparent Al-Jass White
+    borderRadius: 20,
+    
+    // Subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  pill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: tokens.radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 64,
+    minHeight: 32,
+    
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  rootPill: {
+    backgroundColor: tokens.colors.najdi.primary,
+  },
+  branchPill: {
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container,
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'SF Arabic',
+    textAlign: 'center',
+  },
+  rootPillText: {
+    color: tokens.colors.surface,
+  },
+  branchPillText: {
+    color: tokens.colors.najdi.text,
+  },
+  pillDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: `${tokens.colors.najdi.textMuted}30`,
+    marginHorizontal: 4,
   },
 });
 
