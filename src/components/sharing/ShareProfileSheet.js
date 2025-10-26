@@ -59,6 +59,13 @@ export default function ShareProfileSheet({
   mode = 'share', // 'share' | 'invite'
   inviterProfile,
 }) {
+  console.log('[DEBUG ShareSheet] ===== COMPONENT FUNCTION CALLED =====', {
+    visible,
+    profileExists: !!profile,
+    profileHid: profile?.hid,
+    mode,
+  });
+
   const bottomSheetRef = useRef(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);

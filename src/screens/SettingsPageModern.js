@@ -40,6 +40,10 @@ import ShareProfileSheet from "../components/sharing/ShareProfileSheet";
 import { DeleteAccountModal } from "../components/settings/DeleteAccountModal";
 import { checkDeletionRateLimit } from "../services/deleteAccountOtp";
 
+// Debug: Verify ShareProfileSheet import
+console.log('[DEBUG Settings] ShareProfileSheet import type:', typeof ShareProfileSheet);
+console.log('[DEBUG Settings] ShareProfileSheet import:', ShareProfileSheet);
+
 // Use design system tokens
 const colors = {
   ...tokens.colors.najdi,
@@ -1083,6 +1087,23 @@ export default function SettingsPageModern({ user }) {
               />
             }
           />
+          <SettingsCell
+            label="نمط الخطوط"
+            description={settings.lineStyle === "bezier" ? "خطوط منحنية ناعمة" : "خطوط مستقيمة تقليدية"}
+            rightAccessory={
+              <Switch
+                value={settings.lineStyle === "bezier"}
+                onValueChange={(value) => {
+                  console.log('[Settings] Line Style toggle changed to:', value ? 'bezier' : 'straight');
+                  console.log('[Settings] Current settings.lineStyle:', settings.lineStyle);
+                  handleFeedback();
+                  updateSetting('lineStyle', value ? 'bezier' : 'straight');
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            }
+          />
         </SettingsSection>
 
         {/* Notifications Settings - Only for authenticated users */}
@@ -1405,16 +1426,21 @@ export default function SettingsPageModern({ user }) {
 
       {/* Share Profile Sheet - Component handles visibility internally */}
       {showShareSheet && (
-        <ShareProfileSheet
-          visible={showShareSheet}
-          onClose={() => {
-            console.log('[DEBUG QR] Closing ShareProfileSheet');
-            setShowShareSheet(false);
-          }}
-          profile={userProfile}
-          mode="share"
-          inviterProfile={null}
-        />
+        <>
+          <View style={{ position: 'absolute', top: 0, left: 0 }}>
+            <Text style={{ color: 'red', fontSize: 20 }}>DEBUG: ShareSheet should render here</Text>
+          </View>
+          <ShareProfileSheet
+            visible={showShareSheet}
+            onClose={() => {
+              console.log('[DEBUG QR] Closing ShareProfileSheet');
+              setShowShareSheet(false);
+            }}
+            profile={userProfile}
+            mode="share"
+            inviterProfile={null}
+          />
+        </>
       )}
     </SafeAreaView>
   );
