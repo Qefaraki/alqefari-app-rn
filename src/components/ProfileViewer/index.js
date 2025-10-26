@@ -14,8 +14,10 @@ import {
   Dimensions,
   TouchableOpacity,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +67,7 @@ import suggestionService, {
 import { supabase, handleSupabaseError } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
+import { invalidateStructureCache } from '../../utils/cacheInvalidation';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import { useAuth } from '../../contexts/AuthContextSimple';
 import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
@@ -90,9 +93,19 @@ const ViewModeContent = React.memo(({
   scrollY,
   scrollRef,
   canEdit,
+  refreshing,
+  handleRefresh,
 }) => (
   <BottomSheetScrollView
     ref={scrollRef}
+    refreshControl={
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        tintColor={palette.primary}
+        colors={[palette.primary]}
+      />
+    }
     contentContainerStyle={{
       paddingHorizontal: 16,
       paddingTop: 12,
@@ -340,6 +353,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [saving, setSaving] = useState(false);
   const [lastSaveAttempt, setLastSaveAttempt] = useState(0); // For debouncing rapid saves
   const [marriages, setMarriages] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const lastRealTimeUpdate = useRef(Date.now());
 
   // Loading states for progressive skeleton rendering
   const [loadingStates, setLoadingStates] = useState({
@@ -522,6 +537,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           filter: `id=eq.${person.id}`,
         },
         (payload) => {
+          // Track timestamp to prevent redundant manual refresh
+          lastRealTimeUpdate.current = Date.now();
+
           console.log('[ProfileViewer] Real-time update received:', {
             profileId: person.id,
             oldVersion: person.version,
@@ -545,6 +563,85 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       supabase.removeChannel(channel);
     };
   }, [person?.id]); // Removed onUpdate from dependencies to prevent subscription recreation
+
+  // Handle manual profile refresh (pull-to-refresh)
+  const handleRefresh = useCallback(async () => {
+    // Guard: Skip if recent real-time update (within 2s)
+    if (Date.now() - lastRealTimeUpdate.current < 2000) {
+      console.log('[Refresh] Skipped - recent real-time update');
+      return;
+    }
+
+    // Guard: Block during edit mode
+    if (mode === 'edit') {
+      Alert.alert('لا يمكن التحديث', 'يرجى حفظ التعديلات أو إلغاؤها قبل التحديث');
+      return;
+    }
+
+    // Guard: Check network connectivity
+    const netInfo = await NetInfo.fetch();
+    if (!netInfo.isConnected || netInfo.isInternetReachable === false) {
+      Alert.alert(
+        'لا يوجد اتصال بالإنترنت',
+        'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى'
+      );
+      return;
+    }
+
+    setRefreshing(true);
+    console.log('[Refresh] Manual refresh started:', {
+      profileId: person.id,
+      currentVersion: person.version,
+    });
+
+    try {
+      // Build refresh list: primary + immediate family (max 20)
+      const idsToRefresh = new Set([person.id]);
+
+      // Add spouses
+      if (Array.isArray(marriages)) {
+        marriages.forEach((m) => {
+          if (m.spouse_id) idsToRefresh.add(m.spouse_id);
+        });
+      }
+
+      // Add parents
+      if (person.father_id) idsToRefresh.add(person.father_id);
+      if (person.mother_id) idsToRefresh.add(person.mother_id);
+
+      // Add first 10 children
+      if (Array.isArray(metrics?.children)) {
+        metrics.children.slice(0, 10).forEach((child) => {
+          if (child.id) idsToRefresh.add(child.id);
+        });
+      }
+
+      const limitedIds = Array.from(idsToRefresh).slice(0, 20);
+
+      console.log('[Refresh] Fetching', limitedIds.length, 'profiles');
+
+      // Fetch fresh data
+      const { data, error } = await profilesService.enrichVisibleNodes(limitedIds);
+
+      if (error) throw error;
+
+      // Update all fetched profiles in Zustand
+      const store = useTreeStore.getState();
+      data.forEach((profile) => {
+        store.updateNode(profile.id, profile);
+      });
+
+      console.log('[Refresh] Updated', data.length, 'profiles');
+
+      // Success haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('[Refresh] Failed:', error);
+      Alert.alert('فشل التحديث', 'حدث خطأ أثناء تحديث البيانات. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [person, mode, marriages, metrics]);
 
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
@@ -834,6 +931,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
       useTreeStore.getState().updateNode(person.id, updatedProfile);
       onUpdate?.(updatedProfile);
+
+      // Invalidate AsyncStorage cache to ensure fresh data on next app launch
+      invalidateStructureCache().catch((err) =>
+        console.warn('[ProfileViewer] Cache invalidation failed (non-critical):', err)
+      );
+
       return data;
     },
     [onUpdate, person],
@@ -1123,6 +1226,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             scrollY={scrollY}
             scrollRef={viewScrollRef}
             canEdit={canEdit}
+            refreshing={refreshing}
+            handleRefresh={handleRefresh}
           />
         ) : (
           <EditModeContent
