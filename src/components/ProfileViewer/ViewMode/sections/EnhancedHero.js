@@ -155,7 +155,7 @@ const EnhancedHero = ({
           top: heroTokens.paddingVertical,
           left: heroTokens.paddingHorizontal,
           flexDirection: 'row',
-          gap: 2,
+          gap: 1,
           zIndex: 10,
         },
         actionButton: {

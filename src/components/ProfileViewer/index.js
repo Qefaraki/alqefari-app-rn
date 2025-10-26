@@ -83,6 +83,7 @@ const ViewModeContent = React.memo(({
   handleMenuPress,
   handleCopyChain,
   handleEditPress,
+  closeSheet,
   pending,
   pendingSummary,
   loadingStates,
@@ -128,7 +129,7 @@ const ViewModeContent = React.memo(({
       canEdit={canEdit}
       onEdit={handleEditPress}
       onMenuPress={handleMenuPress}
-      onClose={handleMenuPress}
+      onClose={closeSheet}
     />
 
     <PendingReviewBanner
@@ -1244,6 +1245,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             handleMenuPress={handleMenuPress}
             handleCopyChain={handleCopyChain}
             handleEditPress={handleEditPress}
+            closeSheet={closeSheet}
             pending={pending}
             pendingSummary={pendingSummary}
             loadingStates={loadingStates}
