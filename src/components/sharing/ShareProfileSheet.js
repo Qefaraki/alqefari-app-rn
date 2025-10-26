@@ -26,7 +26,7 @@ import {
   Animated,
   Image,
 } from 'react-native';
-import BottomSheet from '@gorhom/bottom-sheet';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ProfileQRCode from './ProfileQRCode';
@@ -85,13 +85,13 @@ export default function ShareProfileSheet({
     });
 
     if (visible) {
-      // Open sheet when visible becomes true
-      console.log('[DEBUG ShareSheet] Attempting to open sheet with snapToIndex(0)');
-      bottomSheetRef.current?.snapToIndex(0);
+      // Open modal when visible becomes true
+      console.log('[DEBUG ShareSheet] Attempting to present() modal');
+      bottomSheetRef.current?.present();
     } else {
-      // Close sheet when visible becomes false
-      console.log('[DEBUG ShareSheet] Attempting to close sheet');
-      bottomSheetRef.current?.close();
+      // Close modal when visible becomes false
+      console.log('[DEBUG ShareSheet] Attempting to dismiss() modal');
+      bottomSheetRef.current?.dismiss();
     }
   }, [visible]);
 
@@ -189,17 +189,12 @@ export default function ShareProfileSheet({
     return mode === 'invite' ? 'إرسال دعوة' : 'مشاركة عبر واتساب';
   }, [mode]);
 
-  if (!visible) {
-    console.log('[DEBUG ShareSheet] Early return - visible is false');
-    return null;
-  }
-
-  console.log('[DEBUG ShareSheet] Rendering BottomSheet component');
+  // BottomSheetModal handles its own visibility - no early return needed
+  console.log('[DEBUG ShareSheet] Rendering BottomSheetModal component');
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
-      index={-1}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       enablePanDownToClose
@@ -310,7 +305,7 @@ export default function ShareProfileSheet({
           <Text style={styles.toastText}>تم النسخ ✓</Text>
         </Animated.View>
       </View>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 
