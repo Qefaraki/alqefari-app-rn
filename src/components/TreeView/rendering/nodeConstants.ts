@@ -38,7 +38,7 @@ export const NODE_PADDING = {
 } as const;
 
 // Photo dimensions
-export const PHOTO_SIZE = 50; // Circle diameter in pixels
+export const PHOTO_SIZE = 50; // Square photo size (width and height) in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {

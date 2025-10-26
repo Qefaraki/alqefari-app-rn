@@ -265,23 +265,30 @@ export function renderBorder(
 /**
  * Render photo placeholder (skeleton)
  *
- * @param centerX - Circle center X
- * @param centerY - Circle center Y
- * @param radius - Circle radius
+ * @param centerX - Square center X
+ * @param centerY - Square center Y
+ * @param size - Square size (width and height)
+ * @param cornerRadius - Corner radius for rounded square
  * @returns Placeholder elements
  */
 export function renderPhotoPlaceholder(
   centerX: number,
   centerY: number,
-  radius: number,
+  size: number,
+  cornerRadius: number,
 ): JSX.Element {
+  const x = centerX - size / 2;
+  const y = centerY - size / 2;
+
   return (
     <>
-      <Circle cx={centerX} cy={centerY} r={radius} color={COLORS.SKELETON} />
-      <Circle
-        cx={centerX}
-        cy={centerY}
-        r={radius}
+      <RoundedRect x={x} y={y} width={size} height={size} r={cornerRadius} color={COLORS.SKELETON} />
+      <RoundedRect
+        x={x}
+        y={y}
+        width={size}
+        height={size}
+        r={cornerRadius}
         color="#D1BBA340"
         style="stroke"
         strokeWidth={1}
@@ -413,7 +420,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
       {hasPhoto ? (
         <>
           {/* Photo placeholder */}
-          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE / 2)}
+          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE, STANDARD_NODE.CORNER_RADIUS)}
 
           {/* Load and display image if available */}
           {node.photo_url && (
@@ -423,7 +430,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               y={node.y - 10 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
-              radius={PHOTO_SIZE / 2}
+              cornerRadius={STANDARD_NODE.CORNER_RADIUS}
               tier={node._tier || 1}
               scale={node._scale || 1}
               nodeId={node.id}

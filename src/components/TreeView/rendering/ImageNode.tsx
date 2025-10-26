@@ -3,7 +3,7 @@
  *
  * Phase 2 Day 5 - Extracted from TreeView.js (lines 350-428)
  *
- * Renders circular avatar photos for tree nodes with LOD-aware loading.
+ * Renders square avatar photos with rounded corners for tree nodes with LOD-aware loading.
  * Integrates with ImageBuckets for resolution selection and batched loading.
  *
  * LOD Integration:
@@ -12,19 +12,19 @@
  *
  * Loading States:
  * 1. **Hidden**: showPhotos=false or tier > 1 → returns null
- * 2. **Skeleton**: Image loading → Shows placeholder squircle
- * 3. **Loaded**: Image ready → Displays with squircle mask
+ * 2. **Skeleton**: Image loading → Shows placeholder rounded square
+ * 3. **Loaded**: Image ready → Displays with rounded square mask
  *
  * Performance Optimizations:
  * - Bucket selection: 40/60/80/120/256px based on screen pixels
  * - Hysteresis: Prevents bucket thrashing during zoom
  * - Batched loading: useBatchedSkiaImage with priority
- * - Squircle mask: RoundedRect with 14px radius (42% of size)
+ * - Rounded square mask: RoundedRect with 10px corner radius (matches card)
  *
  * Design Constraints (Najdi Sadu):
  * - Skeleton: Camel Hair Beige with 20% opacity (#D1BBA320)
- * - Squircle radius: 14px (42% of 50px size)
- * - Fit: cover (maintains aspect ratio, fills squircle)
+ * - Corner radius: 10px (matches card corner radius)
+ * - Fit: cover (maintains aspect ratio, fills square)
  *
  * KNOWN PATTERNS (AS-IS for Phase 2):
  * - Uses useBatchedSkiaImage (custom hook from TreeView)
@@ -34,7 +34,7 @@
 
 import React from 'react';
 import { PixelRatio } from 'react-native';
-import { Group, Circle, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
+import { Group, Circle, RoundedRect, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
 
@@ -47,7 +47,7 @@ export interface ImageNodeProps {
   y: number;
   width: number;
   height: number;
-  radius: number;
+  cornerRadius: number; // Corner radius for rounded square
 
   // LOD tier (1, 2, or 3)
   tier: number;
@@ -139,28 +139,34 @@ export function shouldLoadImage(
  *
  * @param x - Top-left X position
  * @param y - Top-left Y position
- * @param radius - Circle radius
- * @returns Group with skeleton circles
+ * @param size - Square size (width and height)
+ * @param cornerRadius - Corner radius for rounded square
+ * @returns Group with skeleton rounded square
  */
 export function renderImageSkeleton(
   x: number,
   y: number,
-  radius: number
+  size: number,
+  cornerRadius: number
 ): JSX.Element {
   return (
     <Group>
-      {/* Base circle background */}
-      <Circle
-        cx={x + radius}
-        cy={y + radius}
-        r={radius}
+      {/* Base rounded square background */}
+      <RoundedRect
+        x={x}
+        y={y}
+        width={size}
+        height={size}
+        r={cornerRadius}
         color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
       />
       {/* Inner stroke for depth */}
-      <Circle
-        cx={x + radius}
-        cy={y + radius}
-        r={radius - 1}
+      <RoundedRect
+        x={x + 1}
+        y={y + 1}
+        width={size - 2}
+        height={size - 2}
+        r={cornerRadius - 1}
         color={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_COLOR}
         style="stroke"
         strokeWidth={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_WIDTH}
@@ -170,9 +176,9 @@ export function renderImageSkeleton(
 }
 
 /**
- * Render loaded image with circular mask
+ * Render loaded image with rounded square mask
  *
- * Displays image clipped to circular shape.
+ * Displays image clipped to rounded square shape.
  * Uses alpha mask for clean edge rendering.
  *
  * @param image - Loaded Skia image
@@ -180,7 +186,7 @@ export function renderImageSkeleton(
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param radius - Circle radius (for mask)
+ * @param cornerRadius - Corner radius for rounded square mask
  * @param opacity - Optional opacity shared value for animations
  * @returns Group with masked image
  */
@@ -190,14 +196,14 @@ export function renderLoadedImage(
   y: number,
   width: number,
   height: number,
-  radius: number,
+  cornerRadius: number,
   opacity?: any
 ): JSX.Element {
   return (
     <Group opacity={opacity}>
       <Mask
         mode="alpha"
-        mask={<Circle cx={x + radius} cy={y + radius} r={radius} color="white" />}
+        mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
       >
         <SkiaImage
           image={image}
@@ -224,7 +230,7 @@ export function renderLoadedImage(
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param radius - Circle radius (for mask)
+ * @param cornerRadius - Corner radius for rounded square mask
  * @param lowResOpacity - Animated opacity for low-res (1 → 0)
  * @param highResOpacity - Animated opacity for high-res (0 → 1)
  * @param highResScale - Animated scale for high-res (0.98 → 1.0)
@@ -237,13 +243,13 @@ export function renderMorphTransition(
   y: number,
   width: number,
   height: number,
-  radius: number,
+  cornerRadius: number,
   lowResOpacity: any,
   highResOpacity: any,
   highResScale: any
 ): JSX.Element {
-  const centerX = x + radius;
-  const centerY = y + radius;
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
 
   return (
     <Group>
@@ -251,7 +257,7 @@ export function renderMorphTransition(
       <Group opacity={lowResOpacity}>
         <Mask
           mode="alpha"
-          mask={<Circle cx={centerX} cy={centerY} r={radius} color="white" />}
+          mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
         >
           <SkiaImage
             image={lowResImage}
@@ -275,7 +281,7 @@ export function renderMorphTransition(
         >
           <Mask
             mode="alpha"
-            mask={<Circle cx={centerX} cy={centerY} r={radius} color="white" />}
+            mask={<RoundedRect x={x} y={y} width={width} height={height} r={cornerRadius} color="white" />}
           >
             <SkiaImage
               image={highResImage}
@@ -295,7 +301,8 @@ export function renderMorphTransition(
 /**
  * ImageNode component
  *
- * Renders circular avatar photo with LOD-aware loading and morph transitions.
+ * Renders square avatar photo with rounded corners (10px radius matching card).
+ * Features LOD-aware loading and morph transitions.
  * Features:
  * - Progressive loading: thumbnail → high-res
  * - Morph animation: smooth crossfade + scale pop at extreme zoom (scale >= 3.0)
@@ -311,7 +318,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     y,
     width,
     height,
-    radius,
+    cornerRadius,
     tier,
     scale,
     nodeId,
@@ -398,13 +405,13 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Show skeleton if image not loaded
     if (!image) {
-      return renderImageSkeleton(x, y, radius);
+      return renderImageSkeleton(x, y, width, cornerRadius);
     }
 
     // Show loaded image with optional morph animation
     // For now: render single image normally (morph requires keeping track of previous bucket's image)
     // Enhanced version will render dual images during transition
-    return renderLoadedImage(image, x, y, width, height, radius);
+    return renderLoadedImage(image, x, y, width, height, cornerRadius);
   }
 );
 
