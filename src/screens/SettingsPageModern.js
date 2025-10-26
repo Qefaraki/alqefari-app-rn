@@ -1257,8 +1257,16 @@ export default function SettingsPageModern({ user }) {
               label="رمز QR للملف"
               description="شارك ملفك مع العائلة"
               onPress={() => {
+                console.log('[DEBUG QR Button] Pressed! State before:', {
+                  currentUser: !!currentUser,
+                  isGuestMode,
+                  hid: userProfile?.hid,
+                  user_id: userProfile?.user_id,
+                  showShareSheet: false // about to change
+                });
                 handleFeedback();
                 setShowShareSheet(true);
+                console.log('[DEBUG QR Button] setShowShareSheet(true) called');
               }}
               rightAccessory={<Ionicons name="qr-code-outline" size={18} color={colors.muted} />}
             />
@@ -1395,11 +1403,14 @@ export default function SettingsPageModern({ user }) {
         onCancel={() => setShowDeleteAccountModal(false)}
       />
 
-      {/* Share Profile Sheet */}
-      {showShareSheet && userProfile?.hid && userProfile?.user_id && (
+      {/* Share Profile Sheet - Component handles visibility internally */}
+      {showShareSheet && (
         <ShareProfileSheet
           visible={showShareSheet}
-          onClose={() => setShowShareSheet(false)}
+          onClose={() => {
+            console.log('[DEBUG QR] Closing ShareProfileSheet');
+            setShowShareSheet(false);
+          }}
           profile={userProfile}
           mode="share"
           inviterProfile={null}

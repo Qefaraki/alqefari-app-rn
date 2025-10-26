@@ -67,13 +67,30 @@ export default function ShareProfileSheet({
   // Snap points: compact (42%) and expanded (85%) for accessibility
   const snapPoints = useMemo(() => ['42%', '85%'], []);
 
+  // Debug: Log when component mounts/updates
+  useEffect(() => {
+    console.log('[DEBUG ShareSheet] Mounted/Updated with:', {
+      visible,
+      profileHid: profile?.hid,
+      profileUserId: profile?.user_id,
+      hasBottomSheetRef: !!bottomSheetRef.current,
+    });
+  }, [visible, profile?.hid, profile?.user_id]);
+
   // Control sheet visibility based on visible prop
   useEffect(() => {
+    console.log('[DEBUG ShareSheet] Visibility useEffect triggered:', {
+      visible,
+      refExists: !!bottomSheetRef.current,
+    });
+
     if (visible) {
       // Open sheet when visible becomes true
+      console.log('[DEBUG ShareSheet] Attempting to open sheet with snapToIndex(0)');
       bottomSheetRef.current?.snapToIndex(0);
     } else {
       // Close sheet when visible becomes false
+      console.log('[DEBUG ShareSheet] Attempting to close sheet');
       bottomSheetRef.current?.close();
     }
   }, [visible]);
@@ -173,8 +190,11 @@ export default function ShareProfileSheet({
   }, [mode]);
 
   if (!visible) {
+    console.log('[DEBUG ShareSheet] Early return - visible is false');
     return null;
   }
+
+  console.log('[DEBUG ShareSheet] Rendering BottomSheet component');
 
   return (
     <BottomSheet
