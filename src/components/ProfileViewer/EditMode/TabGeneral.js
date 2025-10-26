@@ -235,25 +235,18 @@ const TabGeneral = ({ form, updateField }) => {
 
         <ProfileFormCard style={styles.card}>
           <Text style={styles.cardCaption}>الصور</Text>
-          <View style={[styles.cardContent, styles.galleryContent]}>
             {profileId ? (
-              <>
-                <Text style={styles.galleryHint}>
-                  يمكنك إضافة الصور أو إعادة ترتيبها أو حذفها وسيتم تحديث الملف فوراً.
-                </Text>
-                <View style={styles.galleryWrapper}>
-                  <PhotoGallerySimple
-                    profileId={profileId}
-                    isEditMode={true}
-                  />
-                </View>
-              </>
+              <PhotoGallerySimple
+                profileId={profileId}
+                isEditMode={true}
+              />
             ) : (
-              <Text style={styles.galleryHint}>
-                سيظهر محرر الصور بعد إنشاء الملف وحفظه للمرة الأولى.
-              </Text>
+              <View style={styles.cardContent}>
+                <Text style={styles.galleryHint}>
+                  سيظهر محرر الصور بعد إنشاء الملف وحفظه للمرة الأولى.
+                </Text>
+              </View>
             )}
-          </View>
         </ProfileFormCard>
       </View>
     </View>
@@ -294,6 +287,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
   },
   cardContent: {
     gap: tokens.spacing.md,

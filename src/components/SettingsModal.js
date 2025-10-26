@@ -242,12 +242,13 @@ export default function SettingsModal({ visible, onClose }) {
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={onClose}
+      >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -599,14 +600,15 @@ export default function SettingsModal({ visible, onClose }) {
       </SafeAreaView>
     </Modal>
 
-    <SignInModal
-      visible={showSignInModal}
-      onClose={() => setShowSignInModal(false)}
-      onAuthSuccess={(user) => {
-        setCurrentUser(user);
-        loadUserProfile();
-      }}
-    />
+      <SignInModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          loadUserProfile();
+        }}
+      />
+    </>
   );
 }
 
