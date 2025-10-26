@@ -249,6 +249,7 @@ const profileCacheUtils = {
         id: profile.id,
         name: profile.name,
         fullNameChain: profile.fullNameChain,
+        hid: profile.hid,
         photo_url: profile.photo_url,
         professional_title: profile.professional_title,
         title_abbreviation: profile.title_abbreviation,
