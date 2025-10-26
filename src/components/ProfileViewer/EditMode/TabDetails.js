@@ -25,14 +25,16 @@ const LimitedInput = ({
   }, [value]);
 
   const handleChange = useCallback((text) => {
-    setLocalValue(text);
+    // Auto-truncate if over limit (supports pasting long text)
+    const truncatedText = text.slice(0, maxLength);
+    setLocalValue(truncatedText);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
-      onChange(text);
+      onChange(truncatedText);
     }, 300);
-  }, [onChange]);
+  }, [onChange, maxLength]);
 
   useEffect(() => {
     return () => {
@@ -113,7 +115,7 @@ const TabDetails = ({ form, updateField }) => {
       <View style={styles.stack}>
         <FormSection
           title="السيرة الذاتية"
-          description="اكتب سيرة ذاتية شاملة مثل ويكيبيديا - يمكنك استخدام حتى 1000 حرف."
+          description="سيرة ذاتية مختصرة عن الشخص."
         >
           <FormField>
             <BioEditor
@@ -126,25 +128,22 @@ const TabDetails = ({ form, updateField }) => {
 
         <FormSection
           title="المسار المهني"
-          description="أضف معلومات مختصرة عن العمل والدراسة."
+          description="المهنة والتعليم."
         >
-          <FormField label="المهنة" hint="مثال: مهندس برمجيات، طبيب، معلم...">
+          <FormField label="المهنة">
             <LimitedInput
               value={draft?.occupation || ''}
               onChange={(text) => updateField('occupation', text)}
-              placeholder="مثال: مهندس برمجيات"
+              placeholder="المهنة..."
               maxLength={100}
             />
           </FormField>
 
-          <FormField
-            label="التعليم"
-            hint="يمكنك إضافة الدرجة، التخصص، والجامعة."
-          >
+          <FormField label="التعليم">
             <LimitedInput
               value={draft?.education || ''}
               onChange={(text) => updateField('education', text)}
-              placeholder="مثال: بكالوريوس علوم حاسب - جامعة الملك سعود"
+              placeholder="التعليم..."
               maxLength={150}
               multiline
             />
@@ -153,13 +152,13 @@ const TabDetails = ({ form, updateField }) => {
 
         <FormSection
           title="المواقع"
-          description="ساعد العائلة على معرفة أماكن الميلاد والإقامة."
+          description="أماكن الميلاد والإقامة."
         >
-          <FormField label="مكان الميلاد" hint="مثال: الرياض، جدة، القاهرة...">
+          <FormField label="مكان الميلاد">
             <LimitedInput
               value={draft?.birth_place || ''}
               onChange={(text) => updateField('birth_place', text)}
-              placeholder="اختر مدينة أو دولة الميلاد"
+              placeholder="مكان الميلاد..."
               maxLength={100}
             />
           </FormField>
@@ -201,7 +200,7 @@ const TabDetails = ({ form, updateField }) => {
 
         <FormSection
           title="الإنجازات"
-          description="أبرز الجوائز أو الإسهامات التي تود مشاركتها."
+          description="الجوائز والإسهامات."
         >
           <FormField>
             <AchievementsEditor
@@ -213,7 +212,7 @@ const TabDetails = ({ form, updateField }) => {
 
         <FormSection
           title="الخط الزمني"
-          description="رتب الأحداث والمحطات المهمة في حياة الشخص."
+          description="الأحداث المهمة في حياة الشخص."
         >
           <FormField>
             <TimelineEditor

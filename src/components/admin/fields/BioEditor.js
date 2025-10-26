@@ -66,17 +66,17 @@ const BioEditor = ({ value, onChange, maxLength = 500 }) => {
     }).start();
   };
 
-  // Handle text change
+  // Handle text change with auto-truncate for paste support
   const handleChangeText = (text) => {
-    // Provide haptic feedback when reaching limit
-    if (text.length === maxLength && value.length < maxLength) {
+    // Auto-truncate if over limit (supports pasting long text)
+    const truncatedText = text.slice(0, maxLength);
+
+    // Provide haptic feedback if text was truncated
+    if (text.length > maxLength) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-    
-    // Don't allow going over limit
-    if (text.length <= maxLength) {
-      onChange(text);
-    }
+
+    onChange(truncatedText);
   };
 
   // Handle content size change for auto-expand
@@ -117,7 +117,7 @@ const BioEditor = ({ value, onChange, maxLength = 500 }) => {
               onFocus={handleFocus}
               onBlur={handleBlur}
               onContentSizeChange={handleContentSizeChange}
-              placeholder="أضف سيرة ذاتية..."
+              placeholder="السيرة الذاتية..."
               placeholderTextColor="rgba(0, 0, 0, 0.3)"
               textAlign="right"
               textAlignVertical="top"

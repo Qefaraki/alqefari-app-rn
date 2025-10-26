@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -52,6 +53,7 @@ import TabDetails from './EditMode/TabDetails';
 import TabFamily from './EditMode/TabFamily';
 import TabContact from './EditMode/TabContact';
 import EditHeader from './EditMode/EditHeader';
+import EditModeHandle from './EditMode/EditModeHandle';
 import EditModeBanner from './EditMode/EditModeBanner';
 import PreEditModal from './EditMode/PreEditModal';
 import { useProfilePermissions } from './hooks/useProfilePermissions';
@@ -220,15 +222,33 @@ const EditModeContent = React.memo(({
   onNavigateToProfile,
   setMarriages,
   scrollRef,
-}) => (
-  <View style={{ flex: 1 }}>
-    <EditHeader
-      onCancel={handleCancel}
-      onSubmit={handleSubmit}
-      saving={saving}
-      canSubmit={form.isDirty && !permissionLoading}
-      accessMode={accessMode}
-    />
+}) => {
+  // Create enhanced tabs with dirty indicators
+  const enhancedTabs = useMemo(
+    () =>
+      VIEW_TABS.map((tab) => ({
+        ...tab,
+        showDot: Boolean(dirtyByTab?.[tab.id]),
+      })),
+    [dirtyByTab]
+  );
+
+  // Scroll to top when changing tabs for UX consistency
+  const handleTabChange = useCallback(
+    (newTab) => {
+      if (saving) return; // Prevent tab switching during save
+
+      setActiveTab(newTab);
+
+      // Scroll to top with smooth animation
+      if (scrollRef?.current) {
+        scrollRef.current.scrollTo?.({ y: 0, animated: true });
+      }
+    },
+    [setActiveTab, saving, scrollRef]
+  );
+
+  return (
     <BottomSheetScrollView
       ref={scrollRef}
       contentContainerStyle={{
@@ -245,42 +265,38 @@ const EditModeContent = React.memo(({
       )}
       scrollEventThrottle={16}
     >
-      <TabsHost
-        tabs={VIEW_TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        dirtyByTab={dirtyByTab}
-      >
-        {/* Lazy load tabs - only render the active one */}
-        {activeTab === 'general' && (
-          <TabGeneral form={form} updateField={form.updateField} />
-        )}
-        {activeTab === 'details' && (
-          <TabDetails form={form} updateField={form.updateField} />
-        )}
-        {activeTab === 'family' && (
-          <TabFamily
-            person={person}
-            accessMode={accessMode}
-            onDataChanged={() => {
-              // Reload marriages data in parent
-              if (person?.id) {
-                profilesService
-                  .getPersonMarriages(person.id)
-                  .then((data) => setMarriages(data || []))
-                  .catch((err) => console.warn('Failed to reload marriages:', err));
-              }
-            }}
-            onNavigateToProfile={onNavigateToProfile}
-          />
-        )}
-        {activeTab === 'contact' && (
-          <TabContact form={form} updateField={form.updateField} />
-        )}
-      </TabsHost>
+        {/* Tab Content */}
+        <TabsHost>
+          {/* Lazy load tabs - only render the active one */}
+          {activeTab === 'general' && (
+            <TabGeneral form={form} updateField={form.updateField} />
+          )}
+          {activeTab === 'details' && (
+            <TabDetails form={form} updateField={form.updateField} />
+          )}
+          {activeTab === 'family' && (
+            <TabFamily
+              person={person}
+              accessMode={accessMode}
+              onDataChanged={() => {
+                // Reload marriages data in parent
+                if (person?.id) {
+                  profilesService
+                    .getPersonMarriages(person.id)
+                    .then((data) => setMarriages(data || []))
+                    .catch((err) => console.warn('Failed to reload marriages:', err));
+                }
+              }}
+              onNavigateToProfile={onNavigateToProfile}
+            />
+          )}
+          {activeTab === 'contact' && (
+            <TabContact form={form} updateField={form.updateField} />
+          )}
+        </TabsHost>
     </BottomSheetScrollView>
-  </View>
-));
+  );
+});
 EditModeContent.displayName = 'EditModeContent';
 
 // Skeleton content for loading state - Extracted for cleaner code
@@ -323,6 +339,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Note: person.version may be undefined initially (structure-only data from progressive loading)
   // On-demand fetch in enterEditMode() handles missing version before save (see line 615-646)
 
+  // ✅ FIX: Initialize state early so hooks are available for useCallbacks below
+  const [activeTab, setActiveTab] = useState('general');
+  const [preEditVisible, setPreEditVisible] = useState(false);
+  const [rememberChoice, setRememberChoice] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [marriages, setMarriages] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Initialize hooks early so they're available for useCallbacks
+  const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(person?.id);
+  const form = useProfileForm(person);
+
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -336,25 +364,38 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     [],
   );
   const handleComponent = useCallback(
-    () => {
-      // Always show drag handle for visual parity
+    (props) => {
+      // In edit mode, use custom EditModeHandle with sticky header + tabs
+      if (mode === 'edit') {
+        return (
+          <EditModeHandle
+            {...props}
+            onCancel={handleCancel}
+            onSubmit={handleSubmit}
+            saving={saving}
+            canSubmit={form.isDirty && !permissionLoading}
+            accessMode={accessMode}
+            tabs={enhancedTabs}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        );
+      }
+
+      // Default drag handle for view mode
       return (
         <View style={styles.handleContainer}>
           <View style={styles.handleBar} />
         </View>
       );
     },
-    [],
+    [mode, handleCancel, handleSubmit, saving, form.isDirty, permissionLoading, accessMode, enhancedTabs, activeTab, handleTabChange],
   );
-  const [activeTab, setActiveTab] = useState('general');
-  const [preEditVisible, setPreEditVisible] = useState(false);
-  const [rememberChoice, setRememberChoice] = useState(false);
+
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
-  const [saving, setSaving] = useState(false);
   const [lastSaveAttempt, setLastSaveAttempt] = useState(0); // For debouncing rapid saves
-  const [marriages, setMarriages] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
   const lastRealTimeUpdate = useRef(Date.now());
+  const isMountedRef = useRef(true); // ✅ Track component mount status
 
   // Loading states for progressive skeleton rendering
   const [loadingStates, setLoadingStates] = useState({
@@ -367,10 +408,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
-  const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(
-    person?.id,
-  );
-  const form = useProfileForm(person);
+  // ✅ FIX #1: Proper cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false; // Mark as unmounted
+      console.log('[ProfileViewer] Component unmounted, cleanup triggered');
+    };
+  }, []);
+
+  // ✅ Other hook calls (form and accessMode already initialized above)
   const metrics = useProfileMetrics(person);
   const { pending, refresh: refreshPending } = usePendingChanges(
     person?.id,

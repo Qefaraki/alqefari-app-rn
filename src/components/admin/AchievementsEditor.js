@@ -38,7 +38,7 @@ const AchievementsEditor = ({ achievements, onChange }) => {
             style={styles.achievementInput}
             value={achievement}
             onChangeText={(value) => handleChange(index, value)}
-            placeholder="أدخل الإنجاز"
+            placeholder="إنجاز..."
             textAlign="right"
             multiline
           />

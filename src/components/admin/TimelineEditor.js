@@ -47,7 +47,7 @@ const TimelineEditor = ({ timeline, onChange }) => {
               style={styles.eventInput}
               value={item.event}
               onChangeText={(value) => handleChange(index, 'event', value)}
-              placeholder="الحدث"
+              placeholder="الحدث..."
               textAlign="right"
               multiline
             />
