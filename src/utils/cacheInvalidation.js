@@ -37,7 +37,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTreeStore } from '../stores/useTreeStore';
 
-const CACHE_KEY = 'tree-structure-v3';
+const CACHE_KEY = 'tree-structure-v4'; // Updated: Match useStructureLoader cache key
 
 /**
  * Invalidate AsyncStorage structure cache
@@ -143,7 +143,7 @@ export async function clearAllCaches() {
   try {
     // Clear AsyncStorage
     await invalidateStructureCache();
-    cleared.push('AsyncStorage (tree-structure-v3)');
+    cleared.push('AsyncStorage (tree-structure-v4)');
 
     // Clear Zustand store
     const treeStore = useTreeStore.getState();

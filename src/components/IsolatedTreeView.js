@@ -39,15 +39,11 @@ import useBranchTreeStore from '../hooks/useBranchTreeStore';
 import { useBranchTreeContext } from '../contexts/BranchTreeProvider';
 
 // Import necessary utilities and components
-import { SpatialGrid, GRID_CELL_SIZE } from './TreeView/spatial/SpatialGrid';
-import { NodeRenderer } from './TreeView/rendering/NodeRenderer';
-import { NODE_WIDTH_WITH_PHOTO, NODE_HEIGHT_WITH_PHOTO } from './TreeView/rendering/nodeConstants';
+import { SpatialGrid, GRID_CELL_SIZE } from './TreeView/spatial/SpatialGrid.ts';
+import { NodeRenderer } from './TreeView/rendering/NodeRenderer.tsx';
+import { NODE_WIDTH_WITH_PHOTO, NODE_HEIGHT_WITH_PHOTO } from './TreeView/rendering/nodeConstants.ts';
 
-// Import proper highlighting services (lesson learned from V1)
-import { highlightManager } from '../services/HighlightManager';
-import { useHighlighting } from '../hooks/useHighlighting';
-import { HIGHLIGHT_TYPES } from '../services/highlightingService';
-import { createRenderer } from './TreeView/highlightRenderers';
+// Minimal imports for isolated view
 
 /**
  * IsolatedTreeView - Tree viewer with isolated state management
@@ -88,8 +84,7 @@ const IsolatedTreeView = ({
   
   const { focusPersonId } = useBranchTreeContext();
   
-  // Use proper highlighting hook (correct from V1)
-  const { setHighlight, clearHighlight, highlights, calculatePathData } = useHighlighting();
+  // No complex highlighting - just golden glow for modal
   
   // Golden glow state (copied from main TreeView)
   const highlightedNodeId = useSharedValue(null);
@@ -100,8 +95,6 @@ const IsolatedTreeView = ({
   const [glowOpacityState, setGlowOpacityState] = useState(0);
   const nodeFramesRef = useRef(new Map());
   
-  // Path highlighting opacity
-  const pathOpacity = useSharedValue(0);
   
   // Sync shared values to state for Skia re-renders (proper worklet safety)
   useAnimatedReaction(
@@ -118,46 +111,8 @@ const IsolatedTreeView = ({
   const dimensions = useWindowDimensions();
   const canvasRef = useRef(null);
   
-  // Render highlighted ancestry paths (unified system from V1)
-  const renderAllHighlights = useCallback(() => {
-    if (highlights.length === 0) {
-      return null;
-    }
-
-    // Highlights are already sorted by priority in HighlightManager.getAll()
-    const allElements = highlights.flatMap(highlight => {
-      const config = HIGHLIGHT_TYPES[highlight.type];
-      if (!config) {
-        console.warn(`[IsolatedTreeView] Unknown highlight type: ${highlight.type}`);
-        return [];
-      }
-
-      // Calculate path data for this highlight
-      const pathData = calculatePathData(highlight.type, highlight.nodeIds);
-      if (!pathData) {
-        console.warn(`[IsolatedTreeView] No path data for highlight: ${highlight.type}`);
-        return [];
-      }
-
-      // Create renderer
-      const renderer = createRenderer(highlight.type, config, pathData, {
-        nodes: treeData,
-        connections: [], // Simplified for modal - no connection lines needed
-        showPhotos: true,
-        pathOpacity,
-      });
-
-      if (!renderer) {
-        console.warn(`[IsolatedTreeView] Failed to create renderer for ${highlight.type}`);
-        return [];
-      }
-
-      const elements = renderer.render();
-      return elements || [];
-    });
-
-    return allElements;
-  }, [highlights, treeData, calculatePathData, pathOpacity]);
+  // Simplified highlighting - just golden glow for modal use
+  // No path rendering to keep things simple and avoid complexity
   
   // Animation values for gestures
   const gestureTranslateX = useSharedValue(0);
@@ -200,45 +155,29 @@ const IsolatedTreeView = ({
     }
   }, [treeData, focusPersonId, dimensions, modalView]);
 
-  // Apply highlighting when tree loads and when highlightProfileId changes
+  // Apply golden glow highlighting when tree loads
   useEffect(() => {
     if (highlightProfileId && treeData.length > 0) {
-      console.log('[IsolatedTreeView] Applying highlighting for:', highlightProfileId);
+      console.log('[IsolatedTreeView] Applying golden glow highlighting for:', highlightProfileId);
       
-      // Use the existing highlighting service for path highlighting
-      const highlightId = setHighlight('SEARCH', highlightProfileId);
-      
-      if (highlightId) {
-        // Animate path in
-        pathOpacity.value = withDelay(
-          300, // Small delay for tree to settle
-          withTiming(0.65, {
-            duration: 400,
-            easing: Easing.out(Easing.ease)
-          })
-        );
-      }
-      
-      // Also apply golden glow
+      // Apply golden glow directly (simplified for modal)
       highlightedNodeId.value = highlightProfileId;
       glowOpacity.value = withDelay(
-        350, // Match path timing
+        350, // Small delay for tree to settle
         withTiming(0.55, {
           duration: 400,
           easing: Easing.out(Easing.ease),
         })
       );
       
-      console.log('[IsolatedTreeView] Highlighting applied with golden glow and path');
+      console.log('[IsolatedTreeView] Golden glow highlighting applied');
     }
     
     return () => {
-      // Clean up highlighting when unmounting or changing
-      clearHighlight('SEARCH');
+      // Clean up highlighting when unmounting
       glowOpacity.value = withTiming(0, { duration: 200 });
-      pathOpacity.value = withTiming(0, { duration: 200 });
     };
-  }, [highlightProfileId, treeData.length, setHighlight, clearHighlight]);
+  }, [highlightProfileId, treeData.length]);
   
   // Simplified gesture handling (pan and zoom only)
   const panGesture = Gesture.Pan()
@@ -338,8 +277,7 @@ const IsolatedTreeView = ({
                 { translateY: gestureTranslateY.value },
                 { scale: gestureScale.value },
               ]}>
-                {/* Highlighted ancestry paths (unified system) */}
-                {renderAllHighlights()}
+                {/* No ancestry path rendering in simplified modal view */}
 
                 {/* Render visible nodes */}
                 {visibleNodes.map((person) => (

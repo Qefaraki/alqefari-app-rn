@@ -9,10 +9,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import SimplifiedTreeView from "./SimplifiedTreeView";
+import BranchTreeViewer from "./BranchTreeViewer";
 import TreeErrorBoundary from "./TreeErrorBoundary";
 import { buildNameChain } from "../utils/nameChainBuilder";
 import { getArabicOrdinal } from "../utils/generationUtils";
+import { useAuth } from "../contexts/AuthContextSimple";
+import useBranchTreeStore from "../hooks/useBranchTreeStore";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -25,6 +27,11 @@ const BranchTreeModal = ({
   confirmText = "هذا أنا",
   cancelText = "ليس أنا"
 }) => {
+  const { user } = useAuth();
+  
+  // Get all profiles from branch tree for full name chain building
+  const { treeData } = useBranchTreeStore();
+  
   if (!profile) return null;
 
   return (
@@ -70,7 +77,7 @@ const BranchTreeModal = ({
               </View>
             )}
             <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>{buildNameChain(profile)}</Text>
+              <Text style={styles.profileName}>{buildNameChain(profile, treeData)}</Text>
               {profile.birth_year_hijri && (
                 <Text style={styles.profileMeta}>
                   ولد عام {profile.birth_year_hijri} هـ
@@ -91,7 +98,7 @@ const BranchTreeModal = ({
             fallbackMessage="لم نتمكن من عرض شجرة العائلة لهذا الشخص"
             onRetry={() => {}}
           >
-            <SimplifiedTreeView focusPersonId={profile.id} />
+            <BranchTreeViewer focusPersonId={profile.id} user={user} />
           </TreeErrorBoundary>
         </View>
 
@@ -197,9 +204,6 @@ const styles = StyleSheet.create({
   treeContainer: {
     flex: 1,
     backgroundColor: "#F9F7F3",
-  },
-  treeView: {
-    flex: 1,
   },
   actions: {
     padding: 16,

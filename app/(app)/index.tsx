@@ -9,6 +9,7 @@ import { phoneAuthService } from "../../src/services/phoneAuth";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "../../src/contexts/AuthContextSimple";
 import { useTreeStore } from "../../src/stores/useTreeStore";
+import { forceTreeReload } from "../../src/utils/cacheInvalidation";
 
 export default function TreeScreen() {
   const { user, profile, isAdmin, isLoading } = useAuth();
@@ -39,6 +40,22 @@ export default function TreeScreen() {
       return () => clearTimeout(timer);
     }
   }, [params.openProfileId, setSelectedPersonId]);
+
+  // Temporary fix: Clear conflicting caches on app startup
+  useEffect(() => {
+    const clearConflictingCaches = async () => {
+      try {
+        console.log('[Cache Fix] Clearing conflicting caches due to schema mismatch...');
+        await forceTreeReload();
+        console.log('[Cache Fix] ✅ Caches cleared successfully');
+      } catch (error) {
+        console.error('[Cache Fix] ❌ Failed to clear caches:', error);
+      }
+    };
+    
+    // Clear cache once when app starts
+    clearConflictingCaches();
+  }, []); // Empty dependency array = run once on mount
 
   const checkLinkStatus = async () => {
     try {
