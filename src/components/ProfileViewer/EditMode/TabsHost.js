@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import SegmentedControl from '../../ui/SegmentedControl';
 
 const TabsHost = ({
-  tabs,
+  tabs = [],
   activeTab,
   onTabChange,
   dirtyByTab = {},

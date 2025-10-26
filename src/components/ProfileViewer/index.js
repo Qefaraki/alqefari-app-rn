@@ -266,7 +266,12 @@ const EditModeContent = React.memo(({
       scrollEventThrottle={16}
     >
         {/* Tab Content */}
-        <TabsHost>
+        <TabsHost
+          tabs={enhancedTabs}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          dirtyByTab={dirtyByTab}
+        >
           {/* Lazy load tabs - only render the active one */}
           {activeTab === 'general' && (
             <TabGeneral form={form} updateField={form.updateField} />
