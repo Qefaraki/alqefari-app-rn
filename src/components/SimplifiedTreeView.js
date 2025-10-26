@@ -302,6 +302,12 @@ class SpatialGrid {
 
     // Pre-calculate bounds and build grid in single pass
     nodes.forEach((node) => {
+      // Skip invalid nodes (null safety)
+      if (!node || typeof node.x !== 'number' || typeof node.y !== 'number') {
+        console.warn('SpatialGrid: Skipping invalid node:', node);
+        return;
+      }
+
       // Update bounds
       this.bounds.minX = Math.min(this.bounds.minX, node.x);
       this.bounds.maxX = Math.max(this.bounds.maxX, node.x);
@@ -358,6 +364,11 @@ class SpatialGrid {
         const cellNodes = this.grid.get(`${cx},${cy}`);
         if (cellNodes) {
           for (const node of cellNodes) {
+            // Skip invalid nodes (null safety)
+            if (!node || typeof node.x !== 'number' || typeof node.y !== 'number') {
+              continue;
+            }
+
             // Fine-grained bounds check (without padding for accuracy)
             if (node.x >= worldMinX + padding && node.x <= worldMaxX - padding &&
                 node.y >= worldMinY + padding && node.y <= worldMaxY - padding) {
@@ -967,7 +978,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // Create spatial grid for efficient culling
   const spatialGrid = useMemo(() => {
     if (nodes.length === 0) return null;
-    return new SpatialGrid(nodes);
+    
+    try {
+      return new SpatialGrid(nodes);
+    } catch (error) {
+      console.error('Failed to create SpatialGrid:', error);
+      return null; // Fallback to simple bounds checking
+    }
   }, [nodes]);
 
   // Calculate tree bounds
@@ -975,8 +992,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     if (nodes.length === 0)
       return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
 
-    const xs = nodes.map((n) => n.x);
-    const ys = nodes.map((n) => n.y);
+    const xs = nodes.filter(n => n && typeof n.x === 'number').map((n) => n.x);
+    const ys = nodes.filter(n => n && typeof n.y === 'number').map((n) => n.y);
+
+    // Handle edge case where all nodes are invalid
+    if (xs.length === 0 || ys.length === 0) {
+      return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+    }
 
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
@@ -1041,11 +1063,16 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   const visibleNodes = useMemo(() => {
     // For thousands of nodes, use spatial grid if available
     if (nodes.length > 500 && spatialGrid) {
-      // Spatial grid handles culling efficiently
-      return spatialGrid.getVisibleNodes(
-        { x: currentTransform.x, y: currentTransform.y, width: dimensions.width, height: dimensions.height },
-        currentTransform.scale
-      );
+      try {
+        // Spatial grid handles culling efficiently
+        return spatialGrid.getVisibleNodes(
+          { x: currentTransform.x, y: currentTransform.y, width: dimensions.width, height: dimensions.height },
+          currentTransform.scale
+        );
+      } catch (error) {
+        console.error('SpatialGrid.getVisibleNodes failed:', error);
+        // Fall through to simple bounds checking below
+      }
     }
 
     // Fallback to simple bounds check for smaller trees
@@ -1059,6 +1086,12 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     // Use for loop for better performance than filter
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
+      
+      // Skip invalid nodes (null safety)
+      if (!node || typeof node.x !== 'number' || typeof node.y !== 'number') {
+        continue;
+      }
+
       if (node.x >= boundsMinX && node.x <= boundsMaxX &&
           node.y >= boundsMinY && node.y <= boundsMaxY) {
         visible.push(node);
