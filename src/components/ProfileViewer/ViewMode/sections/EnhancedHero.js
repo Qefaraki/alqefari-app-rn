@@ -155,7 +155,7 @@ const EnhancedHero = ({
           top: heroTokens.paddingVertical,
           left: heroTokens.paddingHorizontal,
           flexDirection: 'row',
-          gap: heroTokens.headerSpacing,
+          gap: 2,
           zIndex: 10,
         },
         actionButton: {
@@ -281,7 +281,7 @@ const EnhancedHero = ({
       {/* Close/Dismiss Button - Top Left (Absolute) */}
       <TouchableOpacity
         style={styles.closeButton}
-        onPress={onClose || onMenuPress}  // ✅ Prefer onClose, fallback to menu
+        onPress={onClose}  // ✅ Close the drawer/sheet
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel="إغلاق"
