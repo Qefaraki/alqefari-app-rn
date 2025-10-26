@@ -110,9 +110,9 @@ describe('LODCalculator', () => {
       expect(state.current).toBe(3);
 
       // Zoom in to trigger T3 → T2
-      // With NODE_WIDTH_WITH_PHOTO = 50px and pixelRatio = 2
+      // With NODE_WIDTH_WITH_PHOTO = 54px and pixelRatio = 2
       // T2_BASE * (1 + HYSTERESIS) = 24 * 1.15 = 27.6px
-      // scale needs to be > 27.6 / (50 * 2) = 0.276
+      // scale needs to be > 27.6 / (54 * 2) = 0.255
       const tier = calculateLODTier(0.37, state);
 
       expect(tier).toBe(2);
@@ -127,8 +127,8 @@ describe('LODCalculator', () => {
 
       // Zoom in to trigger T2 → T1
       // T1_BASE * (1 + HYSTERESIS) = 48 * 1.15 = 55.2px
-      // With NODE_WIDTH_WITH_PHOTO = 50px and pixelRatio = 2
-      // scale needs to be > 55.2 / (50 * 2) = 0.552
+      // With NODE_WIDTH_WITH_PHOTO = 54px and pixelRatio = 2
+      // scale needs to be > 55.2 / (54 * 2) = 0.510
 
       const tier = calculateLODTier(0.8, state);
 

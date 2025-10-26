@@ -35,13 +35,13 @@ describe('Tree Layout Integration', () => {
       expect(NODE_HEIGHT_TEXT_ONLY).toBe(STANDARD_NODE.HEIGHT_TEXT_ONLY);
     });
 
-    test('should maximize photo fill with no padding (photo fills card)', () => {
-      // Standard node width: 50px photo + 0px padding = 50px card width
-      expect(STANDARD_NODE.WIDTH).toBe(50); // Photo fills card exactly
+    test('should maximize photo fill with 2px padding (breathing room)', () => {
+      // Standard node width: 50px photo + 2px padding = 54px card width
+      expect(STANDARD_NODE.WIDTH).toBe(54); // Photo with subtle breathing room
       expect(STANDARD_NODE.WIDTH % 2).toBe(0); // Even number for symmetric centering
 
-      // No padding - photo fills card edges exactly
-      expect(STANDARD_NODE.WIDTH).toBe(50 + 0 * 2); // Photo size + 0px padding × 2
+      // 2px padding on each side - provides spacing without excess
+      expect(STANDARD_NODE.WIDTH).toBe(50 + 2 * 2); // Photo size + 2px padding × 2
     });
 
     test('root node width must stay constant', () => {
@@ -53,11 +53,11 @@ describe('Tree Layout Integration', () => {
       expect(ROOT_NODE.WIDTH % 8).toBe(0);
     });
 
-    test('selection border with no padding (photo fills card)', () => {
-      // Selection border (2.5px) with no horizontal padding (0px per side)
-      // Photo fills card edges exactly
+    test('selection border with 2px padding (breathing room around photo)', () => {
+      // Selection border (2.5px) with 2px horizontal padding (2px per side)
+      // Photo has subtle spacing around it
       expect(STANDARD_NODE.SELECTION_BORDER).toBe(2.5);
-      expect(STANDARD_NODE.WIDTH - 50).toBe(0); // 0px × 2 = 0px padding (photo fills)
+      expect(STANDARD_NODE.WIDTH - 50).toBe(4); // 2px × 2 = 4px padding (breathing room)
     });
   });
 
@@ -67,30 +67,30 @@ describe('Tree Layout Integration', () => {
       // - For siblings: (aWidth / 2) + (bWidth / 2) + 9px gap
       // - For cousins: (aWidth / 2) + (bWidth / 2) + 40px gap
 
-      const aWidth = STANDARD_NODE.WIDTH;  // 50px
-      const bWidth = STANDARD_NODE.WIDTH;  // 50px
+      const aWidth = STANDARD_NODE.WIDTH;  // 54px
+      const bWidth = STANDARD_NODE.WIDTH;  // 54px
       const siblingGap = 9;
       const cousinGap = 40;
 
-      // Sibling separation: 25 + 25 + 9 = 59px (min space between siblings)
+      // Sibling separation: 27 + 27 + 9 = 63px (min space between siblings)
       const siblingSeparation = aWidth / 2 + bWidth / 2 + siblingGap;
-      expect(siblingSeparation).toBe(59);
+      expect(siblingSeparation).toBe(63);
 
-      // Cousin separation: 25 + 25 + 40 = 90px (min space between cousins)
+      // Cousin separation: 27 + 27 + 40 = 94px (min space between cousins)
       const cousinSeparation = aWidth / 2 + bWidth / 2 + cousinGap;
-      expect(cousinSeparation).toBe(90);
+      expect(cousinSeparation).toBe(94);
 
       // These calculations should match what d3 actually uses
       // (Verified by integration testing on sample tree data)
     });
 
     test('photo vs text-only nodes have same separation', () => {
-      // Both photo and text-only use STANDARD_NODE.WIDTH (50px)
+      // Both photo and text-only use STANDARD_NODE.WIDTH (54px)
       const photoWidth = STANDARD_NODE.WIDTH;
       const textWidth = STANDARD_NODE.WIDTH_TEXT_ONLY;
 
       expect(photoWidth).toBe(textWidth);
-      expect(photoWidth).toBe(50);
+      expect(photoWidth).toBe(54);
 
       // This ensures consistent spacing regardless of LOD tier
     });
@@ -103,54 +103,54 @@ describe('Tree Layout Integration', () => {
 
       // Test: 3 siblings with minimum spacing
       const numSiblings = 3;
-      const nodeWidth = STANDARD_NODE.WIDTH;  // 50px
+      const nodeWidth = STANDARD_NODE.WIDTH;  // 54px
       const gap = 9;  // sibling gap
 
       // Rough bounds: (node1 width/2) + gap + (node2 width) + gap + (node3 width/2)
-      // = 25 + 9 + 50 + 9 + 25 = 118px total width for 3 siblings
+      // = 27 + 9 + 54 + 9 + 27 = 126px total width for 3 siblings
       const totalWidth = numSiblings * nodeWidth + (numSiblings - 1) * gap;
-      expect(totalWidth).toBe(3 * 50 + 2 * 9);
-      expect(totalWidth).toBe(168);
+      expect(totalWidth).toBe(3 * 54 + 2 * 9);
+      expect(totalWidth).toBe(180);
 
       // This should NOT produce overlaps if d3 uses same width in separation()
     });
   });
 
   describe('No Hardcoded Dimension Duplication', () => {
-    test('should NOT have alternative width values like 85px or 38px', () => {
+    test('should NOT have alternative width values like 85px or 50px', () => {
       // Old constants file had NODE_WIDTH_WITH_PHOTO = 85 (WRONG)
-      // Ultra-compact version used 38px (with photo overflow effect) - OBSOLETE
-      // Current version uses 50px (photo fills card with no padding)
+      // Previous version used 50px (photo fills card with no padding) - OBSOLETE
+      // Current version uses 54px (50px photo + 2px padding × 2)
 
-      // Standard node should be 50px, not 85px or 38px
+      // Standard node should be 54px, not 85px or 50px
       expect(STANDARD_NODE.WIDTH).not.toBe(85);
       expect(STANDARD_NODE.WIDTH).not.toBe(65);
-      expect(STANDARD_NODE.WIDTH).not.toBe(38);
+      expect(STANDARD_NODE.WIDTH).not.toBe(50);
 
-      // Only valid value (photo fills card, no overflow)
-      expect(STANDARD_NODE.WIDTH).toBe(50);
+      // Only valid value (photo with breathing room padding)
+      expect(STANDARD_NODE.WIDTH).toBe(54);
     });
 
     test('should NOT have conflicting TEXT-ONLY widths', () => {
       // Both photo and text nodes should use same width for consistency
       expect(STANDARD_NODE.WIDTH).toBe(STANDARD_NODE.WIDTH_TEXT_ONLY);
-      expect(STANDARD_NODE.WIDTH).toBe(50);
-      expect(STANDARD_NODE.WIDTH_TEXT_ONLY).toBe(50);
+      expect(STANDARD_NODE.WIDTH).toBe(54);
+      expect(STANDARD_NODE.WIDTH_TEXT_ONLY).toBe(54);
 
-      // No mismatched widths (all use standard 50px)
+      // No mismatched widths (all use standard 54px)
     });
   });
 
   describe('Spacing Calculations', () => {
     test('standard sibling spacing maintains consistent separation', () => {
-      // Current version: 50px nodes + 9px gap = 59px per node pair
-      const nodeSpacing = STANDARD_NODE.WIDTH + 9;  // 59px (50px nodes + 9px gap)
+      // Current version: 54px nodes + 9px gap = 63px per node pair
+      const nodeSpacing = STANDARD_NODE.WIDTH + 9;  // 63px (54px nodes + 9px gap)
 
-      expect(nodeSpacing).toBe(59);
+      expect(nodeSpacing).toBe(63);
 
       // Dense tree (10 siblings):
-      // 10 × 59 = 590px width
-      expect(10 * nodeSpacing).toBe(590);
+      // 10 × 63 = 630px width
+      expect(10 * nodeSpacing).toBe(630);
     });
   });
 
@@ -163,9 +163,9 @@ describe('Tree Layout Integration', () => {
       expect(NODE_HEIGHT_WITH_PHOTO).toBeDefined();
       expect(NODE_HEIGHT_TEXT_ONLY).toBeDefined();
 
-      // Values should match current standard (50px)
-      expect(NODE_WIDTH_WITH_PHOTO).toBe(50);
-      expect(NODE_WIDTH_TEXT_ONLY).toBe(50);
+      // Values should match current standard (54px)
+      expect(NODE_WIDTH_WITH_PHOTO).toBe(54);
+      expect(NODE_WIDTH_TEXT_ONLY).toBe(54);
       expect(NODE_HEIGHT_WITH_PHOTO).toBe(75);
       expect(NODE_HEIGHT_TEXT_ONLY).toBe(35);
     });

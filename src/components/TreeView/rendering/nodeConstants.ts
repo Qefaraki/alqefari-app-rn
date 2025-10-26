@@ -19,11 +19,16 @@
  * - Card width set to 50px (matches photo size exactly)
  * - Photo fills card completely with no overflow
  * - Clean, aligned design with perfect photo-to-card fit
+ *
+ * Oct 26 Padding Update:
+ * - Added 2px horizontal padding on both sides
+ * - Final card width: 54px (50px photo + 2px×2 padding)
+ * - Provides subtle breathing room while keeping design compact
  */
 
-// Padding - single configurable source (photo fills card with no overflow)
+// Padding - single configurable source (2px spacing around photo)
 export const NODE_PADDING = {
-  HORIZONTAL: 0,  // No padding - photo fills card edges exactly
+  HORIZONTAL: 2,  // 2px padding on each side - subtle breathing room
   VERTICAL: 4,    // Vertical padding maintains visual balance
 } as const;
 
@@ -32,13 +37,13 @@ export const PHOTO_SIZE = 50; // Circle diameter in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 50px photo with 0px padding = 50px card width (photo fills card exactly)
-  // Clean alignment with no overflow
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (50 + 0×2)
+  // Photo nodes: 50px photo with 2px padding = 54px card width (breathing room around photo)
+  // Photo visible with subtle spacing
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (50 + 2×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
-  // Text-only nodes: same width for consistency (50px card width)
-  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (matches photo card width)
+  // Text-only nodes: same width for consistency (54px card width)
+  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (matches photo card width)
   HEIGHT_TEXT_ONLY: 35,
 
   CORNER_RADIUS: 10,
