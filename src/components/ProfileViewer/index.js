@@ -72,6 +72,7 @@ import { invalidateStructureCache } from '../../utils/cacheInvalidation';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import { useAuth } from '../../contexts/AuthContextSimple';
 import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
+import ShareProfileSheet from '../sharing/ShareProfileSheet';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -351,6 +352,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [saving, setSaving] = useState(false);
   const [marriages, setMarriages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   // Initialize hooks early so they're available for useCallbacks
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(person?.id);
@@ -834,8 +836,31 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     enterEditMode();
   }, [accessMode, canEdit, checkBeforeAction, enterEditMode, rememberChoice, person, onClose, userProfile]);
 
+  // Determine share/invite mode based on profile state
+  // Invite mode: alive + not linked to app (no user_id)
+  // Share mode: everyone else (deceased, linked, or no death_date info)
+  const shareMode = useMemo(() => {
+    // Always 'share' mode when viewing own profile
+    if (person?.id === userProfile?.id) {
+      return 'share';
+    }
+
+    // For others: invite only if alive + not linked
+    const isAlive = !person?.death_date;
+    const isLinked = Boolean(person?.user_id);
+    return isAlive && !isLinked ? 'invite' : 'share';
+  }, [person?.id, person?.death_date, person?.user_id, userProfile?.id]);
+
+  // Share/Invite handler
+  const handleSharePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowShareSheet(true);
+  }, []);
+
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
+    const shareText = shareMode === 'invite' ? 'إرسال دعوة' : 'مشاركة الملف';
+
     const options = [
       canEdit
         ? {
@@ -843,10 +868,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             onPress: handleEditPress,  // Direct reference instead of arrow function
           }
         : null,
+      person?.hid
+        ? {
+            text: shareText,
+            onPress: handleSharePress,
+          }
+        : null,
       { text: 'إغلاق', style: 'cancel' },
     ];
     return options.filter(Boolean);
-  }, [canEdit, handleEditPress]);
+  }, [canEdit, handleEditPress, person?.hid, shareMode, handleSharePress]);
 
   const handleMenuPress = useCallback(() => {
     Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
@@ -1304,6 +1335,17 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           enterEditMode();
         }}
       />
+
+      {/* Share/Invite Sheet - Only show for profiles with HID */}
+      {showShareSheet && person?.hid && (
+        <ShareProfileSheet
+          visible={showShareSheet}
+          onClose={() => setShowShareSheet(false)}
+          profile={person}
+          mode={shareMode}
+          inviterProfile={userProfile}
+        />
+      )}
     </>
   );
 };

@@ -36,6 +36,7 @@ import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import tokens from '../components/ui/tokens';
 import MySuggestions from "./MySuggestions";
 import { PhoneChangeModal } from "../components/settings/PhoneChangeModal";
+import ShareProfileSheet from "../components/sharing/ShareProfileSheet";
 import { DeleteAccountModal } from "../components/settings/DeleteAccountModal";
 import { checkDeletionRateLimit } from "../services/deleteAccountOtp";
 
@@ -319,6 +320,7 @@ export default function SettingsPageModern({ user }) {
   const [showPhoneChangeModal, setShowPhoneChangeModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -1248,6 +1250,18 @@ export default function SettingsPageModern({ user }) {
               rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
             />
           )}
+          {/* QR Code Sharing - Only for linked profiles */}
+          {currentUser && !isGuestMode && userProfile && (
+            <SettingsCell
+              label="رمز QR للملف"
+              description="شارك ملفك مع العائلة"
+              onPress={() => {
+                handleFeedback();
+                setShowShareSheet(true);
+              }}
+              rightAccessory={<Ionicons name="qr-code-outline" size={18} color={colors.muted} />}
+            />
+          )}
           <SettingsCell
             label="تواصل مع الإدارة"
             description="أرسل رسالة فورية عبر الواتساب"
@@ -1379,6 +1393,17 @@ export default function SettingsPageModern({ user }) {
         }}
         onCancel={() => setShowDeleteAccountModal(false)}
       />
+
+      {/* Share Profile Sheet */}
+      {showShareSheet && userProfile && (
+        <ShareProfileSheet
+          visible={showShareSheet}
+          onClose={() => setShowShareSheet(false)}
+          profile={userProfile}
+          mode="share"
+          inviterProfile={null}
+        />
+      )}
     </SafeAreaView>
   );
 }
