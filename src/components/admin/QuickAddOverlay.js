@@ -25,6 +25,7 @@ import { BlurView } from "expo-blur";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 import { useNetworkGuard } from "../../hooks/useNetworkGuard";
+import { invalidateStructureCache } from "../../utils/cacheInvalidation";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
 import FatherSelectorSimple from "./fields/FatherSelectorSimple";
 import ChildListCard from "./ChildListCard";
@@ -575,15 +576,47 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
           return;
         }
 
-        // Success!
+        // Validate RPC actually processed operations (catch silent failures)
+        const totalExpected =
+          childrenToCreate.length +
+          childrenToUpdate.length +
+          childrenToDelete.length;
+
+        const totalProcessed =
+          (data.results?.created || 0) +
+          (data.results?.updated || 0) +
+          (data.results?.deleted || 0);
+
+        if (totalProcessed === 0 && totalExpected > 0) {
+          console.error('[QuickAdd] Silent failure: RPC succeeded but 0 operations processed', {
+            expected: totalExpected,
+            results: data.results
+          });
+          Alert.alert("خطأ", "لم يتم حفظ أي تغييرات. يرجى المحاولة مرة أخرى");
+          setLoading(false);
+          return;
+        }
+
+        if (totalProcessed < totalExpected) {
+          console.warn('[QuickAdd] Partial save:', {
+            expected: totalExpected,
+            processed: totalProcessed,
+            results: data.results
+          });
+          // Continue anyway (some operations succeeded)
+        }
+
+        // Success! Refresh profile and invalidate cache
         await refreshProfile(parentNode.id);
+        await invalidateStructureCache(); // Ensure fresh data after app restart
+
+        // Brief delay for haptic feedback
+        await new Promise(resolve => setTimeout(resolve, 300));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Close modal after brief feedback (prevents duplicate saves)
-        setTimeout(() => {
-          onChildAdded?.();
-          onClose();
-        }, 300);
+        // Close modal (refresh complete, no race condition)
+        onChildAdded?.();
+        onClose();
       } else {
         // =========================================================================
         // 📦 FALLBACK: SEQUENTIAL SAVE PATH (legacy)
