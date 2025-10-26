@@ -250,29 +250,39 @@ const EditModeContent = React.memo(({
   );
 
   return (
-    <BottomSheetScrollView
-      ref={scrollRef}
-      contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingTop: 0,
-        paddingBottom: insets.bottom + 80,
-        gap: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-      keyboardDismissMode="interactive"
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
-    >
-        {/* Tab Content */}
-        <TabsHost
-          tabs={enhancedTabs}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          dirtyByTab={dirtyByTab}
-        >
+    <>
+      {/* Sticky Header */}
+      <EditHeader
+        onCancel={handleCancel}
+        onSubmit={handleSubmit}
+        saving={saving}
+        canSubmit={form.isDirty}
+        accessMode={accessMode}
+      />
+      
+      <BottomSheetScrollView
+        ref={scrollRef}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 0,
+          paddingBottom: insets.bottom + 80,
+          gap: 20,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
+      >
+          {/* Tab Content */}
+          <TabsHost
+            tabs={enhancedTabs}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            dirtyByTab={dirtyByTab}
+          >
           {/* Lazy load tabs - only render the active one */}
           {activeTab === 'general' && (
             <TabGeneral form={form} updateField={form.updateField} />
@@ -300,7 +310,8 @@ const EditModeContent = React.memo(({
             <TabContact form={form} updateField={form.updateField} />
           )}
         </TabsHost>
-    </BottomSheetScrollView>
+      </BottomSheetScrollView>
+    </>
   );
 });
 EditModeContent.displayName = 'EditModeContent';

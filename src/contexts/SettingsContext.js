@@ -29,6 +29,7 @@ export const SettingsProvider = ({ children }) => {
     // Tree display settings
     showPhotos: true, // Show profile photos in tree view (default ON)
     highlightMyLine: false, // Highlight user's direct lineage (default OFF)
+    lineStyle: "straight", // Connection line style: 'straight' or 'bezier' (default straight)
   });
 
   // Load settings from storage on mount
@@ -65,6 +66,7 @@ export const SettingsProvider = ({ children }) => {
           // Tree display settings with defaults
           showPhotos: parsed.showPhotos !== false, // Default ON
           highlightMyLine: parsed.highlightMyLine === true, // Default OFF
+          lineStyle: parsed.lineStyle === "bezier" ? "bezier" : "straight", // Default straight
         };
 
         console.log('[SettingsContext] Loaded settings from storage:', validatedSettings);
@@ -81,6 +83,7 @@ export const SettingsProvider = ({ children }) => {
             showEnglishNames: validatedSettings.showEnglishNames,
             showPhotos: validatedSettings.showPhotos,
             highlightMyLine: validatedSettings.highlightMyLine,
+            lineStyle: validatedSettings.lineStyle,
           }),
         );
       }
@@ -128,6 +131,7 @@ export const SettingsProvider = ({ children }) => {
         showEnglishNames: newSettings.showEnglishNames,
         showPhotos: newSettings.showPhotos,
         highlightMyLine: newSettings.highlightMyLine,
+        lineStyle: newSettings.lineStyle,
       }));
     } catch (error) {
       // Using Alert instead of console.error to avoid lint issues
@@ -154,6 +158,7 @@ export const SettingsProvider = ({ children }) => {
         dateDisplay: "gregorian",
         showPhotos: true, // Default ON
         highlightMyLine: false, // Default OFF
+        lineStyle: "straight", // Default straight lines
       };
 
       setSettings(defaultSettings);

@@ -162,6 +162,9 @@ import {
 // Phase 1 Day 4d - Import Arabic text rendering
 import { createArabicParagraph } from './TreeView/rendering/ArabicTextRenderer';
 
+// Import line styles system for bezier curves
+import { buildBatchedPaths, LINE_STYLES } from './TreeView/utils/lineStyles';
+
 // Phase 2 Day 10 - Import paragraph cache
 import { getCachedParagraph } from './TreeView/rendering/ParagraphCache';
 
@@ -337,7 +340,7 @@ const TreeView = ({
   const { isPreloadingTree, profile: authProfile } = useAuth();
 
   // Extract tree display settings
-  const { showPhotos, highlightMyLine } = settings;
+  const { showPhotos, highlightMyLine, lineStyle } = settings;
 
   // Store settings in ref for access in callbacks (prevents stale closures)
   // NOTE: We use ref pattern because settings are accessed in debounced
@@ -586,8 +589,31 @@ const TreeView = ({
 
   // Distance-based bucket selection with viewport center priority
   const selectBucketWithDistance = useCallback((nodeId, pixelSize, nodeX, nodeY) => {
+    // Validate inputs with fallbacks
+    if (typeof pixelSize !== 'number' || pixelSize <= 0) {
+      console.warn(`[BucketSelection] Invalid pixelSize for ${nodeId}: ${pixelSize}`);
+      return 80; // Safe fallback
+    }
+    
+    if (typeof nodeX !== 'number' || typeof nodeY !== 'number') {
+      console.warn(`[BucketSelection] Invalid node coordinates for ${nodeId}: (${nodeX}, ${nodeY})`);
+      return IMAGE_BUCKETS.find((b) => b >= pixelSize) || 1024;
+    }
+
     const nodeBuckets = nodeBucketsRef.current;
     const bucketTimers = bucketTimersRef.current;
+
+    // Fallback to regular hysteresis if viewport center not ready
+    if (!viewportCenter || typeof viewportCenter.x !== 'number') {
+      const current = nodeBuckets.get(nodeId) || 80;
+      const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 1024;
+      
+      // Store the selected bucket for hysteresis tracking
+      if (target !== current) {
+        nodeBuckets.set(nodeId, target);
+      }
+      return target;
+    }
 
     // Calculate distance from viewport center
     const dx = nodeX - viewportCenter.x;
@@ -596,16 +622,23 @@ const TreeView = ({
 
     // Define quality zones based on distance from center
     const screenDiagonal = Math.sqrt(dimensions.width * dimensions.width + dimensions.height * dimensions.height);
-    const maxDistance = screenDiagonal / currentTransform.scale;
-    const normalizedDistance = Math.min(distance / maxDistance, 1.0);
+    const maxDistance = Math.max(screenDiagonal / currentTransform.scale, 1); // Prevent division by zero
+    const normalizedDistance = Math.min(Math.max(distance / maxDistance, 0), 1.0); // Clamp to [0, 1]
 
     // Quality multiplier based on distance (center = 1.5x, edge = 1.0x)
-    const qualityMultiplier = 1.5 - normalizedDistance * 0.5;
+    const qualityMultiplier = Math.max(1.0, Math.min(1.5, 1.5 - normalizedDistance * 0.5)); // Clamp to [1.0, 1.5]
     const adjustedPixelSize = pixelSize * qualityMultiplier;
 
     // Use original hysteresis logic with adjusted pixel size
     const current = nodeBuckets.get(nodeId) || 80;
     const target = IMAGE_BUCKETS.find((b) => b >= adjustedPixelSize) || 1024;
+
+    // Debug distance-based quality for nodes with significant upgrades (after target is calculated)
+    if (__DEV__ && false && adjustedPixelSize > pixelSize * 1.2) { // Disabled to reduce console spam
+      console.log(
+        `[PanQuality] ${nodeId}: distance=${distance.toFixed(0)}, quality=${qualityMultiplier.toFixed(2)}x, ${pixelSize.toFixed(0)} → ${adjustedPixelSize.toFixed(0)}px, target=${target}px`
+      );
+    }
 
     // Apply hysteresis (same logic as original function)
     if (target > current && adjustedPixelSize < current * (1 + BUCKET_HYSTERESIS)) {
@@ -629,8 +662,16 @@ const TreeView = ({
 
     // Immediate downgrade
     nodeBuckets.set(nodeId, target);
-    return target;
-  }, [viewportCenter.x, viewportCenter.y, dimensions.width, dimensions.height, currentTransform.scale]);
+    
+    // Final validation: ensure we always return a valid bucket
+    const result = target || 1024;
+    if (!IMAGE_BUCKETS.includes(result)) {
+      console.warn(`[BucketSelection] Invalid bucket ${result} for ${nodeId}, using fallback 256`);
+      return 256;
+    }
+    
+    return result;
+  }, [viewportCenter, dimensions.width, dimensions.height, currentTransform.scale]);
 
   // Phase 2: Use extracted calculateLODTier function (wrapping for local tierState access)
   const calculateLODTierLocal = useCallback((scale) => {
@@ -985,6 +1026,10 @@ const TreeView = ({
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
 
+  // Track viewport center for pan-based quality updates
+  const lastViewportCenter = useRef({ x: 0, y: 0 });
+  const [panTrigger, setPanTrigger] = useState(0);
+
   // Helper: Sync transform and bounds from animated values (on-demand, not continuous)
   // Called on gesture end and before user actions (tap, overlay, search)
   // visibleBounds now derives automatically from currentTransform (see useMemo below)
@@ -1102,6 +1147,38 @@ const TreeView = ({
     return visible;
   }, [nodes, visibleBounds, currentScale]);
 
+  // Detect significant pan changes and trigger bucket re-evaluation (debounced)
+  useEffect(() => {
+    // Skip if viewportCenter is not ready
+    if (!viewportCenter || typeof viewportCenter.x !== 'number') {
+      return;
+    }
+
+    // Debounce pan detection to avoid excessive triggering
+    const timeoutId = setTimeout(() => {
+      const dx = viewportCenter.x - lastViewportCenter.current.x;
+      const dy = viewportCenter.y - lastViewportCenter.current.y;
+      const panDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Trigger re-evaluation if panned more than 150 pixels (canvas coordinates)
+      // Reduced threshold to be more responsive while avoiding excessive triggers
+      const panThreshold = 150;
+      
+      if (panDistance > panThreshold) {
+        lastViewportCenter.current = { x: viewportCenter.x, y: viewportCenter.y };
+        
+        // Force bucket re-evaluation by incrementing trigger
+        setPanTrigger(prev => prev + 1);
+        
+        if (__DEV__ && false) { // Disabled to reduce console spam
+          console.log(`[PanQuality] Significant pan detected: ${panDistance.toFixed(0)}px, triggering quality re-evaluation`);
+        }
+      }
+    }, 100); // 100ms debounce to avoid excessive triggering
+
+    return () => clearTimeout(timeoutId);
+  }, [viewportCenter]);
+
   // Prefetch neighbor nodes for better performance
   useEffect(() => {
     if (!visibleNodes.length) return;
@@ -1161,9 +1238,10 @@ const TreeView = ({
   }, [connections, visibleNodes]);
 
   // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
+  // Skip bridge segments for bezier curves since they don't use horizontal lines
   const bridgeSegments = useMemo(() => {
     const result = [];
-    if (!connections || !Array.isArray(connections)) {
+    if (!connections || !Array.isArray(connections) || lineStyle === "bezier") {
       return result;
     }
     for (const conn of connections) {
@@ -1205,7 +1283,7 @@ const TreeView = ({
       }
     }
     return result;
-  }, [connections, visibleBounds]);
+  }, [connections, visibleBounds, lineStyle]);
 
   // Initialize position on first load - smart positioning based on user
   useEffect(() => {
@@ -2063,72 +2141,11 @@ const TreeView = ({
   );
 
 
-  // Render connection lines with proper elbow style
-  const renderConnection = useCallback(
-    (connection) => {
-      const parent = nodes.find((n) => n.id === connection.parent.id);
-      if (!parent) return null;
+  // Legacy renderConnection function removed - now using line styles system
 
-      // Use PathCalculator for geometry calculations
-      const busY = calculateBusY(parent, connection.children);
-      const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
-
-      const lines = [];
-
-      // Vertical line from parent
-      lines.push(
-        <Line
-          key={`parent-down-${parent.id}`}
-          p1={vec(parentVertical.startX, parentVertical.startY)}
-          p2={vec(parentVertical.endX, parentVertical.endY)}
-          color={LINE_COLOR}
-          style="stroke"
-          strokeWidth={LINE_WIDTH}
-        />,
-      );
-
-      // Horizontal bus line (only if multiple children or offset)
-      if (shouldRenderBusLine(connection.children, parent)) {
-        const busLine = calculateBusLine(connection.children, busY);
-        lines.push(
-          <Line
-            key={`bus-${parent.id}`}
-            p1={vec(busLine.startX, busLine.startY)}
-            p2={vec(busLine.endX, busLine.endY)}
-            color={LINE_COLOR}
-            style="stroke"
-            strokeWidth={LINE_WIDTH}
-          />,
-        );
-      }
-
-      // Vertical lines to children
-      const childVerticals = calculateChildVerticalPaths(connection.children, busY, showPhotos);
-      connection.children.forEach((child, index) => {
-        const childNode = nodes.find((n) => n.id === child.id);
-        if (!childNode) return;
-
-        const path = childVerticals[index];
-        lines.push(
-          <Line
-            key={`child-up-${child.id}`}
-            p1={vec(path.startX, path.startY)}
-            p2={vec(path.endX, path.endY)}
-            color={LINE_COLOR}
-            style="stroke"
-            strokeWidth={LINE_WIDTH}
-          />,
-        );
-      });
-
-      return lines;
-    },
-    [nodes, showPhotos],
-  );
-
-  // Render edges with batching and capping
+  // Render edges with batching and capping - Updated with line styles support
   // Pre-build all connection paths once (cached by useMemo)
-  // Removed currentTransform dependency to eliminate per-frame rebuild lag
+  // Supports both straight lines and bezier curves based on settings
   const allBatchedEdgePaths = useMemo(() => {
     if (tier === 3) return { elements: null, count: 0 };
 
@@ -2148,95 +2165,34 @@ const TreeView = ({
       startTime = performance.now();
     }
 
-    let edgeCount = 0;
-    const paths = [];
-    const pathBuilder = Skia.Path.Make();
-    let currentBatch = 0;
+    // Use line styles system for unified path generation
+    const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+    
+    // Filter connections for viewport and apply edge limit
+    const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
+    
+    // Generate all paths using the line styles system
+    const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos);
+    
+    // Convert to React elements for rendering
+    const pathElements = batchedResult.elements?.map((pathData) => (
+      <Path
+        key={pathData.key}
+        path={pathData.path}
+        color={LINE_COLOR}
+        style="stroke"
+        strokeWidth={LINE_WIDTH}
+      />
+    )) || [];
 
-    for (const conn of connections) {
-      if (edgeCount >= MAX_VISIBLE_EDGES) break;
+    if (__DEV__ && startTime) {
+      const duration = performance.now() - startTime;
+      console.log(`[TreeView] ${currentLineStyle} paths built: ${batchedResult.count} edges in ${duration.toFixed(1)}ms`);
+    }
 
-      // Validate connection structure (defensive programming)
-      if (!conn?.parent?.id || !Array.isArray(conn.children)) {
-        if (__DEV__) {
-          // eslint-disable-next-line no-console
-          console.warn('[TreeView] Malformed connection object', conn);
-        }
-        continue;
-      }
-
-      // ✅ NO FILTERING - render ALL connections, let Skia clip
-      // This is the core fix: we build paths for all connections,
-      // and rely on the clipping group in the render hierarchy
-      const parent = { ...conn.parent, _showPhoto: showPhotos };
-      const children = conn.children.map(c => ({ ...c, _showPhoto: showPhotos }));
-      if (children.length === 0) continue; // Skip if no children at all
-
-        // Use PathCalculator for all geometry calculations
-        // Now uses actual node objects with _showPhoto per-node state
-        const busY = calculateBusY(parent, children, showPhotos);
-        const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
-
-        // Add parent vertical line
-        pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
-        pathBuilder.lineTo(parentVertical.endX, parentVertical.endY);
-
-        // Add horizontal bus line if needed
-        if (shouldRenderBusLine(children, parent)) {
-          const busLine = calculateBusLine(children, busY);
-          pathBuilder.moveTo(busLine.startX, busLine.startY);
-          pathBuilder.lineTo(busLine.endX, busLine.endY);
-        }
-
-        // Add child vertical lines
-        const childVerticals = calculateChildVerticalPaths(children, busY, showPhotos);
-
-        children.forEach((child, index) => {
-          const path = childVerticals[index];
-          pathBuilder.moveTo(path.startX, path.startY);
-          pathBuilder.lineTo(path.endX, path.endY);
-        });
-
-        edgeCount += conn.children.length + 1;
-        currentBatch += conn.children.length + 1;
-
-        // Flush batch every 50 edges
-        if (currentBatch >= 50) {
-          // Clone path before pushing
-          const flushed = Skia.Path.Make();
-          flushed.addPath(pathBuilder);
-          paths.push(
-            <Path
-              key={`edges-${paths.length}`}
-              path={flushed}
-              color={LINE_COLOR}
-              style="stroke"
-              strokeWidth={LINE_WIDTH}
-            />,
-          );
-          pathBuilder.reset();
-          currentBatch = 0;
-        }
-      }
-
-      // Final batch
-      if (currentBatch > 0) {
-        const flushed = Skia.Path.Make();
-        flushed.addPath(pathBuilder);
-        paths.push(
-          <Path
-            key={`edges-${paths.length}`}
-            path={flushed}
-            color={LINE_COLOR}
-            style="stroke"
-            strokeWidth={LINE_WIDTH}
-          />,
-        );
-      }
-
-      return { elements: paths, count: edgeCount };
-    },
-    [connections, showPhotos, tier, dimensions], // ✅ REQUIRED: Added dimensions, removed currentTransform
+    return { elements: pathElements, count: batchedResult.count };
+  },
+  [connections, showPhotos, lineStyle, tier, dimensions], // Added lineStyle dependency
   );
 
   // Render highlighted ancestry path
@@ -2407,7 +2363,7 @@ const TreeView = ({
         _tier: 1, // Always T1 (full cards)
         _scale: currentTransform.scale,
         _showPhoto: showPhotos, // Use user-controlled photo visibility prop
-        _selectBucket: selectBucketWithHysteresis,
+        _selectBucket: (nodeId, pixelSize) => selectBucketWithDistance(nodeId, pixelSize, node.x, node.y),
         _hasChildren: indices.parentToChildren.has(node.id),
       };
       return renderNode(modifiedNode);
@@ -2418,8 +2374,9 @@ const TreeView = ({
       currentTransform.scale,
       renderNode,
       renderTier2Node,
-      selectBucketWithHysteresis,
+      selectBucketWithDistance,
       indices,
+      panTrigger, // Force re-render when pan triggers bucket re-evaluation
     ],
   );
 
@@ -2644,7 +2601,7 @@ const TreeView = ({
           scale: scale,
         }}
         focusPersonId={linkedProfileId || profile?.id}
-        onAnimationComplete={syncTransform}
+        onNavigate={navigateToNode}
       />
 
 

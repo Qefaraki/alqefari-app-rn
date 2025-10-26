@@ -50,20 +50,8 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       return { rootNode: null, g2Branches: [], hasData: false };
     }
 
-    console.log('🔍 SearchBar: Processing', nodes.length, 'nodes for navigation');
-
     // Find root node (generation 1, no father_id)
     const rootNode = nodes.find(n => !n.father_id && n.generation === 1);
-    console.log('🌳 Root node found:', rootNode ? rootNode.name : 'NONE FOUND');
-    
-    if (rootNode) {
-      console.log('🌳 Root node details:', {
-        id: rootNode.id,
-        name: rootNode.name,
-        generation: rootNode.generation,
-        father_id: rootNode.father_id
-      });
-    }
 
     // Find main G2 branches (generation 2 with children, sorted by sibling order)
     const g2Branches = nodes
@@ -74,8 +62,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         name: extractFirstName(node.name),
         fullName: node.name
       }));
-
-    console.log('👥 G2 branches found:', g2Branches.length, g2Branches.map(b => b.name));
 
     const hasData = rootNode || g2Branches.length > 0;
     return { rootNode, g2Branches, hasData };
@@ -466,7 +452,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   const handlePillPress = useCallback((nodeId, nodeName) => {
     if (onNavigate) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      console.log('🧭 Navigation pill pressed:', nodeName);
       onNavigate(nodeId);
     }
   }, [onNavigate]);
@@ -634,7 +619,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
                       accessibilityRole="button"
                       accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
                     >
-                      <Text style={[styles.pillText, styles.rootPillText]} numberOfLines={1}>
+                      <Text style={[styles.pillText, styles.rootPillText]}>
                         {getRootDisplayName(navigationData.rootNode)}
                       </Text>
                     </TouchableOpacity>
@@ -706,18 +691,12 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
 
 // Helper function to get root node display name
 const getRootDisplayName = (rootNode) => {
-  console.log('🏷️  getRootDisplayName called with:', rootNode);
-  
   if (!rootNode || !rootNode.name) {
-    console.log('🏷️  No root node or name, returning fallback');
     return 'الجذر';
   }
   
-  // For root node, show the full name including parentheses
-  // Example: "سليمان (ابو القفارات)" -> "سليمان (ابو القفارات)"
-  const displayName = rootNode.name.trim();
-  console.log('🏷️  Root display name:', displayName);
-  return displayName;
+  // Use hardcoded name as requested by user
+  return "سليمان (ابو القفارات)";
 };
 
 // Helper function to extract first name from full Arabic name
@@ -825,15 +804,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     gap: 8,
-    backgroundColor: `${tokens.colors.najdi.background}95`, // Semi-transparent Al-Jass White
-    borderRadius: 20,
-    
-    // Subtle shadow for depth
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
   },
   pill: {
     paddingHorizontal: 16,
@@ -853,6 +823,8 @@ const styles = StyleSheet.create({
   },
   rootPill: {
     backgroundColor: tokens.colors.najdi.primary,
+    minWidth: 120,  // Allow more width for full Arabic name
+    maxWidth: 220,  // Reasonable max width for long names
   },
   branchPill: {
     backgroundColor: tokens.colors.surface,

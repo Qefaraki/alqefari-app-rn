@@ -10,6 +10,9 @@ config.resolver.unstable_enableSymlinks = true;
 // Add asset extensions
 config.resolver.assetExts = [...(config.resolver.assetExts || []), 'png', 'jpg', 'jpeg', 'gif'];
 
+// Add TypeScript extensions to support mixed JS/TS imports
+config.resolver.sourceExts = [...(config.resolver.sourceExts || []), 'ts', 'tsx'];
+
 // Fix for unstable-native-tabs module resolution and expo-router assets
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {

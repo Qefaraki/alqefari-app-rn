@@ -33,13 +33,13 @@ export interface BatchedImageResult {
  * - Detects when bucket increases (e.g., 80px → 256px for zoom)
  *
  * @param url - The image URL to load
- * @param bucket - The size bucket (default 256)
+ * @param bucket - The size bucket (default 120)
  * @param priority - Loading priority ('visible' or 'prefetch')
  * @returns BatchedImageResult with image, upgrade tracking, and bucket info
  */
 export function useBatchedSkiaImageWithMorph(
   url: string | null,
-  bucket = 256,
+  bucket = 120,
   priority: "visible" | "prefetch" = "visible"
 ): BatchedImageResult {
   const [image, setImage] = useState<SkImage | null>(null);

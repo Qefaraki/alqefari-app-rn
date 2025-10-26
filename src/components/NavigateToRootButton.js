@@ -11,7 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
 
-const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, onAnimationComplete }) => {
+const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, onNavigate }) => {
   const [targetNode, setTargetNode] = useState(null);
 
   // Find and cache the target node when nodes change
@@ -50,6 +50,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, on
       return;
     }
 
+    if (!onNavigate) {
+      console.warn('NavigateToRootButton: No onNavigate callback provided');
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Tap animation
     iconScale.value = withSequence(
@@ -62,48 +67,9 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, on
       withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) }),
     );
 
-    if (!sharedValues) {
-      // console.warn('NavigateToRootButton: No shared values provided');
-      return;
-    }
-
-    if (!viewport || !viewport.width || !viewport.height) {
-      console.warn("NavigateToRootButton: Viewport not ready");
-      return;
-    }
-
-    // Calculate target position to center node in viewport
-    // Account for root node being moved up 80px
-    const isRoot = !targetNode.father_id;
-    const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
-    const targetScale = 1.0; // Moderate zoom for better overview
-    const targetX = viewport.width / 2 - targetNode.x * targetScale;
-    const targetY = viewport.height / 2 - adjustedY * targetScale; // Center vertically
-
-    // console.log('Navigate to focused node:', {
-    //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
-    //   viewport: { width: viewport.width, height: viewport.height },
-    //   target: { x: targetX, y: targetY, scale: targetScale }
-    // });
-
-    // Animate the shared values directly
-    sharedValues.translateX.value = withTiming(targetX, {
-      duration: 600,
-      easing: Easing.inOut(Easing.ease),
-    });
-    sharedValues.translateY.value = withTiming(targetY, {
-      duration: 600,
-      easing: Easing.inOut(Easing.ease),
-    });
-    sharedValues.scale.value = withTiming(targetScale, {
-      duration: 600,
-      easing: Easing.inOut(Easing.ease),
-    }, (finished) => {
-      // Sync viewport after animation completes to render nodes immediately
-      if (finished && onAnimationComplete) {
-        runOnJS(onAnimationComplete)();
-      }
-    });
+    // Use the same navigation function as search results
+    // This will trigger the camera movement + node selection + enrichment
+    onNavigate(targetNode.id);
   };
 
   // Always render the button, but disable if target not found

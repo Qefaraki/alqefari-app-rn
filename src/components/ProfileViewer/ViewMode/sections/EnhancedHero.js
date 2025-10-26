@@ -207,12 +207,31 @@ const EnhancedHero = ({
           alignItems: 'center',
           width: heroTokens.nameMaxWidth,
         },
+        nameWithKunyaRow: {
+          flexDirection: 'row',
+          alignItems: 'baseline',
+          flexWrap: 'wrap',
+          gap: spacing.xs,
+          justifyContent: 'center',
+        },
         name: {
           fontSize: typography.title2.fontSize,
           fontWeight: '700',
           color: colors.najdi.text,
           textAlign: 'center',
           numberOfLines: shouldUseAlternateLayout ? 2 : 1,
+        },
+        kunyaBullet: {
+          fontSize: typography.body.fontSize,
+          color: colors.najdi.textMuted,
+          marginHorizontal: 2,
+        },
+        kunyaText: {
+          fontSize: typography.body.fontSize,
+          fontWeight: '400',
+          color: colors.najdi.textMuted,
+          fontStyle: 'italic',
+          textAlign: 'center',
         },
         lineage: {
           fontSize: typography.subheadline.fontSize,
@@ -342,13 +361,21 @@ const EnhancedHero = ({
 
       {/* Text Block - Centered */}
       <View style={styles.textBlock}>
-        <Text
-          style={styles.name}
-          numberOfLines={shouldUseAlternateLayout ? 2 : 1}
-          adjustsFontSizeToFit
-        >
-          {formatNameWithTitle(person)}
-        </Text>
+        <View style={styles.nameWithKunyaRow}>
+          <Text
+            style={styles.name}
+            numberOfLines={shouldUseAlternateLayout ? 2 : 1}
+            adjustsFontSizeToFit
+          >
+            {formatNameWithTitle(person)}
+          </Text>
+          {person?.kunya ? (
+            <>
+              <Text style={styles.kunyaBullet}>•</Text>
+              <Text style={styles.kunyaText}>{person.kunya}</Text>
+            </>
+          ) : null}
+        </View>
 
         {lineage ? (
           <TouchableOpacity

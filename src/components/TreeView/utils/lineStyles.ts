@@ -1,0 +1,242 @@
+/**
+ * Line Styles System - Support for straight and bezier curve connections
+ * 
+ * Provides unified path generation for tree connections with support for:
+ * - Straight lines (original system)
+ * - Bezier curves (smooth, curved connections)
+ * 
+ * Can be toggled in Settings without app restart.
+ */
+
+import { Skia, SkPath } from "@shopify/react-native-skia";
+import {
+  calculateBusY,
+  calculateParentVerticalPath,
+  calculateBusLine,
+  calculateChildVerticalPaths,
+  shouldRenderBusLine,
+  type LayoutNode,
+  type Connection,
+} from '../spatial/PathCalculator';
+
+export const LINE_STYLES = {
+  STRAIGHT: 'straight',
+  BEZIER: 'bezier'
+} as const;
+
+export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
+
+/**
+ * Generate straight line paths (original system)
+ * Uses the existing PathCalculator functions for elbow-style connections
+ */
+export function generateStraightPaths(connection: Connection, showPhotos: boolean = true): SkPath[] {
+  const { parent, children } = connection;
+  const paths: SkPath[] = [];
+  
+  // Use existing PathCalculator logic
+  const busY = calculateBusY(parent, children, showPhotos);
+  const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
+  
+  // Create Skia path for parent vertical line
+  const pathBuilder = Skia.Path.Make();
+  pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
+  pathBuilder.lineTo(parentVertical.endX, parentVertical.endY);
+  
+  // Add horizontal bus line if needed
+  if (shouldRenderBusLine(children, parent)) {
+    const busLine = calculateBusLine(children, busY);
+    pathBuilder.moveTo(busLine.startX, busLine.startY);
+    pathBuilder.lineTo(busLine.endX, busLine.endY);
+  }
+  
+  // Add child vertical lines
+  const childVerticals = calculateChildVerticalPaths(children, busY, showPhotos);
+  childVerticals.forEach((path) => {
+    pathBuilder.moveTo(path.startX, path.startY);
+    pathBuilder.lineTo(path.endX, path.endY);
+  });
+  
+  return [pathBuilder];
+}
+
+/**
+ * Generate bezier curve paths for smooth connections
+ * Creates beautiful curved lines from parent to each child
+ * Uses optimized control points for family tree aesthetics
+ */
+export function generateBezierPaths(connection: Connection, showPhotos: boolean = true): SkPath[] {
+  const { parent, children } = connection;
+  const paths: SkPath[] = [];
+  
+  // Import node height constants
+  const NODE_HEIGHT_WITH_PHOTO = 75;
+  const NODE_HEIGHT_TEXT_ONLY = 35;
+  const ROOT_NODE_HEIGHT = 100;
+  
+  // Get parent position and dimensions
+  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
+  const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+  const parentBottomY = parent.y + parentHeight / 2;
+  
+  // For multiple children, create a unified bezier approach
+  if (children.length === 1) {
+    // Single child - simple direct curve
+    const child = children[0];
+    const isRootChild = !child.father_id;
+    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
+    const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+    const childTopY = child.y - childHeight / 2;
+    
+    const pathBuilder = Skia.Path.Make();
+    pathBuilder.moveTo(parent.x, parentBottomY);
+    
+    // Calculate control points for smooth single curve
+    const deltaY = childTopY - parentBottomY;
+    const controlOffset = Math.abs(deltaY) * 0.5; // More pronounced curve for single child
+    
+    pathBuilder.cubicTo(
+      parent.x, parentBottomY + controlOffset,     // First control point (vertical from parent)
+      child.x, childTopY - controlOffset,         // Second control point (vertical to child)  
+      child.x, childTopY                          // End point
+    );
+    
+    paths.push(pathBuilder);
+  } else {
+    // Multiple children - elegant branching curves
+    // Calculate the average Y position for smoother branching
+    const childPositions = children.map(child => {
+      const isRootChild = !child.father_id;
+      const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
+      const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+      return {
+        ...child,
+        topY: child.y - childHeight / 2,
+        height: childHeight
+      };
+    });
+    
+    // Find the closest child for branching point calculation
+    const avgChildY = childPositions.reduce((sum, child) => sum + child.topY, 0) / childPositions.length;
+    const branchY = parentBottomY + (avgChildY - parentBottomY) * 0.6; // 60% down from parent
+    
+    children.forEach((child, index) => {
+      const childPos = childPositions[index];
+      const pathBuilder = Skia.Path.Make();
+      
+      // Start from parent bottom
+      pathBuilder.moveTo(parent.x, parentBottomY);
+      
+      // Calculate control points for elegant branching
+      const deltaX = child.x - parent.x;
+      const deltaY = childPos.topY - parentBottomY;
+      const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      
+      // Control point strength based on distance and sibling count
+      const baseStrength = Math.min(totalDistance * 0.3, 60); // Cap at 60px
+      const lateralOffset = Math.abs(deltaX) * 0.2; // Horizontal curve component
+      
+      // First control point - slight vertical drop with horizontal bias toward child
+      const cp1X = parent.x + deltaX * 0.1;
+      const cp1Y = parentBottomY + baseStrength;
+      
+      // Second control point - approach child from optimal angle
+      const cp2X = child.x - deltaX * 0.2;
+      const cp2Y = childPos.topY - baseStrength * 0.8;
+      
+      pathBuilder.cubicTo(
+        cp1X, cp1Y,           // First control point
+        cp2X, cp2Y,           // Second control point
+        child.x, childPos.topY // End point
+      );
+      
+      paths.push(pathBuilder);
+    });
+  }
+  
+  return paths;
+}
+
+/**
+ * Generate line paths based on selected style
+ * Unified interface for both straight and bezier curves
+ */
+export function generateLinePaths(connection: Connection, lineStyle: LineStyle = LINE_STYLES.STRAIGHT, showPhotos: boolean = true): SkPath[] {
+  switch (lineStyle) {
+    case LINE_STYLES.BEZIER:
+      return generateBezierPaths(connection, showPhotos);
+    case LINE_STYLES.STRAIGHT:
+    default:
+      return generateStraightPaths(connection, showPhotos);
+  }
+}
+
+interface PathElement {
+  key: string;
+  path: SkPath;
+  style: LineStyle;
+}
+
+interface BatchedResult {
+  elements: PathElement[];
+  count: number;
+}
+
+/**
+ * Pre-build all connection paths with specified style
+ * Compatible with existing batched rendering system
+ * Includes performance optimizations for large datasets
+ */
+export function buildBatchedPaths(connections: Connection[], lineStyle: LineStyle = LINE_STYLES.STRAIGHT, showPhotos: boolean = true): BatchedResult {
+  const elements: PathElement[] = [];
+  let edgeCount = 0;
+  const maxConnections = 1000; // Performance limit
+  
+  // Performance: Use a Set to track processed connections and avoid duplicates
+  const processedConnections = new Set<string>();
+  
+  for (const conn of connections.slice(0, maxConnections)) {
+    const parent = conn.parent;
+    const children = conn.children;
+    
+    // Validation and duplicate prevention
+    if (!parent || !children || children.length === 0) {
+      continue;
+    }
+    
+    const connectionKey = `${parent.id}-${children.map(c => c.id).join(',')}`;
+    if (processedConnections.has(connectionKey)) {
+      continue;
+    }
+    processedConnections.add(connectionKey);
+    
+    try {
+      // Generate paths based on line style
+      const paths = generateLinePaths(
+        { parent, children }, 
+        lineStyle, 
+        showPhotos
+      );
+      
+      // Add to elements array with proper error handling
+      paths.forEach((path, index) => {
+        if (!path) return; // Skip invalid paths
+        
+        elements.push({
+          key: `connection-${parent.id}-${index}-${lineStyle}`,
+          path: path, // Don't clone - Skia paths are already optimized
+          style: lineStyle
+        });
+        
+        edgeCount++;
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn(`[LineStyles] Failed to generate path for connection ${parent.id}:`, error);
+      }
+      continue;
+    }
+  }
+  
+  return { elements, count: edgeCount };
+}
