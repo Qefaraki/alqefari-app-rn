@@ -586,7 +586,7 @@ export const profilesService = {
       }
 
       if (__DEV__) {
-        console.log(`[quickAddBatchSave] Success: ${data.created_count || 0} created, ${data.updated_count || 0} updated, ${data.deleted_count || 0} deleted`);
+        console.log(`[quickAddBatchSave] Success: ${data.results?.created || 0} created, ${data.results?.updated || 0} updated, ${data.results?.deleted || 0} deleted`);
       }
 
       return { data, error: null };
