@@ -36,6 +36,12 @@ import BranchTreeModal from "../BranchTreeModal";
  * 5. Success animation → auto-dismiss
  */
 
+// Helper: Filter out gender markers (بنت, بن) from name chain
+const filterGenderMarkers = (nameArray) => {
+  const genderMarkers = ['بنت', 'بن'];
+  return nameArray.filter(word => !genderMarkers.includes(word));
+};
+
 export default function SpouseManager({ visible, person, onClose, onSpouseAdded, prefilledName }) {
   // Simplified 3-state machine
   const [stage, setStage] = useState("SEARCH"); // SEARCH, CREATE, SUCCESS
@@ -57,12 +63,13 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   // Auto-trigger search when modal opens with prefilledName
   useEffect(() => {
     if (visible && prefilledName) {
-      // Show only first name in search field (e.g., "نورة" not "نورة القفاري")
-      const firstNameOnly = prefilledName.trim().split(/\s+/)[0];
-      setFullName(firstNameOnly);
-
-      // Parse full name for search (need all parts for accurate matching)
+      // Parse full name for search
       const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
+
+      // Display clean name chain: firstName + middle names (no بنت/بن, no surname)
+      const cleanNames = [parsed.firstName, ...filterGenderMarkers(parsed.middleChain)];
+      setFullName(cleanNames.join(' '));
+
       setParsedData(parsed);
       performSearch(parsed);
     }
@@ -176,8 +183,9 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     setLoading(true);
 
     try {
-      // Parse name into array (same as SearchModal)
-      const names = parsed.firstName.split(/\s+/).filter(n => n.length > 0);
+      // Build full name array: firstName + middle names (no gender markers like بنت/بن)
+      const cleanNames = [parsed.firstName, ...filterGenderMarkers(parsed.middleChain)];
+      const names = cleanNames.filter(n => n.length > 0);
 
       // Call RPC with correct 3-parameter signature
       // Note: p_gender and p_exclude_id were rolled back in migration 20251025142017
