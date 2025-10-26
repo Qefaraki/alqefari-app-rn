@@ -7,6 +7,8 @@ import Animated, {
   withSequence,
   runOnJS,
   Easing,
+  interpolate,
+  Extrapolate,
 } from 'react-native-reanimated';
 
 /**
@@ -29,9 +31,9 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
   const height = useSharedValue(1);
+  const measuredHeightRef = useSharedValue(400);  // Use shared value instead of ref to avoid worklet warning
 
-  // Store measured height (runs on JS thread)
-  const measuredHeightRef = useRef(400);
+  // Store mounted state (JS thread only)
   const isMounted = useRef(true);
 
   // Measure actual content height for accurate animations
@@ -40,11 +42,11 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
     // Only update if not currently animating and height is valid
     if (layoutHeight > 0 && !deletingState) {
       // Only update if significantly different (avoid floating point issues)
-      if (Math.abs(measuredHeightRef.current - layoutHeight) > 1) {
-        measuredHeightRef.current = layoutHeight;
+      if (Math.abs(measuredHeightRef.value - layoutHeight) > 1) {
+        measuredHeightRef.value = layoutHeight;
       }
     }
-  }, [deletingState]);
+  }, [deletingState, measuredHeightRef]);
 
   // Animation callback (must be wrapped with runOnJS for Reanimated)
   const notifyAnimationComplete = useCallback((state) => {
@@ -127,7 +129,7 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
 
     // Only apply height animation when actively deleting/restoring
     if (deletingState === 'removing' || deletingState === 'restoring') {
-      style.height = height.value * measuredHeightRef.current;
+      style.height = height.value * measuredHeightRef.value;
       style.overflow = 'hidden';
     }
 
