@@ -1,45 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TextInput,
   Text,
   StyleSheet,
   Animated,
-  Platform,
 } from 'react-native';
-import CardSurface from '../../ios/CardSurface';
+import tokens from '../../ui/tokens';
 import * as Haptics from 'expo-haptics';
 
-const BioEditor = ({ value, onChange, maxLength = 500 }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const [height, setHeight] = useState(84); // Initial height for 3 lines
-  const glowOpacity = useRef(new Animated.Value(0)).current;
-  const counterOpacity = useRef(new Animated.Value(0.5)).current;
-  
-  const minHeight = 84; // 3 lines
-  const maxHeight = 280; // 10 lines
-  const charCount = value.length;
+const BioEditor = ({ value, onChange, maxLength = 1000 }) => {
+  const [height, setHeight] = useState(120); // Initial height for ~4 lines
+  const counterOpacity = useRef(new Animated.Value(0.6)).current;
+
+  const minHeight = 120; // ~4 lines minimum
+  const maxHeight = 320; // ~12 lines maximum
+  const charCount = value?.length || 0;
+  const isNearLimit = charCount > maxLength * 0.8;
   const isOverLimit = charCount > maxLength;
-  
+
   // Convert to Arabic numerals
   const toArabicNumbers = (num) => {
     const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     return num.toString().split('').map(digit => arabicNumbers[parseInt(digit)]).join('');
   };
 
-  // Handle focus
+  // Handle focus - fade in counter
   const handleFocus = () => {
-    setIsFocused(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Animate glow
-    Animated.timing(glowOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-    
-    // Show counter more prominently
     Animated.timing(counterOpacity, {
       toValue: 1,
       duration: 200,
@@ -47,20 +35,10 @@ const BioEditor = ({ value, onChange, maxLength = 500 }) => {
     }).start();
   };
 
-  // Handle blur
+  // Handle blur - fade out counter
   const handleBlur = () => {
-    setIsFocused(false);
-    
-    // Remove glow
-    Animated.timing(glowOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-    
-    // Dim counter
     Animated.timing(counterOpacity, {
-      toValue: 0.5,
+      toValue: 0.6,
       duration: 200,
       useNativeDriver: true,
     }).start();
@@ -82,109 +60,84 @@ const BioEditor = ({ value, onChange, maxLength = 500 }) => {
   // Handle content size change for auto-expand
   const handleContentSizeChange = (event) => {
     const contentHeight = event.nativeEvent.contentSize.height;
-    const newHeight = Math.min(Math.max(contentHeight + 32, minHeight), maxHeight);
+    // +48 accounts for padding (16 top + 16 bottom) + counter space (16)
+    const newHeight = Math.min(Math.max(contentHeight + 48, minHeight), maxHeight);
     setHeight(newHeight);
   };
 
-  // Interpolate glow color
-  const glowColor = glowOpacity.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['transparent', 'rgba(0, 122, 255, 0.1)'],
-  });
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.inputWrapper, { minHeight: height }]}>
+      <TextInput
+        style={[
+          styles.input,
+          { height: Math.max(height - 48, minHeight - 48) },
+        ]}
+        value={value}
+        onChangeText={handleChangeText}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onContentSizeChange={handleContentSizeChange}
+        placeholder="السيرة الذاتية..."
+        placeholderTextColor={`${tokens.colors.najdi.textMuted}60`}
+        textAlign="right"
+        textAlignVertical="top"
+        multiline
+        scrollEnabled={true}
+        maxLength={maxLength + 1} // +1 to allow detecting over-limit
+      />
+
       <Animated.View
         style={[
-          styles.glowWrapper,
-          {
-            shadowColor: '#007AFF',
-            shadowOpacity: glowOpacity,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 0 },
-          },
+          styles.counter,
+          { opacity: counterOpacity },
         ]}
       >
-        <CardSurface radius={16} style={{ overflow: 'hidden' }}>
-          <View style={[styles.inputWrapper, { minHeight: height }]}>
-            <TextInput
-              style={[
-                styles.input,
-                { height: Math.max(height - 32, 52) },
-              ]}
-              value={value}
-              onChangeText={handleChangeText}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              onContentSizeChange={handleContentSizeChange}
-              placeholder="السيرة الذاتية..."
-              placeholderTextColor="rgba(0, 0, 0, 0.3)"
-              textAlign="right"
-              textAlignVertical="top"
-              multiline
-              scrollEnabled={height >= maxHeight}
-              maxLength={maxLength + 1} // +1 to allow detecting over-limit
-            />
-            
-            <Animated.View
-              style={[
-                styles.counter,
-                { opacity: counterOpacity },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.counterText,
-                  isOverLimit && styles.counterTextError,
-                ]}
-              >
-                {toArabicNumbers(charCount)}/{toArabicNumbers(maxLength)}
-              </Text>
-            </Animated.View>
-          </View>
-        </CardSurface>
+        <Text
+          style={[
+            styles.counterText,
+            isNearLimit && styles.counterTextWarning,
+            isOverLimit && styles.counterTextError,
+          ]}
+        >
+          {toArabicNumbers(charCount)}/{toArabicNumbers(maxLength)}
+        </Text>
       </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-  },
-  glowWrapper: {
-    borderRadius: 16,
-  },
   inputWrapper: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${tokens.colors.najdi.container}40`,
     position: 'relative',
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
   input: {
     fontSize: 16,
-    lineHeight: 26,
-    color: '#333333',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      default: 'System',
-    }),
-    padding: 16,
-    paddingBottom: 36, // Space for counter
+    lineHeight: 24,
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
+    padding: tokens.spacing.md,
+    paddingBottom: 48, // Extra space for counter
   },
   counter: {
     position: 'absolute',
     bottom: 12,
-    left: 16,
+    right: tokens.spacing.md,
   },
   counterText: {
     fontSize: 13,
-    color: '#6B7280',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      default: 'System',
-    }),
+    fontWeight: '500',
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
+  },
+  counterTextWarning: {
+    color: tokens.colors.najdi.secondary, // Desert Ochre
   },
   counterTextError: {
-    color: '#EF4444',
+    color: tokens.colors.danger,
   },
 });
 
