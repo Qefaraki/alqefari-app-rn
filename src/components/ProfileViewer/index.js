@@ -53,7 +53,6 @@ import TabDetails from './EditMode/TabDetails';
 import TabFamily from './EditMode/TabFamily';
 import TabContact from './EditMode/TabContact';
 import EditHeader from './EditMode/EditHeader';
-import EditModeHandle from './EditMode/EditModeHandle';
 import EditModeBanner from './EditMode/EditModeBanner';
 import PreEditModal from './EditMode/PreEditModal';
 import { useProfilePermissions } from './hooks/useProfilePermissions';
@@ -365,31 +364,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   );
   const handleComponent = useCallback(
     (props) => {
-      // In edit mode, use custom EditModeHandle with sticky header + tabs
-      if (mode === 'edit') {
-        return (
-          <EditModeHandle
-            {...props}
-            onCancel={handleCancel}
-            onSubmit={handleSubmit}
-            saving={saving}
-            canSubmit={form.isDirty && !permissionLoading}
-            accessMode={accessMode}
-            tabs={enhancedTabs}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
-        );
-      }
-
-      // Default drag handle for view mode
+      // Default drag handle for both view and edit modes
       return (
         <View style={styles.handleContainer}>
           <View style={styles.handleBar} />
         </View>
       );
     },
-    [mode, handleCancel, handleSubmit, saving, form.isDirty, permissionLoading, accessMode, enhancedTabs, activeTab, handleTabChange],
+    [mode],
   );
 
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
