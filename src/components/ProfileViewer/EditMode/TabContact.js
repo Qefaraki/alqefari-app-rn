@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stack: {
-    gap: tokens.spacing.xl,
+    gap: tokens.spacing.lg,
   },
   validatedWrapper: {
     gap: tokens.spacing.xs,
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.md,
-    borderWidth: 1.5,
-    borderColor: `${tokens.colors.najdi.container  }60`,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${tokens.colors.najdi.container}40`,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     fontSize: 16,

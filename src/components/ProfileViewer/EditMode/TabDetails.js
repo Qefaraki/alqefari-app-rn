@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stack: {
-    gap: tokens.spacing.xl,
+    gap: tokens.spacing.lg,
   },
   limitedField: {
     gap: tokens.spacing.sm,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${tokens.colors.najdi.container  }50`,
+    borderColor: `${tokens.colors.najdi.container}40`,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     fontSize: 16,

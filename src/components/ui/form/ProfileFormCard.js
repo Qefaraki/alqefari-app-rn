@@ -27,10 +27,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
 });
 

@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: tokens.colors.najdi.text,
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
   required: {
     color: tokens.colors.danger,

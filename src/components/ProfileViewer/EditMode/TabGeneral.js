@@ -119,9 +119,9 @@ const TabGeneral = ({ form, updateField }) => {
   return (
     <View style={styles.container}>
       <View style={styles.stack}>
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>الصورة</Text>
-          <View style={styles.cardContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>الصورة</Text>
+          <ProfileFormCard style={styles.card}>
             <PhotoEditor
               value={draft?.photo_url || ''}
               onChange={(url) => updateField('photo_url', url)}
@@ -129,12 +129,13 @@ const TabGeneral = ({ form, updateField }) => {
               personName={draft?.name}
               profileId={profileId}
             />
-          </View>
-        </ProfileFormCard>
+          </ProfileFormCard>
+        </View>
 
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>البيانات الشخصية</Text>
-          <View style={styles.cardContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>البيانات الشخصية</Text>
+          <ProfileFormCard style={styles.card}>
+            <View style={styles.cardContent}>
             <FormField label="الاسم الكامل" required>
               <NameEditor
                 value={draft?.name || ''}
@@ -166,12 +167,14 @@ const TabGeneral = ({ form, updateField }) => {
                 personName={draft?.name}
               />
             </FormField>
-          </View>
-        </ProfileFormCard>
+            </View>
+          </ProfileFormCard>
+        </View>
 
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>الاختيارات</Text>
-          <View style={styles.cardContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>الاختيارات</Text>
+          <ProfileFormCard style={styles.card}>
+            <View style={styles.cardContent}>
             <FormField label="الجنس">
               <ToggleGroup
                 value={draft?.gender || 'male'}
@@ -193,12 +196,14 @@ const TabGeneral = ({ form, updateField }) => {
                 ]}
               />
             </FormField>
-          </View>
-        </ProfileFormCard>
+            </View>
+          </ProfileFormCard>
+        </View>
 
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>التواريخ</Text>
-          <View style={styles.cardContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>التواريخ</Text>
+          <ProfileFormCard style={styles.card}>
+            <View style={styles.cardContent}>
             <FormField label="تاريخ الميلاد">
               <DateEditor
                 value={draft?.dob_data}
@@ -214,12 +219,14 @@ const TabGeneral = ({ form, updateField }) => {
                 />
               </FormField>
             ) : null}
-          </View>
-        </ProfileFormCard>
+            </View>
+          </ProfileFormCard>
+        </View>
 
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>الخصوصية</Text>
-          <View style={styles.cardContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>الخصوصية</Text>
+          <ProfileFormCard style={styles.card}>
+            <View style={styles.cardContent}>
             <FormField label="مشاركة تاريخ الميلاد">
               <ToggleGroup
                 value={draft?.dob_is_public === false ? 'private' : 'public'}
@@ -230,11 +237,13 @@ const TabGeneral = ({ form, updateField }) => {
                 ]}
               />
             </FormField>
-          </View>
-        </ProfileFormCard>
+            </View>
+          </ProfileFormCard>
+        </View>
 
-        <ProfileFormCard style={styles.card}>
-          <Text style={styles.cardCaption}>الصور</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionCaption}>الصور</Text>
+          <ProfileFormCard style={styles.card}>
             {profileId ? (
               <PhotoGallerySimple
                 profileId={profileId}
@@ -247,7 +256,8 @@ const TabGeneral = ({ form, updateField }) => {
                 </Text>
               </View>
             )}
-        </ProfileFormCard>
+          </ProfileFormCard>
+        </View>
       </View>
     </View>
   );
@@ -274,20 +284,23 @@ const styles = StyleSheet.create({
     paddingBottom: tokens.spacing.xl,
   },
   stack: {
-    gap: tokens.spacing.xl,
+    gap: tokens.spacing.lg,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.lg,
   },
-  card: {
-    gap: tokens.spacing.md,
+  section: {
+    gap: tokens.spacing.xs,
   },
-  cardCaption: {
+  sectionCaption: {
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'SF Arabic',
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  card: {
+    gap: tokens.spacing.md,
   },
   cardContent: {
     gap: tokens.spacing.md,
@@ -308,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '50',
+    borderColor: tokens.colors.najdi.container + '40',
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     fontSize: 16,
