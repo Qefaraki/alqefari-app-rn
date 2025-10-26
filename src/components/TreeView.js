@@ -449,16 +449,23 @@ const TreeView = ({
     },
   );
 
+  // Track current transform for viewport calculations
+  // This drives all visibility and bounds calculations
+  const [currentTransform, setCurrentTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
+
   // CRITICAL FIX: Sync transform values to React state DURING gestures
   // This ensures nodes get updated scale values while pinch-zooming
   // Without this, nodes would only get scale updates AFTER pinch ends
   //
-  // Performance optimizations:
-  // - 16ms throttle (60fps budget)
+  // Performance approach:
+  // - No manual throttle (Date.now() not available in worklet context)
+  // - Relies on runOnJS queueing + React 18 automatic batching for natural throttling
   // - Validates scale values (prevents NaN/Infinity crashes)
   // - Syncs all transform values (scale, translateX, translateY) for consistency
-  const lastTransformUpdate = useSharedValue(0);
-
   useAnimatedReaction(
     () => ({
       scale: scale.value,
@@ -468,18 +475,14 @@ const TreeView = ({
     (current) => {
       'worklet';
 
-      // Throttle to 60fps (16ms minimum between updates)
-      const now = Date.now();
-      if (now - lastTransformUpdate.value < 16) return;
-      lastTransformUpdate.value = now;
-
       // Validate scale (prevent crashes from invalid values)
+      // Silent fail - console not reliable in worklet context
       if (!Number.isFinite(current.scale) || current.scale <= 0) {
-        console.warn('[TreeView] Invalid scale value detected:', current.scale);
         return;
       }
 
       // Sync to React state
+      // runOnJS automatically queues updates, React 18 batches them
       runOnJS(setCurrentTransform)({
         x: current.translateX,
         y: current.translateY,
@@ -861,15 +864,7 @@ const TreeView = ({
     };
   }, [nodes]);
 
-  // Note: visibleBounds is now derived from currentTransform (see useMemo below)
-
-  // Track current transform for viewport calculations
-  // This drives all visibility and bounds calculations
-  const [currentTransform, setCurrentTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
+  // Note: visibleBounds is now derived from currentTransform (see useMemo above)
 
   // Derived visible bounds - auto-updates when currentTransform changes
   // Replaces manual setVisibleBounds calls (React best practice)
