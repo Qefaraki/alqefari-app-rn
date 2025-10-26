@@ -191,11 +191,12 @@ export class SinglePathRenderer extends HighlightRenderer {
     const { pathNodeIds } = this.pathData;
 
     if (!pathNodeIds || pathNodeIds.length < 2) {
-      console.log('[SinglePathRenderer] No path to render (null or < 2 nodes)');
+      if (__DEV__ && false) console.log('[SinglePathRenderer] No path to render (null or < 2 nodes)');
       return null;
     }
 
-    console.log('[SinglePathRenderer] Rendering path with', pathNodeIds.length, 'nodes');
+    // Path rendering logging disabled to reduce spam
+    // if (__DEV__) console.log('[SinglePathRenderer] Rendering path with', pathNodeIds.length, 'nodes');
 
     // Build path segments
     const { segmentsByDepth, totalSegments } = this._buildPathSegments(
@@ -228,22 +229,23 @@ export class DualPathRenderer extends HighlightRenderer {
     const { pathOpacity, nodes } = this.context;
 
     if (!paths || paths.length !== 2) {
-      console.warn('[DualPathRenderer] Invalid path data - expected 2 paths');
+      if (__DEV__) console.warn('[DualPathRenderer] Invalid path data - expected 2 paths');
       return null;
     }
 
     const [path1Nodes, path2Nodes] = paths;
 
     if (path1Nodes.length < 2 && path2Nodes.length < 2) {
-      console.log('[DualPathRenderer] Both paths too short to render');
+      if (__DEV__ && false) console.log('[DualPathRenderer] Both paths too short to render');
       return null;
     }
 
-    console.log('[DualPathRenderer] Rendering dual paths:', {
-      path1Length: path1Nodes.length,
-      path2Length: path2Nodes.length,
-      intersection
-    });
+    // Dual path rendering logging disabled to reduce spam
+    // if (__DEV__) console.log('[DualPathRenderer] Rendering dual paths:', {
+    //   path1Length: path1Nodes.length,
+    //   path2Length: path2Nodes.length,
+    //   intersection
+    // });
 
     // Extract node IDs from path objects
     const path1Ids = path1Nodes.map(node => node.id);

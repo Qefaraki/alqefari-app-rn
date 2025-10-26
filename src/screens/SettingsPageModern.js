@@ -406,11 +406,11 @@ export default function SettingsPageModern({ user }) {
 
               // Build name chain for pending request profile
               if (requests[0].profile) {
-                console.log('[NameChain] Building chain for pending request:', requests[0].profile.id);
+                if (__DEV__ && false) console.log('[NameChain] Building chain for pending request:', requests[0].profile.id);
                 const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
                   p_profile_id: requests[0].profile.id
                 });
-                console.log('[NameChain] Pending request result:', { chainData, error: chainError?.message });
+                if (__DEV__ && false) console.log('[NameChain] Pending request result:', { chainData, error: chainError?.message });
                 requests[0].fullNameChain = chainData || requests[0].profile.name;
               }
             }
@@ -423,11 +423,11 @@ export default function SettingsPageModern({ user }) {
 
       // Build full name chain using RPC function
       if (profile) {
-        console.log('[NameChain] Building chain for profile:', profile.id, profile.name);
+        if (__DEV__ && false) console.log('[NameChain] Building chain for profile:', profile.id, profile.name);
         const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
           p_profile_id: profile.id
         });
-        console.log('[NameChain] RPC result:', {
+        if (__DEV__ && false) console.log('[NameChain] RPC result:', {
           success: !chainError,
           chainLength: chainData?.length,
           chainData,
@@ -436,7 +436,7 @@ export default function SettingsPageModern({ user }) {
 
         if (!chainError && chainData) {
           profile.fullNameChain = chainData;
-          console.log('[NameChain] ✅ Successfully built chain:', chainData);
+          if (__DEV__ && false) console.log('[NameChain] ✅ Successfully built chain:', chainData);
 
           setUserProfile(profile);
           // Only cache if RPC succeeded

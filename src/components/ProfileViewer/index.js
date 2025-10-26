@@ -449,9 +449,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.id, loading, currentSnapIndex]);
 
-  // ✅ Debug logging for diagnostics
+  // Debug logging for diagnostics - disabled to reduce spam
   useEffect(() => {
-    if (__DEV__) {
+    if (__DEV__ && false) {
       console.log('[ProfileViewer] State:', {
         personId: person?.id,
         loading,
