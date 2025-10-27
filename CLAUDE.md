@@ -12,6 +12,7 @@
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
 - **[OTA Updates](docs/OTA_UPDATES.md)** - Over-the-air update deployment & rollback
 - **[BlurHash System](docs/BLURHASH_DAY1_COMPLETION.md)** - Photo placeholder backend (68/68 complete)
+- **[Photo Crop System](docs/features/PHOTO_CROP_FIXES_APPLIED.md)** - Non-destructive photo cropping (v2.1, A- grade)
 
 ### Perfect Tree System (PTS)
 - **[PTS Documentation Hub](docs/PTS/README.md)** - Complete Perfect Tree System documentation
@@ -22,6 +23,7 @@
     - **[Integration Checklist](docs/PROGRESSIVE_LOADING_INTEGRATION_CHECKLIST.md)** - Verification & deployment
     - **[Pitfalls & Solutions](docs/PROGRESSIVE_LOADING_PITFALLS.md)** - Self-view data completeness issue & prevention
   - Architecture, testing, audits, and daily logs
+- **[TreeView Componentization](docs/TREEVIEW_COMPONENTIZATION.md)** - Branch tree refactor (-2,530 lines, A+ grade)
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
 
