@@ -1,19 +1,22 @@
 /**
  * ProfileQRCode Component
  *
- * Generates and displays a QR code for profile sharing.
+ * Generates and displays a QR code for profile sharing with smart logo fallback.
  * Includes deferred rendering to prevent UI blocking and loading skeleton.
+ *
+ * Logo Strategy: Profile photo → Emblem → Plain QR
  *
  * Usage:
  * <ProfileQRCode
  *   hid="H12345"
  *   inviterHid="H67890"
  *   mode="share"
+ *   photoUrl="https://..."  // Optional: Profile photo for QR center
  * />
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { generateProfileLink } from '../../utils/deepLinking';
 import tokens from '../ui/tokens';
@@ -22,16 +25,20 @@ const COLORS = {
   alJassWhite: tokens.colors.najdi.background,  // #F9F7F3
   saduNight: tokens.colors.najdi.text,          // #242121
   najdiCrimson: tokens.colors.najdi.primary,    // #A13333
+  surface: tokens.colors.surface,               // #FFFFFF
 };
 
 export default function ProfileQRCode({
   hid,
   inviterHid,
   mode = 'share',
-  size = 208, // Fits in 240px container with 16px padding
+  size = 240, // Optimal scanning size - fits iPhone SE (375px) with proper margins
+  photoUrl, // Optional: Profile photo URL for QR center logo
 }) {
   const [qrReady, setQrReady] = useState(false);
   const [qrError, setQrError] = useState(false);
+  const [logoSource, setLogoSource] = useState(null);
+  const [logoLoading, setLogoLoading] = useState(true);
 
   // Generate the profile link
   const profileLink = generateProfileLink(hid, inviterHid);
@@ -56,6 +63,42 @@ export default function ProfileQRCode({
 
     return () => clearTimeout(timer);
   }, [hid, profileLink]);
+
+  // Smart logo fallback: profile photo → emblem → none
+  useEffect(() => {
+    async function loadLogo() {
+      setLogoLoading(true);
+      setLogoSource(null);
+
+      // Strategy 1: Try profile photo
+      if (photoUrl) {
+        try {
+          console.log('[QRCode] Testing profile photo:', photoUrl);
+          await Image.prefetch(photoUrl);
+          setLogoSource({ uri: photoUrl });
+          console.log('[QRCode] ✅ Using profile photo as logo');
+          setLogoLoading(false);
+          return;
+        } catch (error) {
+          console.log('[QRCode] ❌ Profile photo failed, trying emblem:', error);
+        }
+      }
+
+      // Strategy 2: Fall back to emblem
+      try {
+        const emblemLogo = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
+        setLogoSource(emblemLogo);
+        console.log('[QRCode] ✅ Using emblem as logo');
+      } catch (error) {
+        console.error('[QRCode] ❌ Emblem not found, using plain QR:', error);
+        setLogoSource(null);
+      }
+
+      setLogoLoading(false);
+    }
+
+    loadLogo();
+  }, [photoUrl]);
 
   // Error state
   if (qrError || !hid) {
@@ -87,10 +130,15 @@ export default function ProfileQRCode({
         value={profileLink}
         size={size}
         color={COLORS.saduNight}           // Foreground: Sadu Night
-        backgroundColor="#FFFFFF"           // Background: Pure white
+        backgroundColor={COLORS.surface}    // Background: Pure white
         ecl="M"                             // Error correction level: Medium (15%)
         enableLinearGradient={false}
         quietZone={0}                       // Padding handled by container
+        logo={logoSource}                   // Smart fallback: photo → emblem → none
+        logoSize={logoSource ? size * 0.25 : 0}  // 25% of QR size (60px for 240px QR)
+        logoBackgroundColor={COLORS.surface} // White background for logo
+        logoMargin={2}                       // Small margin around logo
+        logoBorderRadius={logoSource && logoSource.uri ? 30 : 0}  // Rounded for photos, square for emblem
       />
     </View>
   );
@@ -98,7 +146,7 @@ export default function ProfileQRCode({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 16,
     justifyContent: 'center',

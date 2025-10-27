@@ -17,6 +17,7 @@ import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useTreeStore } from '../stores/useTreeStore';
 import profilesService from '../services/profiles';
+import { supabase } from '../services/supabase';
 
 // HID format: H or R followed by digits or dot-separated digits
 // Examples: H1, H12345, R1, R1.1, R1.1.1.1.1.1
@@ -118,8 +119,29 @@ export function parseInviterHID(url: string): string | null {
  * @param hid - Target profile's HID
  * @param inviterHid - Optional inviter's HID
  */
+// Debounce variables
+let lastDeepLinkTime = 0;
+const DEBOUNCE_MS = 1000;
+
 export async function handleDeepLink(hid: string, inviterHid?: string): Promise<void> {
   console.log('[DeepLink] Handling deep link:', { hid, inviterHid });
+
+  // Debounce: Prevent multiple rapid scans
+  const now = Date.now();
+  if (now - lastDeepLinkTime < DEBOUNCE_MS) {
+    console.log('[DeepLink] Debounced - too fast (1 sec cooldown)');
+    return;
+  }
+  lastDeepLinkTime = now;
+
+  // Check if scanning own profile
+  const treeStore = useTreeStore.getState();
+  const currentUserProfile = treeStore.userProfile;
+  if (currentUserProfile?.hid === hid.toUpperCase()) {
+    Alert.alert('ملفك الشخصي', 'هذا هو ملفك الشخصي');
+    console.log('[DeepLink] User scanned their own profile');
+    return;
+  }
 
   // Network guard
   const networkState = await NetInfo.fetch();
@@ -128,6 +150,17 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
       'خطأ في الاتصال',
       'يرجى التحقق من اتصالك بالإنترنت لفتح الرابط'
     );
+    return;
+  }
+
+  // Edge case 1: Tree not loaded yet
+  const treeStore = useTreeStore.getState();
+  if (!treeStore.treeData || treeStore.treeData.length === 0) {
+    Alert.alert(
+      'يتم تحميل الشجرة',
+      'يرجى الانتظار حتى يتم تحميل شجرة العائلة ثم المحاولة مرة أخرى.'
+    );
+    console.log('[DeepLink] Tree not loaded yet');
     return;
   }
 
@@ -165,6 +198,33 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
       profile = data[0];
     }
 
+    // Edge case 2: Deleted profile
+    if (profile.deleted_at !== null) {
+      Alert.alert(
+        'الملف محذوف',
+        'هذا الملف الشخصي محذوف ولا يمكن عرضه.'
+      );
+      console.log('[DeepLink] Profile is deleted:', profile.id);
+      return;
+    }
+
+    // Edge case 3: Blocked user (permission check)
+    const { data: permissionLevel, error: permError } = await supabase.rpc('check_family_permission_v4', {
+      p_user_id: currentUserProfile?.id,
+      p_target_id: profile.id,
+    });
+
+    if (permError) {
+      console.error('[DeepLink] Permission check error:', permError);
+    } else if (permissionLevel === 'blocked' || permissionLevel === 'none') {
+      Alert.alert(
+        'الوصول محظور',
+        'ليس لديك صلاحية لعرض هذا الملف الشخصي.'
+      );
+      console.log('[DeepLink] User blocked or no permission:', permissionLevel);
+      return;
+    }
+
     // Check if profile needs enrichment (Progressive Loading Phase 3B)
     const isEnriched = Boolean(
       profile.photo_url !== undefined &&
@@ -184,12 +244,45 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
 
     // Open ProfileViewer
     console.log('[DeepLink] Opening profile:', profile.id, profile.name);
-    treeStore.openProfileViewer(profile);
+    treeStore.setSelectedPersonId(profile.id);
 
-    // Log inviter analytics if provided
-    if (inviterHid) {
-      console.log('[DeepLink] Profile accessed via invite from:', inviterHid);
-      // TODO: Log to profile_access_log table for analytics
+    // Log QR scan analytics (non-blocking)
+    try {
+      let sharerId = null;
+
+      // Find sharer profile ID if inviterHid provided
+      if (inviterHid) {
+        const sharerProfile = treeStore.treeData.find((node) => node.hid === inviterHid.toUpperCase());
+        if (sharerProfile) {
+          sharerId = sharerProfile.id;
+        } else {
+          // Search database if not in tree
+          const { data: sharerData } = await profilesService.searchProfiles(inviterHid.toUpperCase(), {
+            limit: 1,
+            exact: true,
+          });
+          if (sharerData && sharerData.length > 0) {
+            sharerId = sharerData[0].id;
+          }
+        }
+      }
+
+      // Insert analytics event
+      const { error: analyticsError } = await supabase.from('profile_share_events').insert({
+        profile_id: profile.id,
+        sharer_id: sharerId,
+        share_method: 'qr_scan',
+        shared_at: new Date().toISOString(),
+      });
+
+      if (analyticsError) {
+        console.warn('[DeepLink] Analytics logging failed (non-critical):', analyticsError.message);
+      } else {
+        console.log('[DeepLink] QR scan analytics logged:', { profileId: profile.id, sharerId });
+      }
+    } catch (analyticsErr) {
+      // Non-blocking: analytics failure shouldn't affect user experience
+      console.warn('[DeepLink] Analytics error:', analyticsErr);
     }
   } catch (error) {
     console.error('[DeepLink] Failed to handle deep link:', error);

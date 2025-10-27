@@ -24,7 +24,7 @@
     "ios": {
       "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
-      "buildNumber": "61",
+      "buildNumber": "63",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",
@@ -50,6 +50,27 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "alqefari",
+              "host": "profile"
+            },
+            {
+              "scheme": "https",
+              "host": "alqefari.com",
+              "pathPrefix": "/profile"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {

@@ -41,6 +41,7 @@ const COLORS = {
   najdiCrimson: tokens.colors.najdi.primary,        // #A13333
   desertOchre: tokens.colors.najdi.secondary,       // #D58C4A
   textMuted: tokens.colors.najdi.textMuted,         // #736372
+  surface: tokens.colors.surface,                   // #FFFFFF
 };
 
 const SPACING = {
@@ -122,8 +123,8 @@ export default function ShareProfileSheet({
 
   // Get display name (fallback chain)
   const displayName = useMemo(() => {
-    return profile?.name_chain || profile?.first_name || 'مجهول';
-  }, [profile]);
+    return profile?.name_chain || profile?.first_name || profile?.name || 'مجهول';
+  }, [profile?.name_chain, profile?.first_name, profile?.name]);
 
   // Get metadata text (HID + Generation)
   const metadataText = useMemo(() => {
@@ -207,6 +208,7 @@ export default function ShareProfileSheet({
             hid={profile?.hid}
             inviterHid={inviterProfile?.hid}
             mode={mode}
+            photoUrl={profile?.photo_url}
           />
         </View>
 
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 52,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: SPACING.md,
     borderWidth: 1.5,
     borderColor: `${COLORS.camelHairBeige}40`, // 25% opacity
