@@ -88,98 +88,21 @@ _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
 **Status**: ✅ Complete - Secure 4-step phone change with OTP verification
 
-**Flow**:
-1. Send OTP to current phone → Verify
-2. Enter new phone → Send OTP to new phone → Verify
-3. Complete change + audit log
-4. Session remains valid (no forced re-login)
+**Quick Summary**: 4-step OTP verification flow (current phone → new phone → complete). Session remains valid after change.
 
-**Components**:
-- **PhoneInputField**: `src/components/ui/PhoneInputField.js` (reusable, used in auth & settings)
-- **PhoneChangeModal**: `src/components/settings/PhoneChangeModal.js` (4-step modal)
-- **Service**: `src/services/phoneChange.js` (7 functions)
-- **Migration**: `supabase/migrations/20251025000000_add_phone_change_support.sql`
-
-**Key Implementation Details**:
-- Uses Supabase Auth native flow (`auth.updateUser()` + `verifyOtp` with type: 'phone_change')
-- **Profile phone** and **auth phone** are SEPARATE - no sync needed
-- Dynamic OTP rate limit detection (not hardcoded "3 attempts")
-- Audit logging to `audit_log_enhanced` with action_type='phone_change'
-- Non-blocking logging (phone change succeeds even if audit log fails)
-- Network guard on all OTP operations (offline protection)
-- Resend button appears after OTP countdown expires
-- RTL-compatible layouts with Arabic numerals support
-
-**Usage (in Settings)**:
-```
-Settings → Account Management → "تغيير رقم الهاتف"
-```
-
-**Testing**:
-- ✅ Basic 4-step flow
-- ✅ Error handling (rate limits, invalid OTP, phone in use)
-- ✅ RTL/Arabic numerals
-- ✅ Session persistence
-- ✅ Offline handling (network guard)
-- ✅ OTP expiration & resend
+📖 **Full Documentation**: [`/docs/features/PHONE_CHANGE.md`](docs/features/PHONE_CHANGE.md)
 
 ## 🗑️ Delete Account (Settings)
 
 **Status**: ✅ Complete - Secure 3-step deletion with OTP verification and rate limiting
 
-**Flow**:
-1. Settings → Advanced Settings (expand) → "حذف الحساب نهائياً"
-2. Initial confirmation alert
-3. OTP verification (sent to current phone)
-4. Text confirmation (type "نعم" exactly)
-5. Account deleted + global sign-out
+**Quick Summary**: Hidden under Advanced Settings. OTP + text confirmation ("نعم") required. Global sign-out. Profile becomes read-only (preserves family history).
 
-**Components**:
-- **DeleteAccountModal**: `src/components/settings/DeleteAccountModal.js` (3-stage modal)
-- **Service**: `src/services/deleteAccountOtp.js` (send/verify OTP + rate limit check)
-- **Migrations**: `supabase/migrations/20251026120000_update_delete_account_audit_log.sql`
+**Critical Notes**:
+- ❌ Profile data DELETED: user_id link, admin access
+- ✅ Profile data RETAINED: Names, dates, photos
 
-**Key Implementation Details**:
-- Hidden under collapsible "Advanced Settings" section (not immediately visible)
-- OTP verification proves phone access (security layer)
-- 10-minute OTP expiration window
-- Rate limiting: 3 attempts per 24 hours with 24-hour lockout after 3rd attempt
-- Session validation (5-minute freshness check before deletion)
-- Concurrent deletion protection (prevents double-deletes)
-- Edge case handling:
-  - Root node protection (generation 1, no father)
-  - Admin/moderator role warnings
-  - Children in tree warnings
-  - OTP expiration checks
-  - Network offline protection (via network guard)
-- Audit logging to `audit_log_enhanced` with action_type='account_deletion'
-- Global sign-out (all sessions invalidated, not just current)
-- Profile unlinking (user_id → NULL, can_edit → false)
-- Full RTL/Arabic support with Najdi Sadu design system
-
-**Data Deletion Details**:
-- ❌ Profile data DELETED: user_id link, admin access, notifications, requests
-- ✅ Profile data RETAINED: Names, dates, photos (preserves family history)
-- Profile becomes read-only (can_edit = false) but remains visible in tree
-
-**Usage (in Settings)**:
-```
-Settings → "إظهار الإعدادات المتقدمة" → "حذف الحساب نهائياً"
-```
-
-**Testing**:
-- ✅ Collapsible section expand/collapse
-- ✅ Rate limiting (3 attempts, lockout, retry time display)
-- ✅ OTP send and verification (correct/incorrect codes)
-- ✅ Text input validation (requires exact "نعم")
-- ✅ Edge cases (root node, admin role, children in tree)
-- ✅ OTP expiration and resend
-- ✅ Session validation
-- ✅ Global sign-out execution
-- ✅ RTL/Arabic numerals support
-- ✅ Network offline protection
-
-**Commit**: `65abafa4a` - "feat(delete-account): Implement secure 3-step account deletion with OTP verification"
+📖 **Full Documentation**: [`/docs/features/ACCOUNT_DELETION.md`](docs/features/ACCOUNT_DELETION.md)
 
 ## 📑 SegmentedControl Component Quick Ref
 
@@ -211,66 +134,12 @@ Settings → "إظهار الإعدادات المتقدمة" → "حذف الح
 
 ## 🔧 Progressive Loading Cache Fix (October 26, 2025)
 
-**Status**: ✅ Deployed - Migration applied, schema version bumped, hooks ready
+**Status**: ✅ Deployed - Migration applied, schema version bumped
 
-**Problem Solved**: Profile edits disappearing after app restart
-- Root cause: `get_structure_only()` RPC didn't return `version` field
-- Non-enriched nodes had `version: undefined`
-- Editing these nodes → `admin_update_profile` RPC rejected (missing p_version)
-- AsyncStorage cache never invalidated → stale data loaded on restart
+**Problem**: Profile edits disappearing after app restart (missing `version` field in structure RPC)
+**Solution**: Add `version` to `get_structure_only()` RPC + schema version bump 1.0.0 → 1.1.0
 
-**Solution Implemented**:
-
-### 1. Migration: Add version field to structure RPC ✅
-**File**: `supabase/migrations/20251026000000_add_version_to_structure_only_rpc.sql`
-- Added `version INT` to RPC returns
-- All nodes now have version from initial structure load
-- Impact: +12KB structure size (2.6% increase), negligible performance cost
-- Status: **Deployed & Tested** ✅
-
-### 2. Schema Version Bump ✅
-**File**: `src/components/TreeView/hooks/useStructureLoader.js` (line 23)
-- Changed: `TREE_STRUCTURE_SCHEMA_VERSION = '1.0.0'` → `'1.1.0'`
-- Effect: Forces one-time cache invalidation on next app start
-- Status: **Deployed** ✅
-
-### 3. Enrich-on-Edit Hook (Ready to integrate) ⏳
-**File**: `src/hooks/useEnsureProfileEnriched.js` (NEW)
-- Purpose: Enrich non-enriched nodes before allowing edits
-- Prevents editing nodes with `version: undefined`
-- No-op if already enriched (zero performance cost)
-- **Integration task**: Add hook to ProfileSheet/edit screens:
-  ```javascript
-  import { useEnsureProfileEnriched } from '../hooks/useEnsureProfileEnriched';
-
-  export function EditScreen({ profile }) {
-    useEnsureProfileEnriched(profile);  // ← Add this line
-    // ... rest of component
-  }
-  ```
-
-### 4. Cache Utilities (Manual use only) ✅
-**File**: `src/utils/cacheInvalidation.js` (NEW)
-- Functions: `invalidateStructureCache()`, `forceTreeReload()`, `debugCacheStatus()`
-- Purpose: Manual debugging & maintenance only
-- Not called automatically (preserves cache for performance)
-
-**Architecture**: Enrich-on-edit pattern vs smart cache invalidation
-- ✅ Fixes root cause (missing version) not symptom (stale cache)
-- ✅ Works with all edit entry points (search, tree, admin)
-- ✅ Aligns with Progressive Loading Phase 3B design
-- ✅ Zero performance impact when already enriched
-
-**Testing checklist**:
-- ✅ Migration deployed & RPC returns version field
-- ✅ Schema version bumped (1.0.0 → 1.1.0)
-- ✅ Cache invalidates on next app start
-- ⏳ Hook integrated into edit screens (next task)
-- ⏳ Manual testing on device
-
-**Commit**: `66a504bff` - "fix(progressive-loading): Add version field to structure RPC and enrich-on-edit hook"
-
-📖 Full details: See commit message and migration file documentation
+📖 **Full Documentation**: [`/docs/architecture/PROGRESSIVE_LOADING_CACHE_FIX.md`](docs/architecture/PROGRESSIVE_LOADING_CACHE_FIX.md)
 
 ## 📱 Development Commands
 
@@ -288,39 +157,13 @@ npm run android    # Android emulator
 
 ## 📱 iOS URL Schemes Configuration
 
-**⚠️ IMPORTANT**: iOS 9+ requires URL schemes to be declared before using `Linking.canOpenURL()`.
+**⚠️ CRITICAL**: URL schemes MUST be declared in `app.json`, NOT `Info.plist` directly. Changes require native rebuild (not OTA-updatable).
 
-**Declared URL Schemes** (via `app.json → expo.ios.infoPlist.LSApplicationQueriesSchemes`):
-- **`whatsapp`** - WhatsApp deep linking (`whatsapp://send?phone=...`)
-- **`tel`** - Phone call links (`tel:` URLs)
-- **`https`** - Web fallbacks for WhatsApp (`https://wa.me/...`)
+**Declared**: `whatsapp`, `tel`, `https` (via `app.json → expo.ios.infoPlist.LSApplicationQueriesSchemes`)
 
-**Critical Notes:**
-- URL schemes MUST be declared in `app.json`, NOT in `ios/Alqefari/Info.plist` directly
-- Direct Info.plist edits get overwritten on `expo prebuild`
-- Changes require **native rebuild** (not OTA-updatable)
-- Required by iOS for `Linking.canOpenURL()` queries
+**Common Error**: "Add whatsapp to LSApplicationQueriesSchemes" → Add to `app.json` and rebuild.
 
-**Adding New URL Schemes:**
-1. Add to `expo.ios.infoPlist.LSApplicationQueriesSchemes` array in `app.json`
-2. Run `eas build --platform ios` or `npx expo prebuild --clean`
-3. Test with both `Linking.canOpenURL()` and `Linking.openURL()`
-4. Verify in `ios/Alqefari/Info.plist` after prebuild
-
-**Example:**
-```json
-"ios": {
-  "infoPlist": {
-    "LSApplicationQueriesSchemes": ["whatsapp", "tel", "https", "instagram"]
-  }
-}
-```
-
-**Common Error:**
-```
-Error: Unable to open URL: whatsapp://... Add whatsapp to LSApplicationQueriesSchemes
-```
-**Solution:** Add missing scheme to `app.json` and rebuild.
+📖 **Full Documentation**: [`/docs/deployment/IOS_URL_SCHEMES.md`](docs/deployment/IOS_URL_SCHEMES.md)
 
 ## 📱 QR Code & Deep Linking System
 
@@ -393,13 +236,10 @@ Error: Unable to open URL: whatsapp://... Add whatsapp to LSApplicationQueriesSc
 
 ## 👥 Munasib Management System
 
-Full management dashboard for Munasib (spouse) profiles:
-- Search & filter by name, phone, location
-- Family statistics (most common origins)
-- Marriage connections
+**Location**: Admin Dashboard → Munasib Management (`src/components/admin/MunasibManager.js`)
+**Identifier**: `profile.hid === null` (Munasib have NULL HID)
 
-**Location**: `src/components/admin/MunasibManager.js` (Admin Dashboard)
-**Identifying**: `profile.hid === null` (Munasib have NULL HID)
+📖 **Full Documentation**: [`/docs/features/MUNASIB_MANAGEMENT.md`](docs/features/MUNASIB_MANAGEMENT.md)
 
 ## 🏗 Project Structure
 
@@ -421,92 +261,19 @@ src/
 └── config/         # App configuration
 ```
 
-## 🌳 TreeView Consolidated Node Constants (October 25, 2025)
+## 🌳 TreeView Node Constants
 
-**Status:** ✅ Complete & Audited
-**Grade:** A- (92/100) - Fixed all audit recommendations
-**Consolidation:** Eliminated 31px d3/renderer delta, single source of truth
+**Status**: ✅ Complete & Audited (October 25, 2025) - Grade A- (92/100)
+**Location**: `src/components/TreeView/rendering/nodeConstants.ts`
 
-### Node Constants - Central Registry
+**Standard Node**: 58px × 75px (4px padding, follows 8px grid)
 
-**Location:** `src/components/TreeView/rendering/nodeConstants.ts`
-
-**Standard Node (Regular zoom):**
-- Width: **58px** (50px photo + 4px padding × 2)
-- Height: **75px** (photo) / 35px (text-only)
-- Padding: 4px horizontal, 4px vertical (follows 8px Design System grid)
-- Selection border: 2.5px (Najdi Crimson #A13333)
-- Corner radius: 10px
-
-**Root Node (Generation 1, no father):**
-- Width: 120px, Height: 100px
-- Border radius: 20px (extra rounded)
-- Selection border: 2.5px
-
-**G2 Parent (Generation 2 with children):**
-- Width: 95px (photo) / 75px (text-only)
-- Height: 75px (photo) / 35px (text-only)
-- Border radius: 16px
-- Selection border: 2px
-
-**Text Pill (LOD Tier 2):**
-- Width: 58px (matches standard photo nodes)
-- Height: 26px
-- Corner radius: 4px
-
-**Import Path:**
+**Import**:
 ```javascript
-import {
-  STANDARD_NODE,
-  ROOT_NODE,
-  NODE_WIDTH_WITH_PHOTO,  // Legacy: 58px
-  NODE_HEIGHT_WITH_PHOTO, // Legacy: 75px
-} from './TreeView/rendering/nodeConstants';
+import { STANDARD_NODE, ROOT_NODE } from './TreeView/rendering/nodeConstants';
 ```
 
-**Key Design Fixes:**
-- ✅ Follows 8px Design System grid (4px padding minimum)
-- ✅ Unified d3 layout and renderer (both use 58px)
-- ✅ Selection border fits within padding (2.5px < 4px)
-- ✅ Single source of truth (17% width reduction from 65px)
-- ✅ 66 unit tests passing, 11 integration tests passing
-
-### Phase 1 Refactor (October 2025)
-
-**Status:** ✅ Complete (5 days, 27 hours)
-**Grade:** 98/100 (A+)
-**Commits:** 7 atomic commits, 4 checkpoint branches
-
-Phase 1 extracted utilities, constants, and types from the monolithic TreeView.js (3,817 lines) into a modular architecture with zero regressions and comprehensive test coverage.
-
-### Quick Reference
-
-**Utilities Available:**
-- 29 constants (viewport, nodes, performance)
-- 4 color functions (hexToRgba, createGrayscaleMatrix, createDimMatrix, interpolateColor)
-- 1 performance monitor (logLayoutTime, logRenderTime, logMemory)
-
-**Import Path:**
-```javascript
-import {
-  VIEWPORT_MARGIN_X,
-  NODE_WIDTH_WITH_PHOTO,
-  hexToRgba,
-  performanceMonitor,
-} from './TreeView/utils';
-```
-
-**Test Coverage:** 77 total tests (100% passing)
-- 39 NodeRenderer unit tests
-- 27 TextPillRenderer unit tests
-- 11 Tree Layout integration tests
-
-**Performance Impact:** +2.3% layout time, +2% memory (within 5% tolerance)
-
-**Full Documentation:** [`/docs/treeview-refactor/phase1/`](docs/treeview-refactor/phase1/README.md)
-- Quick Start & Architecture
-- Usage Examples & Import Guides
-- Test Results & Performance Data
+📖 **Full Documentation**: [`/docs/architecture/TREEVIEW_NODE_CONSTANTS.md`](docs/architecture/TREEVIEW_NODE_CONSTANTS.md)
 
 ## 🔄 Batch Operations & Version Control
 
@@ -565,76 +332,12 @@ if (error?.message.includes('version')) {
 ## 🖼️ BlurHash Implementation (Image Placeholders)
 
 **Status**: 🚧 Day 1 Backend (80% Complete) - October 27, 2025
-**Purpose**: Show smooth blurred image placeholders while real photos load
-**Timeline**: 10 mins remaining (Day 1) + 8 hours (Day 2 frontend)
+**Purpose**: Show smooth blurred image placeholders while real photos load (~25 char string)
+**Timeline**: 10 mins remaining (Day 1: deploy + run batch) + 8 hours (Day 2: frontend)
 
-**What It Is**: BlurHash generates a tiny ~25-character string representing a blurred version of an image. Used by Twitter, Medium, Unsplash for instant placeholder rendering.
+**What**: Tiny ~25-char string representing blurred image. Used by Twitter, Medium, Unsplash.
 
-**Example**:
-```
-Photo URL: https://.../profile-photo.jpg
-BlurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj"  ← 25 chars
-         ↓ decodes instantly ↓
-     [Smooth blur preview] ← Shows while real photo loads
-```
-
-### Day 1 Backend (80% Complete)
-
-**✅ Completed**:
-- Database migration applied: Added `blurhash TEXT` column to profiles table
-- RPC updated: `get_structure_only()` now returns blurhash (15th field)
-- Edge Function created: `supabase/functions/generate-blurhash/index.ts`
-  - Uses sharp@0.33.0 for image processing
-  - Generates 32×32 blurhash (4x3 components)
-- Batch script created: `scripts/generate-blurhashes-batch.ts`
-  - Processes 68 existing photos in parallel (5 at a time)
-  - Automatic retry, estimated 20 seconds runtime
-
-**❌ Remaining (10 Minutes)**:
-1. Deploy Edge Function via Supabase CLI: `npx supabase functions deploy generate-blurhash`
-2. Run batch script: `npx ts-node scripts/generate-blurhashes-batch.ts`
-3. Verify: `SELECT COUNT(*) FROM profiles WHERE blurhash IS NOT NULL;` (expect 68)
-
-### Day 2 Frontend (Pending)
-
-**Tasks (8 Hours Estimated)**:
-1. Install `react-native-blurhash` native library
-2. Create separate blurhash cache in `skiaImageCache.ts`
-3. Integrate blurhash placeholders in TreeView node renderer
-4. Bump schema version to 1.2.0 in `useStructureLoader.js` (forces cache invalidation)
-5. Test on physical devices (blur → photo transition)
-
-### Why BlurHash?
-
-**Before BlurHash**:
-```
-[White box] → [Photo loads] (0-3 seconds, jarring)
-```
-
-**After BlurHash**:
-```
-[Instant blur preview] → [Photo fades in] (smooth, perceived performance)
-```
-
-**Benefits**:
-- Improves perceived performance (no white boxes during loading)
-- Tiny data size (~25 chars vs 50KB+ for real image)
-- Works with Progressive Loading (blurhash in structure, photos on-demand)
-- Industry-standard (BlurHash algorithm open-source)
-
-### Key Files
-- `supabase/migrations/20251027000000_add_blurhash_to_profiles_and_structure_rpc.sql` - DB schema
-- `supabase/functions/generate-blurhash/index.ts` - Edge Function (NOT DEPLOYED)
-- `scripts/generate-blurhashes-batch.ts` - Batch processor (NOT RUN)
-
-### Next Steps
-1. Deploy Edge Function (5 mins)
-2. Run batch script (2-3 mins)
-3. Continue to Day 2 frontend integration (8 hours)
-
-📖 **Full Documentation**: [`/docs/BLURHASH_DAY1_COMPLETION.md`](docs/BLURHASH_DAY1_COMPLETION.md)
-
-**Note**: BlurHash is **separate** from QR code work (different feature, happened same day).
+📖 **Full Documentation**: [`/docs/features/BLURHASH.md`](docs/features/BLURHASH.md)
 
 ## 🔑 Key Implementation Rules
 
@@ -663,44 +366,10 @@ if (error) {
 
 ### Tree Loading Limits
 
-**Current Configuration:**
-- **Database Max**: 10,000 profiles (safety buffer, supports design capacity)
-- **Frontend Load**: 5,000 profiles (supports 3K incoming + 67% buffer)
-- **Warning Threshold**: 3,750 profiles (75%)
-- **Critical Threshold**: 4,750 profiles (95%)
+**Current**: Database Max 10K, Frontend Load 5K, Warning at 3.75K (75%), Critical at 4.75K (95%)
+**Key**: Viewport culling renders ~500 nodes max. **60fps regardless of dataset size**.
 
-**How It Works:**
-- Tree uses viewport culling to render only visible nodes (~500 max)
-- Database supports up to 10K profiles (matching original design intent)
-- Frontend loads 5K profiles - viewport culling handles rendering efficiently
-- Monitoring logs warn when approaching limits
-- **Rendering performance: 60fps regardless of dataset size**
-
-**Monitoring Tree Size:**
-```javascript
-// Check console on tree load
-// ✅ Tree loaded: X profiles
-// ⚠️ Approaching limit: 3750/5000 profiles. Consider increasing limit.
-// 🚨 CRITICAL: 4750/5000 profiles. Immediate action required.
-
-// Check tree size programmatically
-console.log(useTreeStore.getState().treeData.length);
-```
-
-**When to Increase Limit or Implement Progressive Loading:**
-- Tree size exceeds 4,500 profiles (90% of limit)
-- Load times exceed 2 seconds on iPhone XR
-- Memory usage exceeds 20MB for tree data
-- User complaints about slow loading
-
-**Performance Expectations:**
-| Profiles | Load Time | Memory | Rendering | Status |
-|----------|-----------|--------|-----------|--------|
-| Current Size | <200ms | ~0.5MB | 60fps | ✅ Optimal |
-| 2,000 | ~650ms | ~6MB | 60fps | ✅ Good |
-| 3,000 (target) | ~950ms | ~9MB | 60fps | ✅ Good |
-| 5,000 (limit) | ~1.3s | ~15MB | 60fps | ✅ Acceptable |
-| 7,500 | ~1.6s | ~22MB | 60fps | ⚠️ Consider testing |
+📖 **Full Documentation**: [`/docs/architecture/TREE_LOADING_LIMITS.md`](docs/architecture/TREE_LOADING_LIMITS.md)
 
 ## 🚀 Best Practices
 
@@ -720,27 +389,12 @@ console.log(useTreeStore.getState().treeData.length);
 git add -A
 git commit -m "type: Clear description of changes"
 
-# Commit types:
-# feat: New feature
-# fix: Bug fix
-# docs: Documentation updates
-# style: UI/styling changes
-# refactor: Code restructuring
-# test: Test additions/changes
+# Commit types: feat, fix, docs, style, refactor, test
 ```
 
-### Git Best Practices
-1. **Commit frequently** - After each working feature
-2. **Never lose work** - Commit before switching tasks
-3. **Clear messages** - Describe WHAT and WHY
-4. **Update docs** - If you change functionality, update docs
-5. **Check status** - `git status` before and after changes
+**Git Best Practices**: Commit frequently, never lose work, clear messages, update docs, check status before/after changes.
 
-### Documentation Updates
-When you change code, update:
-- `CLAUDE.md` - For design/system changes
-- `README.md` - For major features
-- Component comments - For complex logic
+📖 **Full Documentation**: [`/docs/development/GIT_WORKFLOW.md`](docs/development/GIT_WORKFLOW.md)
 
 ## ⚠️ Database Migrations
 
@@ -831,78 +485,26 @@ To bypass (NOT recommended): `git commit --no-verify`
 
 ---
 
-## ⚠️ CRITICAL: The Opposite Workflow Violation (Oct 25, 2025)
+## ⚠️ CRITICAL: Migration Workflow Violations
 
-**New incident**: Three migration files existed in the repo but were **NEVER APPLIED TO THE DATABASE**.
+### 🚨 Common Violations
+1. **Oct 18, 2025**: Applied migration without saving .sql file → 44 profiles corrupted
+2. **Oct 25, 2025**: Saved .sql file but never applied to database → "missing version field" errors
 
-This caused:
-- ✅ Code expected `version` field on profiles
-- ❌ Database returned profiles WITHOUT `version` field
-- ❌ Result: "Person object missing version field" errors
-
-**Key insight**: The problem isn't always "DB has it but repo doesn't". It can also be "repo has it but DB doesn't"!
-
-### ✅ CORRECT MIGRATION WORKFLOW (MANDATORY)
-
-```javascript
-// Step 1: Write migration SQL file FIRST
-Write migration file → supabase/migrations/YYYYMMDDHHMMSS_name.sql
-
-// Step 2: IMMEDIATELY apply to database (within 5 minutes!)
-await mcp__supabase__apply_migration({
-  name: "fix_name",
-  query: <content of .sql file>
-});
-
-// Step 3: TEST in database (verify field/RPC exists)
-SELECT id, version FROM get_branch_data(NULL, 1, 1);
-
-// Step 4: TEST in app (verify frontend receives field)
-// Check console logs, inspect objects
-
-// Step 5: ONLY THEN commit to git
-git add supabase/migrations/YYYYMMDDHHMMSS_name.sql
-git commit -m "migration: Add version field to RPC"
-```
+### ✅ CORRECT WORKFLOW (MANDATORY)
+1. Write .sql file FIRST
+2. IMMEDIATELY apply to database (within 5 minutes!)
+3. TEST in database (verify field/RPC exists)
+4. TEST in app (verify frontend receives field)
+5. ONLY THEN commit to git
 
 ### 🚨 RED FLAGS (STOP IMMEDIATELY)
-
-- ❌ You wrote a migration file but haven't applied it yet
-- ❌ Commit message mentions "migration" but RPC doesn't have new field in database
-- ❌ Code uses a field that doesn't exist in database RPC
+- ❌ Migration file not applied to database yet
+- ❌ Code uses field that doesn't exist in database
 - ❌ RPC signature changed but old function still exists
-- ❌ "function is not unique" error (conflicting overloads)
+- ❌ "function is not unique" error
 
-### 🔍 VERIFICATION CHECKLIST
-
-After writing ANY migration:
-
-```javascript
-// 1. Verify file exists
-ls -la supabase/migrations/YYYYMMDDHHMMSS*.sql
-
-// 2. Verify function/table exists in database
-SELECT routine_name FROM information_schema.routines
-WHERE routine_name = 'your_rpc_name';
-
-// 3. Test the RPC returns expected fields
-SELECT id, your_new_field FROM your_rpc();
-// Should NOT return error about missing field
-
-// 4. Check frontend doesn't break
-// Restart app, check console, verify object structure
-```
-
-### 📝 Pre-Migration Checklist
-
-Before EVERY migration:
-- [ ] Is this adding a new field to profiles? → Update ALL RPCs that return profiles
-- [ ] Is this creating a new RPC? → Test it immediately in database
-- [ ] Are you modifying an existing RPC? → Check for old overloaded versions
-- [ ] Did you write the .sql file? → Apply to DB within 5 minutes
-- [ ] Did you test in database? → Verify field appears in RPC results
-- [ ] Did you test in app? → Verify frontend can access field
-- [ ] **Are there old versions of this RPC?** → Drop them to avoid "not unique" errors
+📖 **Full Documentation**: [`/docs/development/MIGRATION_WORKFLOW_DETAILED.md`](docs/development/MIGRATION_WORKFLOW_DETAILED.md)
 
 ---
 
@@ -1061,12 +663,12 @@ Use `mcp__supabase__apply_migration` only. No CLI commands.
 
 📖 Full docs: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/UNDO_SYSTEM_TEST_CHECKLIST.md) | Action types: [`/docs/REFERENCE_TABLES.md`](docs/REFERENCE_TABLES.md#undo-system---supported-action-types)
 
-## 📰 News Screen Additions (January 2025)
+## 📰 News Screen (January 2025)
 
-- Added Najdi Sadu color tokens to `src/components/ui/tokens.js`
-- Cached WordPress news service (`src/services/news.ts`) with 24h TTL
-- Reusable news UI primitives (FeaturedNewsCarousel, NewsCard, RecentArticleItem)
-- NewsScreen with Gregorian/Hijri headers, infinite scroll, shimmer loading
+**Components**: Najdi Sadu tokens, WordPress service (24h cache), FeaturedNewsCarousel, NewsCard, RecententArticleItem
+**Features**: Dual calendar (Gregorian/Hijri), infinite scroll, shimmer loading
+
+📖 **Full Documentation**: [`/docs/features/NEWS_SCREEN.md`](docs/features/NEWS_SCREEN.md)
 
 ## 🚀 Over-The-Air (OTA) Updates Quick Ref
 
@@ -1137,11 +739,9 @@ When user says "ending for today" or similar, IMMEDIATELY:
 2. If > 20 commits → MUST merge today to prevent divergence
 3. Run full audit from `END_OF_SESSION_PROTOCOL.md`
 
-### Branch Strategy
-- **One branch per session/feature** (not per agent)
-- **Daily merges** to prevent divergence
-- **Descriptive commits** with agent context: `feat(claude): Add feature X`
-- **Maximum 20 commits** before mandatory merge
+**Branch Strategy**: One branch per session/feature (not per agent), daily merges, descriptive commits with agent context, max 20 commits before merge.
+
+📖 **Full Documentation**: [`/docs/development/MULTI_AGENT_WORKFLOW.md`](docs/development/MULTI_AGENT_WORKFLOW.md)
 
 ## 📚 Reference
 
