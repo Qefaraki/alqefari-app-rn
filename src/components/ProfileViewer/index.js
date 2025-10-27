@@ -842,10 +842,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
     // Verify permission online before entering edit mode
     try {
-      const { data: permission, error } = await supabase.rpc('check_family_permission_v4', {
-        p_user_id: userProfile?.id,
-        p_target_id: person?.id,
-      });
+      const { data: permission, error } = await fetchWithTimeout(
+        supabase.rpc('check_family_permission_v4', {
+          p_user_id: userProfile?.id,
+          p_target_id: person?.id,
+        }),
+        3000, // 3-second timeout (matches initial permission check)
+        'Verify edit permission'
+      );
 
       if (error) throw error;
 
@@ -860,11 +864,30 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       }
     } catch (error) {
       console.error('[ProfileViewer] Permission check failed:', error);
-      Alert.alert(
-        'خطأ',
-        'فشل التحقق من الصلاحيات. حاول مرة أخرى.',
-        [{ text: 'حسناً' }]
-      );
+
+      // Distinguish network errors from permission errors
+      if (error.message === 'NETWORK_OFFLINE') {
+        Alert.alert(
+          'لا يوجد اتصال',
+          'تحقق من الاتصال بالإنترنت وحاول مرة أخرى.',
+          [{ text: 'حسناً' }]
+        );
+      } else if (error.message?.includes('NETWORK_TIMEOUT')) {
+        Alert.alert(
+          'انتهت المهلة',
+          'استغرق التحقق من الصلاحيات وقتاً طويلاً. حاول مرة أخرى.',
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            { text: 'إعادة المحاولة', onPress: handleEditPress }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'خطأ',
+          'فشل التحقق من الصلاحيات. حاول مرة أخرى.',
+          [{ text: 'حسناً' }]
+        );
+      }
       return;
     }
 
