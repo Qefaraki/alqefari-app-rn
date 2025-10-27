@@ -39,6 +39,7 @@ let paragraphCacheMisses = 0;
  * @param fontSize - Font size in pixels
  * @param color - Text color (hex string)
  * @param maxWidth - Maximum width in pixels
+ * @param maxLines - Maximum number of lines (default: 1)
  * @returns Cache key string
  */
 function createCacheKey(
@@ -46,9 +47,10 @@ function createCacheKey(
   fontWeight: 'normal' | 'bold',
   fontSize: number,
   color: string,
-  maxWidth: number
+  maxWidth: number,
+  maxLines: number = 1
 ): string {
-  return `${text}-${fontWeight}-${fontSize}-${color}-${maxWidth}`;
+  return `${text}-${fontWeight}-${fontSize}-${color}-${maxWidth}-${maxLines}`;
 }
 
 /**
@@ -62,10 +64,11 @@ function createCacheKey(
  * @param fontSize - Font size in pixels
  * @param color - Text color (hex string)
  * @param maxWidth - Maximum paragraph width in pixels
+ * @param maxLines - Maximum number of lines (default: 1)
  * @returns Skia Paragraph object or null if creation fails
  *
  * @example
- * const paragraph = getCachedParagraph('محمد', 'bold', 14, '#242121', 120);
+ * const paragraph = getCachedParagraph('محمد', 'bold', 14, '#242121', 120, 2);
  * if (paragraph) {
  *   // Render with <Paragraph paragraph={paragraph} x={100} y={50} />
  * }
@@ -75,12 +78,13 @@ export function getCachedParagraph(
   fontWeight: 'normal' | 'bold',
   fontSize: number,
   color: string,
-  maxWidth: number
+  maxWidth: number,
+  maxLines: number = 1
 ): Paragraph | null {
   if (!text) return null;
 
   // Create cache key
-  const key = createCacheKey(text, fontWeight, fontSize, color, maxWidth);
+  const key = createCacheKey(text, fontWeight, fontSize, color, maxWidth, maxLines);
 
   // Check cache first
   if (paragraphCache.has(key)) {
@@ -96,7 +100,7 @@ export function getCachedParagraph(
 
   // Cache miss - create new paragraph
   paragraphCacheMisses++;
-  const paragraph = createArabicParagraph(text, fontWeight, fontSize, color, maxWidth);
+  const paragraph = createArabicParagraph(text, fontWeight, fontSize, color, maxWidth, maxLines);
 
   if (paragraph) {
     paragraphCache.set(key, paragraph);
@@ -155,6 +159,7 @@ export function getCacheStats() {
  * @param fontSize - Font size
  * @param color - Text color
  * @param maxWidth - Maximum width
+ * @param maxLines - Maximum number of lines (default: 1)
  * @returns True if entry was removed, false if not found
  */
 export function removeCachedParagraph(
@@ -162,9 +167,10 @@ export function removeCachedParagraph(
   fontWeight: 'normal' | 'bold',
   fontSize: number,
   color: string,
-  maxWidth: number
+  maxWidth: number,
+  maxLines: number = 1
 ): boolean {
-  const key = createCacheKey(text, fontWeight, fontSize, color, maxWidth);
+  const key = createCacheKey(text, fontWeight, fontSize, color, maxWidth, maxLines);
   return paragraphCache.delete(key);
 }
 
@@ -183,6 +189,7 @@ export function prewarmCache(
     fontSize: number;
     color: string;
     maxWidth: number;
+    maxLines?: number;
   }>
 ): void {
   entries.forEach((entry) => {
@@ -191,7 +198,8 @@ export function prewarmCache(
       entry.fontWeight,
       entry.fontSize,
       entry.color,
-      entry.maxWidth
+      entry.maxWidth,
+      entry.maxLines ?? 1
     );
   });
 }

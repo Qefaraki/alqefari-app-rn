@@ -16,23 +16,22 @@
  * />
  */
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Animated,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ProfileQRCode from './ProfileQRCode';
-import { shareProfile, copyProfileLink } from '../../services/profileSharing';
+import { shareProfile } from '../../services/profileSharing';
 import tokens from '../ui/tokens';
-import { formatNameWithTitle } from '../../services/professionalTitleService';
+import { getTitleAbbreviation } from '../../services/professionalTitleService';
 import { useTreeStore } from '../../stores/useTreeStore';
 
 const COLORS = {
@@ -119,30 +118,9 @@ export default function ShareProfileSheet({
   mode = 'share', // 'share' | 'invite'
   inviterProfile,
 }) {
-  const [copySuccess, setCopySuccess] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
 
-  // Copy link handler
-  const handleCopyLink = useCallback(async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      const success = await copyProfileLink(profile, inviterProfile);
-
-      if (success) {
-        setCopySuccess(true);
-        showToast();
-
-        // Reset success state after 2 seconds
-        setTimeout(() => setCopySuccess(false), 2000);
-      }
-    } catch (error) {
-      console.error('[ShareSheet] Copy failed:', error);
-    }
-  }, [profile, inviterProfile]);
-
-  // Share handler
+  // Share handler (opens iOS native share sheet)
   const handleShare = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -161,30 +139,14 @@ export default function ShareProfileSheet({
     }
   }, [profile, mode, inviterProfile, onClose]);
 
-  // Toast animation
-  const showToast = useCallback(() => {
-    Animated.sequence([
-      Animated.spring(toastOpacity, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.delay(2000),
-      Animated.timing(toastOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [toastOpacity]);
-
   // Access nodesMap from tree store
   const nodesMap = useTreeStore((s) => s.nodesMap);
 
-  // Format name with professional title
-  const formattedName = useMemo(() => {
-    return formatNameWithTitle(profile);
+  // Display first name with professional title (e.g., "د. محمد" or just "محمد")
+  const displayName = useMemo(() => {
+    const firstName = profile?.name || '';
+    const abbrev = getTitleAbbreviation(profile);
+    return abbrev ? `${abbrev} ${firstName}` : firstName;
   }, [profile]);
 
   // Construct lineage chain
@@ -217,11 +179,6 @@ export default function ShareProfileSheet({
   }
   const metadata = metadataSegments.join(' | ');
 
-  // Button text based on mode
-  const shareButtonText = useMemo(() => {
-    return mode === 'invite' ? 'إرسال دعوة' : 'مشاركة عبر واتساب';
-  }, [mode]);
-
   return (
     <Modal
       visible={visible}
@@ -245,9 +202,9 @@ export default function ShareProfileSheet({
         <View style={styles.container}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          {/* Name with professional title */}
-          <Text style={styles.name} numberOfLines={2}>
-            {formattedName}
+          {/* First name with optional professional title */}
+          <Text style={styles.name} numberOfLines={1}>
+            {displayName}
           </Text>
 
           {/* Lineage chain */}
@@ -275,70 +232,31 @@ export default function ShareProfileSheet({
           />
         </View>
 
-        {/* Action Buttons */}
+        {/* Share Button (iOS native style) */}
         <View style={styles.actions}>
-          {/* Copy Link Button (Primary) */}
           <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleCopyLink}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="copy-outline"
-              size={20}
-              color={COLORS.saduNight}
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.primaryButtonText}>
-              نسخ الرابط
-            </Text>
-          </TouchableOpacity>
-
-          {/* Share Button (Secondary) */}
-          <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.shareButton}
             onPress={handleShare}
             activeOpacity={0.7}
             disabled={shareLoading}
           >
             {shareLoading ? (
-              <ActivityIndicator size="small" color={COLORS.desertOchre} />
+              <ActivityIndicator size="small" color={COLORS.surface} />
             ) : (
               <>
                 <Ionicons
-                  name="share-social-outline"
-                  size={20}
-                  color={COLORS.desertOchre}
+                  name="share-outline"
+                  size={22}
+                  color={COLORS.surface}
                   style={styles.buttonIcon}
                 />
-                <Text style={styles.secondaryButtonText}>
-                  {shareButtonText}
+                <Text style={styles.shareButtonText}>
+                  مشاركة
                 </Text>
               </>
             )}
           </TouchableOpacity>
         </View>
-
-        {/* Success Toast */}
-        <Animated.View
-          style={[
-            styles.toast,
-            {
-              opacity: toastOpacity,
-              transform: [
-                {
-                  translateY: toastOpacity.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [100, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-          pointerEvents="none"
-        >
-          <Text style={styles.toastText}>تم النسخ ✓</Text>
-        </Animated.View>
       </View>
       </SafeAreaView>
     </Modal>
@@ -372,12 +290,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   name: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: '700',
     color: COLORS.saduNight,
     textAlign: 'center',
     maxWidth: '90%',
     marginBottom: SPACING.xs,
+    letterSpacing: 0.37,
   },
   lineage: {
     fontSize: 15,
@@ -405,58 +324,27 @@ const styles = StyleSheet.create({
   actions: {
     gap: SPACING.lg,
   },
-  primaryButton: {
+  shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    backgroundColor: COLORS.camelHairBeige,
-    borderRadius: SPACING.md,  // 12px from local constants (line 52)
+    height: 56,
+    backgroundColor: COLORS.najdiCrimson,
+    borderRadius: SPACING.md,
     paddingHorizontal: SPACING.xl,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonIcon: {
     marginEnd: SPACING.sm,
   },
-  primaryButtonText: {
+  shareButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: COLORS.saduNight,
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    backgroundColor: COLORS.surface,
-    borderRadius: SPACING.md,  // 12px from local constants (line 52)
-    borderWidth: 1.5,
-    borderColor: `${COLORS.camelHairBeige}40`,
-    paddingHorizontal: SPACING.xl,
-  },
-  secondaryButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.desertOchre,
-  },
-
-  // Toast
-  toast: {
-    position: 'absolute',
-    bottom: SPACING.xxl,
-    alignSelf: 'center',
-    backgroundColor: COLORS.najdiCrimson,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 999,
-  },
-  toastText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.surface,
+    letterSpacing: -0.41,
   },
 });

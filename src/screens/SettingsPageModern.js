@@ -1098,11 +1098,12 @@ export default function SettingsPageModern({ user }) {
           />
           <View style={styles.segmentedContainer}>
             <SegmentedControl
-              values={["عادي", "عصري"]}
+              values={["مستقيم", "منحني"]}
               selectedIndex={settings.treeStyle === 'bezier' ? 1 : 0}
-              onChange={(index) => {
+              onChange={(event) => {
+                const index = event.nativeEvent.selectedSegmentIndex;
                 const newTreeStyle = index === 1 ? 'bezier' : 'normal';
-                console.log('[Settings] Tree Style changed to:', newTreeStyle);
+                console.log('[Settings] Tree Style changed to:', newTreeStyle, 'from index:', index);
                 handleFeedback();
                 updateSetting('treeStyle', newTreeStyle);
               }}

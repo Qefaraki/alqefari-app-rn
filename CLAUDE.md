@@ -1,5 +1,39 @@
 # Alqefari Family Tree - Development Guide
 
+## 🚨 CRITICAL: Always Commit After Successful Changes
+
+**After EVERY successful code change, migration, or fix:**
+
+```bash
+git add -A
+git commit -m "type: Specific description of what was changed"
+```
+
+**Commit Message Format**:
+- **feat**: New feature added
+- **fix**: Bug fixed
+- **refactor**: Code restructured (no behavior change)
+- **docs**: Documentation updated
+- **test**: Tests added/modified
+- **chore**: Maintenance (deps, config, etc.)
+
+**Examples**:
+- ✅ `fix: Restore recursive CTE in search_name_chain (Munasib filter + full name chains)`
+- ✅ `feat: Add crop fields to search RPC (4 numeric fields for photo cropping)`
+- ✅ `refactor: Extract gesture physics constants to separate module`
+- ❌ `update code` (too vague)
+- ❌ `fix stuff` (not specific)
+
+**Key Rules**:
+1. ✅ **Commit immediately** after successful changes
+2. ✅ **Be specific** about what changed and why
+3. ❌ **DO NOT push** (that's a separate manual step)
+4. ✅ **Include file paths** in commit message for migrations/docs
+
+**Why**: Git commits create restore points. If something breaks later, you can always revert to the last working state.
+
+---
+
 ## 📖 Documentation Index
 
 ### Core Systems

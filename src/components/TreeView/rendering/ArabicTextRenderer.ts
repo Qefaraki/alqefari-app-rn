@@ -146,7 +146,8 @@ export function createArabicParagraph(
   fontWeight: 'normal' | 'bold',
   fontSize: number,
   color: string,
-  maxWidth: number
+  maxWidth: number,
+  maxLines: number = 1
 ): Paragraph | null {
   if (!text || !Skia.ParagraphBuilder) return null;
 
@@ -155,7 +156,7 @@ export function createArabicParagraph(
     const paragraphStyle = {
       textAlign: 2, // Center align (0=left, 1=right, 2=center)
       textDirection: 1, // RTL direction (0=LTR, 1=RTL)
-      maxLines: 1,
+      maxLines: maxLines,
       ellipsis: '...',
     };
 

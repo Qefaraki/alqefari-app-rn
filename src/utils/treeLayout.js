@@ -171,9 +171,9 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
       // PHASE 3: Width-ratio based gaps (detects circular vs rectangular automatically)
       const avgWidth = (aWidth + bWidth) / 2;
 
-      // Circular nodes (40/60/100) get tighter spacing than rectangular (58/75/95)
-      const siblingGapRatio = avgWidth < 50 ? 0.05 : 0.15;  // 5% for circular, 15% for rectangular
-      const cousinGapRatio = avgWidth < 50 ? 0.20 : 0.70;   // 20% for circular, 70% for rectangular
+      // Circular nodes (40/60/100) get MUCH tighter spacing - siblings nearly touch
+      const siblingGapRatio = avgWidth < 50 ? 0.01 : 0.15;  // 1% for circular (nearly touching), 15% for rectangular
+      const cousinGapRatio = avgWidth < 50 ? 0.05 : 0.70;   // 5% for circular (much tighter), 70% for rectangular
 
       if (a.parent === b.parent) {
         // Siblings: Node widths + ratio-based gap
