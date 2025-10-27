@@ -9,6 +9,7 @@
 
 import { supabase } from './supabase';
 import { Alert } from 'react-native';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 // Fields allowed by the v4 suggestion system (must stay in sync with backend whitelist)
 const ALLOWED_SUGGESTION_FIELDS = new Set([
@@ -47,10 +48,14 @@ class SuggestionService {
    */
   async checkPermission(userId, targetId) {
     try {
-      const { data, error } = await supabase.rpc('check_family_permission_v4', {
-        p_user_id: userId,
-        p_target_id: targetId
-      });
+      const { data, error } = await fetchWithTimeout(
+        supabase.rpc('check_family_permission_v4', {
+          p_user_id: userId,
+          p_target_id: targetId
+        }),
+        3000, // 3-second timeout (matches ProfileViewer and useProfilePermissions)
+        'Check suggestion permission'
+      );
 
       if (error) {
         if (__DEV__) {
@@ -64,6 +69,14 @@ class SuggestionService {
       if (__DEV__) {
         console.error('checkPermission error:', error);
       }
+
+      // Distinguish network errors from permission errors
+      if (error.message === 'NETWORK_OFFLINE') {
+        throw new Error('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
+      } else if (error.message?.includes('NETWORK_TIMEOUT')) {
+        throw new Error('انتهت مهلة التحقق من الصلاحيات. حاول مرة أخرى.');
+      }
+
       throw error;
     }
   }

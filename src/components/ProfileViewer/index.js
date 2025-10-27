@@ -393,6 +393,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [marriages, setMarriages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [retryDisabled, setRetryDisabled] = useState(false);
 
   // Initialize hooks early so they're available for useCallbacks
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(person?.id);
@@ -878,7 +879,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           'استغرق التحقق من الصلاحيات وقتاً طويلاً. حاول مرة أخرى.',
           [
             { text: 'إلغاء', style: 'cancel' },
-            { text: 'إعادة المحاولة', onPress: handleEditPress }
+            { text: 'إعادة المحاولة', onPress: handleRetryWithDebounce }
           ]
         );
       } else {
@@ -898,6 +899,22 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
     enterEditMode();
   }, [accessMode, canEdit, checkBeforeAction, enterEditMode, rememberChoice, person, onClose, userProfile]);
+
+  // Debounced retry handler to prevent spam-clicking retry button
+  const handleRetryWithDebounce = useCallback(() => {
+    if (retryDisabled) {
+      console.log('[ProfileViewer] Retry blocked - cooldown active');
+      return;
+    }
+
+    setRetryDisabled(true);
+    handleEditPress();
+
+    // Re-enable retry after 1 second
+    setTimeout(() => {
+      setRetryDisabled(false);
+    }, 1000);
+  }, [handleEditPress, retryDisabled, setRetryDisabled]);
 
   // Determine share/invite mode based on profile state
   // Invite mode: alive + not linked to app (no user_id)

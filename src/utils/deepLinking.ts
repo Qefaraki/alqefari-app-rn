@@ -18,6 +18,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { useTreeStore } from '../stores/useTreeStore';
 import profilesService from '../services/profiles';
 import { supabase } from '../services/supabase';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 // HID format: H or R followed by digits or dot-separated digits
 // Examples: H1, H12345, R1, R1.1, R1.1.1.1.1.1
@@ -211,20 +212,48 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
     }
 
     // Edge case 3: Blocked user (permission check)
-    const { data: permissionLevel, error: permError } = await supabase.rpc('check_family_permission_v4', {
-      p_user_id: currentUserProfile?.id,
-      p_target_id: profile.id,
-    });
-
-    if (permError) {
-      console.error('[DeepLink] Permission check error:', permError);
-    } else if (permissionLevel === 'blocked' || permissionLevel === 'none') {
-      Alert.alert(
-        'الوصول محظور',
-        'ليس لديك صلاحية لعرض هذا الملف الشخصي.'
+    try {
+      const { data: permissionLevel, error: permError } = await fetchWithTimeout(
+        supabase.rpc('check_family_permission_v4', {
+          p_user_id: currentUserProfile?.id,
+          p_target_id: profile.id,
+        }),
+        3000, // 3-second timeout (matches ProfileViewer and useProfilePermissions)
+        'Check deep link permission'
       );
-      console.log('[DeepLink] User blocked or no permission:', permissionLevel);
-      return;
+
+      if (permError) {
+        throw permError;
+      }
+
+      if (permissionLevel === 'blocked' || permissionLevel === 'none') {
+        Alert.alert(
+          'الوصول محظور',
+          'ليس لديك صلاحية لعرض هذا الملف الشخصي.'
+        );
+        console.log('[DeepLink] User blocked or no permission:', permissionLevel);
+        return;
+      }
+    } catch (error) {
+      console.error('[DeepLink] Permission check failed:', error);
+
+      // Distinguish network errors from permission errors
+      if (error.message === 'NETWORK_OFFLINE') {
+        Alert.alert(
+          'لا يوجد اتصال',
+          'تحقق من الاتصال بالإنترنت وحاول مرة أخرى.'
+        );
+        return;
+      } else if (error.message?.includes('NETWORK_TIMEOUT')) {
+        Alert.alert(
+          'انتهت المهلة',
+          'استغرق التحقق من الصلاحيات وقتاً طويلاً. حاول مرة أخرى.'
+        );
+        return;
+      } else {
+        // Unknown error - allow navigation (permissive fallback for deep links)
+        console.warn('[DeepLink] Permission check failed, allowing navigation as fallback');
+      }
     }
 
     // Check if profile needs enrichment (Progressive Loading Phase 3B)
@@ -270,17 +299,34 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
       }
 
       // Insert analytics event
+      // NOTE: scanner_id is set to current user's profile ID (enforced by RLS policy)
       const { error: analyticsError } = await supabase.from('profile_share_events').insert({
         profile_id: profile.id,
         sharer_id: sharerId,
+        scanner_id: currentUserProfile?.id, // Who performed the scan (tied to auth.uid() in RLS)
         share_method: 'qr_scan',
         shared_at: new Date().toISOString(),
       });
 
       if (analyticsError) {
+        // Check if rate limit exceeded (server-side enforcement)
+        if (analyticsError.message && analyticsError.message.includes('Rate limit')) {
+          Alert.alert(
+            'كثرة المحاولات',
+            'لقد تجاوزت الحد الأقصى لمسح رموز QR (20 مسحاً كل 5 دقائق). يرجى الانتظار قليلاً.'
+          );
+          console.log('[DeepLink] Rate limit exceeded for user:', currentUserProfile?.id);
+          return; // Stop processing - don't open profile
+        }
+
+        // Other analytics errors are non-critical (don't block user)
         console.warn('[DeepLink] Analytics logging failed (non-critical):', analyticsError.message);
       } else {
-        console.log('[DeepLink] QR scan analytics logged:', { profileId: profile.id, sharerId });
+        console.log('[DeepLink] QR scan analytics logged:', {
+          profileId: profile.id,
+          sharerId,
+          scannerId: currentUserProfile?.id,
+        });
       }
     } catch (analyticsErr) {
       // Non-blocking: analytics failure shouldn't affect user experience
