@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.1.0'; // Bumped: Added version field to get_structure_only RPC
+const TREE_STRUCTURE_SCHEMA_VERSION = '1.2.0'; // Bumped: Added blurhash field to structure RPC
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

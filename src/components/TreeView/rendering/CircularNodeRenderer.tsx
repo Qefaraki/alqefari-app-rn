@@ -16,8 +16,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Circle, Group, ClipPath, Path, Paragraph } from '@shopify/react-native-skia';
-import { Skia } from '@shopify/react-native-skia';
+import { Circle, Group, Paragraph } from '@shopify/react-native-skia';
 
 // Import components
 import { ImageNode } from './ImageNode';
@@ -50,6 +49,9 @@ export interface CircularNodeRendererProps {
     maxWidth: number,
     maxLines?: number,
   ) => any;
+
+  // Image rendering (required for ImageNode component)
+  useBatchedSkiaImage: (url: string, bucket: number, priority: string) => any;
 }
 
 /**
@@ -61,6 +63,7 @@ export function CircularNodeRenderer({
   isSelected,
   dimensions,
   getCachedParagraph,
+  useBatchedSkiaImage,
 }: CircularNodeRendererProps): JSX.Element {
   // Determine node type
   const isRoot = !node.father_id;
@@ -103,24 +106,33 @@ export function CircularNodeRenderer({
 
   // Create name paragraph (max 2 lines, ellipsis truncation)
   const nameParagraph = useMemo(
-    () =>
-      getCachedParagraph(
+    () => {
+      const paragraph = getCachedParagraph(
         node.name || '',
         'bold',
         11, // Standard font size
         COLORS.TEXT,
-        diameter, // Max width matches circle diameter
+        diameter * 2, // PHASE 1.2: Increased from diameter to diameter * 2 for Arabic names
         2, // Max 2 lines
-      ),
-    [node.name, diameter, getCachedParagraph],
-  );
+      );
 
-  // Create circular clip path for photo masking
-  const circularClipPath = useMemo(() => {
-    const path = Skia.Path.Make();
-    path.addCircle(centerX, centerY, radius);
-    return path;
-  }, [centerX, centerY, radius]);
+      // PHASE 1.1: Verification logging
+      if (__DEV__) {
+        console.log('[CircularNode]', {
+          nodeId: node.id,
+          name: node.name,
+          diameter,
+          maxWidth: diameter * 2,
+          paragraphExists: !!paragraph,
+          textX,
+          textY,
+        });
+      }
+
+      return paragraph;
+    },
+    [node.name, diameter, getCachedParagraph, textX, textY],
+  );
 
   return (
     <Group>
@@ -147,20 +159,22 @@ export function CircularNodeRenderer({
             color={COLORS.NODE_BACKGROUND}
           />
 
-          {/* Clipped photo */}
-          <Group>
-            <ClipPath>
-              <Circle cx={centerX} cy={centerY} r={radius} />
-            </ClipPath>
-            <ImageNode
-              x={centerX - photoSize / 2}
-              y={centerY - photoSize / 2}
-              width={photoSize}
-              height={photoSize}
-              url={node.photo_url!}
-              bucket={imageBucket}
-            />
-          </Group>
+          {/* Photo with circular clipping via cornerRadius */}
+          <ImageNode
+            x={centerX - photoSize / 2}
+            y={centerY - photoSize / 2}
+            width={photoSize}
+            height={photoSize}
+            url={node.photo_url!}
+            blurhash={node.blurhash}
+            cornerRadius={photoSize / 2}
+            tier={node._tier || 1}
+            scale={node._scale || 1}
+            nodeId={node.id}
+            selectBucket={node._selectBucket}
+            showPhotos={showPhotos}
+            useBatchedSkiaImage={useBatchedSkiaImage}
+          />
         </>
       ) : (
         /* Text-only node - solid fill (no initials) */

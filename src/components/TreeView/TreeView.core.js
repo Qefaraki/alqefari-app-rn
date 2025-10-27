@@ -318,6 +318,20 @@ try {
 // IMAGE_BUCKETS now imported from utils (Day 4b)
 // selectBucket removed - use selectBucketWithHysteresis from ImageBuckets.ts
 
+// ============================================
+// FEATURE FLAGS
+// ============================================
+
+/**
+ * USE_BEZIER_HIGHLIGHTS - Enable Bezier curve support for highlighting system
+ *
+ * When true: Highlights match tree connections exactly (Bezier or straight based on settings)
+ * When false: Highlights always use straight lines (legacy behavior)
+ *
+ * Rollback: Set to false via OTA update if performance issues occur
+ */
+const USE_BEZIER_HIGHLIGHTS = true;
+
 const TreeViewCore = ({
   // Existing props
   setProfileEditMode,
@@ -2688,6 +2702,9 @@ const TreeViewCore = ({
                   <UnifiedHighlightRenderer
                     renderData={highlightRenderData}
                     showGlow={true}
+                    lineStyle={USE_BEZIER_HIGHLIGHTS ? lineStyle : 'straight'}
+                    showPhotos={showPhotos}
+                    nodeStyle={nodeStyleValue}
                   />
                 )}
 

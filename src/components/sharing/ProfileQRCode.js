@@ -19,6 +19,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { generateProfileLink } from '../../utils/deepLinking';
+import { isValidSupabasePhotoUrl } from '../../utils/urlValidation';
 import tokens from '../ui/tokens';
 
 const COLORS = {
@@ -32,7 +33,7 @@ export default function ProfileQRCode({
   hid,
   inviterHid,
   mode = 'share',
-  size = 240, // Optimal scanning size - fits iPhone SE (375px) with proper margins
+  size = 280, // Optimal scanning size - fits iPhone SE (375px) with proper margins
   photoUrl, // Optional: Profile photo URL for QR center logo
 }) {
   const [qrReady, setQrReady] = useState(false);
@@ -70,17 +71,24 @@ export default function ProfileQRCode({
       setLogoLoading(true);
       setLogoSource(null);
 
-      // Strategy 1: Try profile photo
+      // Strategy 1: Try profile photo (with security validation)
       if (photoUrl) {
-        try {
-          console.log('[QRCode] Testing profile photo:', photoUrl);
-          await Image.prefetch(photoUrl);
-          setLogoSource({ uri: photoUrl });
-          console.log('[QRCode] ✅ Using profile photo as logo');
-          setLogoLoading(false);
-          return;
-        } catch (error) {
-          console.log('[QRCode] ❌ Profile photo failed, trying emblem:', error);
+        // SECURITY: Only allow HTTPS URLs from Supabase storage
+        // This prevents: file:// URIs, data: URIs, external domains, XSS attacks
+        if (isValidSupabasePhotoUrl(photoUrl)) {
+          try {
+            console.log('[QRCode] Testing profile photo:', photoUrl);
+            await Image.prefetch(photoUrl);
+            setLogoSource({ uri: photoUrl });
+            console.log('[QRCode] ✅ Using profile photo as logo');
+            setLogoLoading(false);
+            return;
+          } catch (error) {
+            console.log('[QRCode] ❌ Profile photo failed, trying emblem:', error);
+          }
+        } else {
+          console.warn('[QRCode] ❌ Invalid photo URL (not Supabase storage), using emblem:', photoUrl);
+          console.warn('[QRCode] Expected format: https://<project>.supabase.co/storage/v1/object/...');
         }
       }
 
@@ -135,10 +143,10 @@ export default function ProfileQRCode({
         enableLinearGradient={false}
         quietZone={0}                       // Padding handled by container
         logo={logoSource}                   // Smart fallback: photo → emblem → none
-        logoSize={logoSource ? size * 0.25 : 0}  // 25% of QR size (60px for 240px QR)
+        logoSize={logoSource ? size * 0.25 : 0}  // 25% of QR size (70px for 280px QR)
         logoBackgroundColor={COLORS.surface} // White background for logo
         logoMargin={2}                       // Small margin around logo
-        logoBorderRadius={logoSource && logoSource.uri ? 30 : 0}  // Rounded for photos, square for emblem
+        logoBorderRadius={logoSource && logoSource.uri ? 12 : 0}  // Squircle for photos, square for emblem
       />
     </View>
   );

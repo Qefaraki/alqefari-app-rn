@@ -72,6 +72,7 @@ export interface LayoutNode {
   generation: number;
   father_id: string | null;
   photo_url?: string;
+  blurhash?: string; // BlurHash placeholder for progressive loading
   x: number;
   y: number;
   nodeWidth?: number;
@@ -462,6 +463,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         isSelected={isSelected}
         dimensions={dimensions}
         getCachedParagraph={getCachedParagraph}
+        useBatchedSkiaImage={useBatchedSkiaImage}
       />
     );
   }
@@ -501,6 +503,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           {node.photo_url && (
             <ImageNode
               url={node.photo_url}
+              blurhash={node.blurhash}
               x={node.x - PHOTO_SIZE / 2}
               y={node.y - 10 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}

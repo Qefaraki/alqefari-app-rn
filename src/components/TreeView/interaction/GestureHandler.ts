@@ -23,7 +23,13 @@
  */
 
 import { Gesture } from 'react-native-gesture-handler';
-import { SharedValue, cancelAnimation, withDecay, withTiming, runOnJS } from 'react-native-reanimated';
+import { SharedValue, cancelAnimation, withDecay, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
+import {
+  GESTURE_PHYSICS,
+  clampVelocity,
+  shouldApplyMomentum,
+  getZoomSpringConfig,
+} from '../utils/constants/gesturePhysics';
 
 // Zoom limits
 const MIN_ZOOM = 0.1;
@@ -79,7 +85,7 @@ export function createPanGesture(
   config: GestureConfig = {}
 ) {
   const { translateX, translateY, savedTranslateX, savedTranslateY, isPinching } = sharedValues;
-  const decelerationRate = config.decelerationRate ?? 0.995;
+  const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
   return Gesture.Pan()
     .onStart(() => {
@@ -88,6 +94,7 @@ export function createPanGesture(
       if (isPinching.value) {
         return;
       }
+      console.log('[MOMENTUM] Pan started');
       cancelAnimation(translateX);
       cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
@@ -109,20 +116,51 @@ export function createPanGesture(
         return;
       }
 
+      // Clamp velocities to prevent jarring ultra-fast flicks
+      const clampedVelocityX = GESTURE_PHYSICS.USE_VELOCITY_CLAMPING
+        ? clampVelocity(e.velocityX, GESTURE_PHYSICS.PAN_VELOCITY_MAX)
+        : e.velocityX;
+      const clampedVelocityY = GESTURE_PHYSICS.USE_VELOCITY_CLAMPING
+        ? clampVelocity(e.velocityY, GESTURE_PHYSICS.PAN_VELOCITY_MAX)
+        : e.velocityY;
+
+      // Check if velocity exceeds threshold (ignore micro-movements)
+      if (
+        GESTURE_PHYSICS.USE_VELOCITY_THRESHOLD &&
+        !shouldApplyMomentum(
+          clampedVelocityX,
+          clampedVelocityY,
+          GESTURE_PHYSICS.PAN_VELOCITY_THRESHOLD
+        )
+      ) {
+        // No momentum, just save position
+        console.log('[MOMENTUM] Pan ended (no momentum - below threshold)');
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+        if (callbacks.onGestureEnd) {
+          runOnJS(callbacks.onGestureEnd)();
+        }
+        return;
+      }
+
+      console.log(`[MOMENTUM] Pan ended - applying momentum (vX: ${clampedVelocityX.toFixed(0)}, vY: ${clampedVelocityY.toFixed(0)})`);
+
+      // Apply momentum with iOS-native physics
       translateX.value = withDecay(
         {
-          velocity: e.velocityX,
+          velocity: clampedVelocityX,
           deceleration: decelerationRate,
         },
         () => {
           // Sync React state when decay animation completes
+          console.log('[MOMENTUM] Momentum coast completed');
           if (callbacks.onGestureEnd) {
             runOnJS(callbacks.onGestureEnd)();
           }
         }
       );
       translateY.value = withDecay({
-        velocity: e.velocityY,
+        velocity: clampedVelocityY,
         deceleration: decelerationRate,
       });
 
@@ -195,8 +233,8 @@ export function createPinchGesture(
         return;
       }
 
-      // Calculate new scale
-      const newScale = clamp(savedScale.value * e.scale, minZoom, maxZoom);
+      // Calculate new scale (allow over-zoom during gesture for iOS-native bounce)
+      const newScale = savedScale.value * e.scale;
 
       // CRITICAL FIX: Track how much the focal point has moved (pan component)
       const focalDeltaX = e.focalX - initialFocalX.value;
@@ -215,10 +253,60 @@ export function createPinchGesture(
       'worklet';
       console.log(`[GestureHandler] Pinch onEnd: scale=${scale.value.toFixed(2)}`);
 
-      // Save final values
-      savedScale.value = scale.value;
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
+      // Spring back if over-zoomed (iOS-native bounce feel)
+      if (GESTURE_PHYSICS.USE_ZOOM_SPRING) {
+        const isOverZoom = scale.value > maxZoom || scale.value < minZoom;
+        if (isOverZoom) {
+          const targetScale = scale.value > maxZoom ? maxZoom : minZoom;
+          console.log(`[GestureHandler] Over-zoom detected, springing to ${targetScale}`);
+
+          // CRITICAL: Preserve focal point during spring bounce
+          // Store the focal point from last update (where user's fingers were)
+          const currentFocalX = initialFocalX.value;
+          const currentFocalY = initialFocalY.value;
+
+          // Calculate world coordinates at current (over-zoomed) scale
+          const worldX = (currentFocalX - translateX.value) / scale.value;
+          const worldY = (currentFocalY - translateY.value) / scale.value;
+
+          // Calculate target translation to preserve focal point at target scale
+          const targetTranslateX = currentFocalX - worldX * targetScale;
+          const targetTranslateY = currentFocalY - worldY * targetScale;
+
+          // Spring scale AND translation simultaneously to preserve focal point
+          scale.value = withSpring(
+            targetScale,
+            getZoomSpringConfig(),
+            (finished) => {
+              'worklet';
+              if (finished) {
+                // Only cancel animations if spring completed naturally
+                cancelAnimation(translateX);
+                cancelAnimation(translateY);
+              }
+            }
+          );
+
+          translateX.value = withSpring(targetTranslateX, getZoomSpringConfig());
+          translateY.value = withSpring(targetTranslateY, getZoomSpringConfig());
+
+          // CRITICAL: Save immediately (not in callback) to prevent stale values if interrupted
+          savedScale.value = targetScale;
+          savedTranslateX.value = targetTranslateX;
+          savedTranslateY.value = targetTranslateY;
+        } else {
+          // No over-zoom, just save current values
+          savedScale.value = scale.value;
+          savedTranslateX.value = translateX.value;
+          savedTranslateY.value = translateY.value;
+        }
+      } else {
+        // Feature flag disabled, save current values
+        savedScale.value = scale.value;
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+      }
+
       isPinching.value = false;
 
       // Sync React state after pinch completes
@@ -242,8 +330,8 @@ export function createTapGesture(
   callbacks: GestureCallbacks = {},
   config: GestureConfig = {}
 ) {
-  const maxDistance = config.tapMaxDistance ?? 10;
-  const maxDuration = config.tapMaxDuration ?? 250;
+  const maxDistance = config.tapMaxDistance ?? GESTURE_PHYSICS.TAP_MAX_DISTANCE;
+  const maxDuration = config.tapMaxDuration ?? GESTURE_PHYSICS.TAP_MAX_DURATION;
 
   return Gesture.Tap()
     .maxDistance(maxDistance)
@@ -270,8 +358,8 @@ export function createLongPressGesture(
   callbacks: GestureCallbacks = {},
   config: GestureConfig = {}
 ) {
-  const minDuration = config.longPressMinDuration ?? 500;
-  const maxDistance = config.longPressMaxDistance ?? 10;
+  const minDuration = config.longPressMinDuration ?? GESTURE_PHYSICS.LONG_PRESS_MIN_DURATION;
+  const maxDistance = config.longPressMaxDistance ?? GESTURE_PHYSICS.LONG_PRESS_MAX_DISTANCE;
 
   return Gesture.LongPress()
     .minDuration(minDuration)
@@ -318,9 +406,9 @@ export function createComposedGesture(
 export const GESTURE_CONSTANTS = {
   MIN_ZOOM,
   MAX_ZOOM,
-  DEFAULT_DECELERATION: 0.995,
-  DEFAULT_TAP_MAX_DURATION: 250,
-  DEFAULT_TAP_MAX_DISTANCE: 10,
-  DEFAULT_LONG_PRESS_MIN_DURATION: 500,
-  DEFAULT_LONG_PRESS_MAX_DISTANCE: 10,
+  DEFAULT_DECELERATION: GESTURE_PHYSICS.PAN_DECELERATION,
+  DEFAULT_TAP_MAX_DURATION: GESTURE_PHYSICS.TAP_MAX_DURATION,
+  DEFAULT_TAP_MAX_DISTANCE: GESTURE_PHYSICS.TAP_MAX_DISTANCE,
+  DEFAULT_LONG_PRESS_MIN_DURATION: GESTURE_PHYSICS.LONG_PRESS_MIN_DURATION,
+  DEFAULT_LONG_PRESS_MAX_DISTANCE: GESTURE_PHYSICS.LONG_PRESS_MAX_DISTANCE,
 };

@@ -39,6 +39,13 @@
         <data android:scheme="alqefari"/>
         <data android:scheme="exp+alqefari-family-tree"/>
       </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="alqefari" android:host="profile"/>
+        <data android:scheme="https" android:host="alqefari.com" android:pathPrefix="/profile"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
     </activity>
   </application>
 </manifest>

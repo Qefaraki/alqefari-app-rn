@@ -53,6 +53,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
     if (updates.length === 0) return;
 
     const startTime = performance.now();
+    console.log(`[BATCH] Flushing ${updates.length} updates to Zustand (this triggers re-render)`);
 
     try {
       // Single batch write to Zustand
@@ -78,10 +79,13 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       // Single state update (triggers 1 layout recalc instead of 18)
       treeStore.setTreeData(newTreeData);
 
+      const duration = performance.now() - startTime;
+      console.log(`[BATCH] Flush completed in ${duration.toFixed(1)}ms`);
+
       // ✅ CRITICAL FIX: Clear AFTER successful update (was clearing before, causing data loss on error)
       pendingUpdatesRef.current.clear();
     } catch (error) {
-      console.error('Batch flush failed:', error);
+      console.error('[BATCH] Flush failed:', error);
       // ✅ CRITICAL FIX: DO NOT clear on error - let retry happen on next enrichment
       // If we clear here, pending updates are lost forever
     }
@@ -103,10 +107,16 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       // Track concurrent requests to avoid applying stale data
       const requestId = ++currentRequestIdRef.current;
 
+      console.log(`[ENRICH] Starting enrichment for ${visibleNodeIds.length} visible nodes`);
+      const enrichStartTime = performance.now();
+
       try {
         const { data, error } = await profilesService.enrichVisibleNodes(
           visibleNodeIds
         );
+
+        const enrichDuration = performance.now() - enrichStartTime;
+        console.log(`[ENRICH] Network call completed in ${enrichDuration.toFixed(0)}ms`);
 
         // Discard stale request if newer one was issued
         if (requestId !== currentRequestIdRef.current) {
@@ -129,6 +139,8 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
           enrichedNodesRef.current.add(enrichedProfile.id);
         });
 
+        console.log(`[ENRICH] Accumulated ${data.length} profiles in batch (pending: ${pendingUpdatesRef.current.size})`);
+
         // ✅ CRITICAL FIX: Debounced batch flush with maxWait
         // Without maxWait, rapid scrolling can cause flush to never fire
         if (batchTimeoutRef.current) {
@@ -137,8 +149,10 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
         // First time seeing enrichment in this scroll cycle - set maxWait timer
         if (!maxWaitTimeoutRef.current) {
+          console.log('[BATCH] Setting maxWait timer (300ms force flush)');
           maxWaitTimeoutRef.current = setTimeout(() => {
             // Force flush after 300ms even if scrolling continues
+            console.log('[BATCH] maxWait timer fired - forcing flush');
             flushBatch();
             maxWaitTimeoutRef.current = null;
           }, 300);
@@ -146,6 +160,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
         // Normal debounce - reset on each scroll event
         batchTimeoutRef.current = setTimeout(() => {
+          console.log('[BATCH] Normal debounce timer fired (100ms)');
           if (maxWaitTimeoutRef.current) {
             clearTimeout(maxWaitTimeoutRef.current);
             maxWaitTimeoutRef.current = null;

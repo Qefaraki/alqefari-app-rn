@@ -17,6 +17,7 @@
 import React from 'react';
 import { Group, Path, Paint, Blur, CornerPathEffect } from '@shopify/react-native-skia';
 import { ANCESTRY_COLORS, ANCESTRY_COLORS_SECONDARY } from '../../services/highlightingService';
+import { generateLinePaths, LINE_STYLES } from './utils/lineStyles';
 
 // Constants from TreeView
 const NODE_HEIGHT_WITH_PHOTO = 80;
@@ -372,9 +373,398 @@ export function createRenderer(typeId, highlightConfig, pathData, context) {
   }
 }
 
+// ============================================
+// UNIFIED HIGHLIGHT RENDERER (Phase 3E)
+// ============================================
+
+/**
+ * UnifiedHighlightRenderer - Renders all highlights with GPU blending
+ *
+ * Architecture:
+ * - Replaces existing renderer strategy pattern with unified approach
+ * - Uses Skia BlendMode for color blending (GPU-accelerated)
+ * - Supports 100+ highlights with dynamic layer reduction
+ * - Works with highlightingServiceV2 pure service
+ *
+ * Features:
+ * - Automatic overlap detection (via renderData from service)
+ * - BlendMode='plus' for additive color blending
+ * - 4-layer glow system (reused from existing renderers)
+ * - Dynamic layer reduction based on highlight count
+ *
+ * @param {Array<SegmentData>} renderData - Output from highlightingServiceV2.getRenderData()
+ * @param {boolean} showGlow - Enable/disable glow effect
+ */
+export function UnifiedHighlightRenderer({
+  renderData,
+  showGlow = true,
+  lineStyle = 'straight',  // 'straight' or 'bezier' from settings
+  showPhotos = true,       // From settings
+  nodeStyle = 'rectangular' // From settings
+}) {
+  const { useMemo } = React;
+
+  // Calculate glow strategy based on highlight count
+  const glowStrategy = useMemo(() => {
+    const segmentCount = renderData.length;
+
+    if (segmentCount < 50) {
+      return { layers: 4, blur: [16, 8, 4, 0], label: 'full' }; // Full quality
+    } else if (segmentCount < 100) {
+      return { layers: 2, blur: [8, 0], label: 'medium' }; // Medium quality
+    } else {
+      return { layers: 1, blur: [0], label: 'low' }; // Low quality (no blur)
+    }
+  }, [renderData.length]);
+
+  // Group segments by overlap strategy
+  const layerGroups = useMemo(() => {
+    // Layer 1: Non-overlapping segments (standard rendering)
+    const single = renderData.filter(seg => seg.highlights.length === 1);
+
+    // Layer 2: Overlapping segments (BlendMode blending)
+    const multiple = renderData.filter(seg => seg.highlights.length > 1);
+
+    return { single, multiple };
+  }, [renderData]);
+
+  if (__DEV__ && renderData.length > 0) {
+    console.log(`[UnifiedHighlightRenderer] Rendering ${renderData.length} segments (${layerGroups.single.length} single, ${layerGroups.multiple.length} overlapping) with ${glowStrategy.label} glow`);
+  }
+
+  return (
+    <>
+      {/* Layer 1: Non-overlapping segments */}
+      {layerGroups.single.map(segment => (
+        <HighlightSegment
+          key={`${segment.from}-${segment.to}`}
+          segment={segment}
+          highlight={segment.highlights[0]}
+          showGlow={showGlow}
+          glowStrategy={glowStrategy}
+          lineStyle={lineStyle}
+          showPhotos={showPhotos}
+          nodeStyle={nodeStyle}
+        />
+      ))}
+
+      {/* Layer 2: Overlapping segments (BlendMode blending) */}
+      {layerGroups.multiple.map(segment => (
+        <OverlappingHighlightSegment
+          key={`${segment.from}-${segment.to}-blend`}
+          segment={segment}
+          showGlow={showGlow}
+          glowStrategy={glowStrategy}
+          lineStyle={lineStyle}
+          showPhotos={showPhotos}
+          nodeStyle={nodeStyle}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * HighlightSegment - Single highlight segment (no overlap)
+ *
+ * BEZIER SUPPORT: Uses generateLinePaths() to match tree connections exactly
+ */
+function HighlightSegment({ segment, highlight, showGlow, glowStrategy, lineStyle, showPhotos, nodeStyle }) {
+  const { useMemo } = React;
+  const { connection, x1, y1, x2, y2 } = segment;
+  const { color, opacity, strokeWidth } = highlight;
+
+  // Generate path using same logic as tree (Bezier or straight)
+  const path = useMemo(() => {
+    // If connection object exists, use generateLinePaths() for Bezier support
+    if (connection && connection.parent && connection.children) {
+      // Performance monitoring (development only)
+      const startTime = __DEV__ ? performance.now() : 0;
+
+      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+      const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
+
+      // Warn if path generation is slow (>5ms per segment)
+      if (__DEV__) {
+        const duration = performance.now() - startTime;
+        if (duration > 5) {
+          console.warn(
+            `[HighlightSegment] Slow path generation: ${duration.toFixed(2)}ms`
+          );
+        }
+      }
+
+      return paths[0]; // Single parent-child connection returns one path
+    }
+
+    // Fallback to straight line if no connection object (backward compatibility)
+    const Skia = require('@shopify/react-native-skia').Skia;
+    return Skia.Path.Make()
+      .moveTo(x1, y1)
+      .lineTo(x2, y2);
+  }, [connection, lineStyle, showPhotos, nodeStyle, x1, y1, x2, y2]);
+
+  if (!showGlow || glowStrategy.layers === 1) {
+    // No glow (just core line)
+    return (
+      <Path
+        path={path}
+        color={color}
+        style="stroke"
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+      />
+    );
+  }
+
+  if (glowStrategy.layers === 2) {
+    // 2-layer glow (medium quality)
+    return (
+      <>
+        {/* Outer glow */}
+        <Group layer={<Paint><Blur blur={glowStrategy.blur[0]} /></Paint>}>
+          <Path
+            path={path}
+            color={color}
+            style="stroke"
+            strokeWidth={strokeWidth * 1.5}
+            opacity={opacity * 0.3}
+          />
+        </Group>
+
+        {/* Core line */}
+        <Path
+          path={path}
+          color={color}
+          style="stroke"
+          strokeWidth={strokeWidth}
+          opacity={opacity}
+        />
+      </>
+    );
+  }
+
+  // 4-layer glow (full quality) - reuses existing proven pattern
+  return (
+    <>
+      {/* Outer glow */}
+      <Group layer={<Paint><Blur blur={16} /></Paint>}>
+        <Path
+          path={path}
+          color={color}
+          style="stroke"
+          strokeWidth={strokeWidth * 2}
+          opacity={opacity * 0.2}
+        />
+      </Group>
+
+      {/* Middle glow */}
+      <Group layer={<Paint><Blur blur={8} /></Paint>}>
+        <Path
+          path={path}
+          color={color}
+          style="stroke"
+          strokeWidth={strokeWidth * 1.5}
+          opacity={opacity * 0.4}
+        />
+      </Group>
+
+      {/* Inner glow */}
+      <Group layer={<Paint><Blur blur={4} /></Paint>}>
+        <Path
+          path={path}
+          color={color}
+          style="stroke"
+          strokeWidth={strokeWidth * 1.2}
+          opacity={opacity * 0.6}
+        />
+      </Group>
+
+      {/* Core line */}
+      <Path
+        path={path}
+        color={color}
+        style="stroke"
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+      />
+    </>
+  );
+}
+
+/**
+ * OverlappingHighlightSegment - Overlapping highlights with BlendMode
+ *
+ * CRITICAL: Uses Skia BlendMode='plus' for GPU color blending
+ * - Multiple paths on same segment automatically blend via GPU
+ * - Red + Blue = Magenta (additive blending)
+ * - No CPU color calculation needed
+ *
+ * BEZIER SUPPORT: Uses generateLinePaths() to match tree connections exactly
+ */
+function OverlappingHighlightSegment({ segment, showGlow, glowStrategy, lineStyle, showPhotos, nodeStyle }) {
+  const { useMemo } = React;
+  const { connection, x1, y1, x2, y2, highlights } = segment;
+
+  // Generate path using same logic as tree (Bezier or straight)
+  const path = useMemo(() => {
+    // If connection object exists, use generateLinePaths() for Bezier support
+    if (connection && connection.parent && connection.children) {
+      // Performance monitoring (development only)
+      const startTime = __DEV__ ? performance.now() : 0;
+
+      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+      const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
+
+      // Warn if path generation is slow (>5ms per segment)
+      if (__DEV__) {
+        const duration = performance.now() - startTime;
+        if (duration > 5) {
+          console.warn(
+            `[OverlappingHighlightSegment] Slow path generation: ${duration.toFixed(2)}ms`
+          );
+        }
+      }
+
+      return paths[0]; // Single parent-child connection returns one path
+    }
+
+    // Fallback to straight line if no connection object (backward compatibility)
+    const Skia = require('@shopify/react-native-skia').Skia;
+    return Skia.Path.Make()
+      .moveTo(x1, y1)
+      .lineTo(x2, y2);
+  }, [connection, lineStyle, showPhotos, nodeStyle, x1, y1, x2, y2]);
+
+  if (!showGlow || glowStrategy.layers === 1) {
+    // No glow (just core lines with blending)
+    return (
+      <>
+        {highlights.map((highlight, idx) => {
+          const { color, opacity, strokeWidth, id } = highlight;
+
+          return (
+            <Path
+              key={`${id}-${idx}`}
+              path={path}
+              color={color}
+              style="stroke"
+              strokeWidth={strokeWidth}
+              opacity={opacity}
+              blendMode="plus" // ← GPU blending
+            />
+          );
+        })}
+      </>
+    );
+  }
+
+  if (glowStrategy.layers === 2) {
+    // 2-layer glow (medium quality)
+    return (
+      <>
+        {highlights.map((highlight, idx) => {
+          const { color, opacity, strokeWidth, id } = highlight;
+
+          return (
+            <React.Fragment key={`${id}-${idx}`}>
+              {/* Outer glow */}
+              <Group layer={<Paint><Blur blur={glowStrategy.blur[0]} /></Paint>}>
+                <Path
+                  path={path}
+                  color={color}
+                  style="stroke"
+                  strokeWidth={strokeWidth * 1.5}
+                  opacity={opacity * 0.3}
+                  blendMode="plus"
+                />
+              </Group>
+
+              {/* Core line */}
+              <Path
+                path={path}
+                color={color}
+                style="stroke"
+                strokeWidth={strokeWidth}
+                opacity={opacity}
+                blendMode="plus"
+              />
+            </React.Fragment>
+          );
+        })}
+      </>
+    );
+  }
+
+  // 4-layer glow (full quality)
+  return (
+    <>
+      {highlights.map((highlight, idx) => {
+        const { color, opacity, strokeWidth, id } = highlight;
+
+        return (
+          <React.Fragment key={`${id}-${idx}`}>
+            {/* Outer glow */}
+            <Group layer={<Paint><Blur blur={16} /></Paint>}>
+              <Path
+                path={path}
+                color={color}
+                style="stroke"
+                strokeWidth={strokeWidth * 2}
+                opacity={opacity * 0.2}
+                blendMode="plus" // ← GPU blending
+              />
+            </Group>
+
+            {/* Middle glow */}
+            <Group layer={<Paint><Blur blur={8} /></Paint>}>
+              <Path
+                path={path}
+                color={color}
+                style="stroke"
+                strokeWidth={strokeWidth * 1.5}
+                opacity={opacity * 0.4}
+                blendMode="plus" // ← GPU blending
+              />
+            </Group>
+
+            {/* Inner glow */}
+            <Group layer={<Paint><Blur blur={4} /></Paint>}>
+              <Path
+                path={path}
+                color={color}
+                style="stroke"
+                strokeWidth={strokeWidth * 1.2}
+                opacity={opacity * 0.6}
+                blendMode="plus" // ← GPU blending
+              />
+            </Group>
+
+            {/* Core line */}
+            <Path
+              path={path}
+              color={color}
+              style="stroke"
+              strokeWidth={strokeWidth}
+              opacity={opacity}
+              blendMode="plus" // ← GPU blending
+            />
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+}
+
+// Export for testing and direct use
+export { HighlightSegment, OverlappingHighlightSegment };
+
 export default {
   SinglePathRenderer,
   DualPathRenderer,
   MultiPathRenderer,
   createRenderer,
+  UnifiedHighlightRenderer, // Phase 3E addition
+  HighlightSegment,
+  OverlappingHighlightSegment,
 };

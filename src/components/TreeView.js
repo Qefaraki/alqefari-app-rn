@@ -12,8 +12,8 @@ import { useTreeStore } from '../stores/useTreeStore';
  */
 const TreeView = (props) => {
   // Map Zustand store to prop interface
-  // This creates a stable reference that TreeView.core can consume
-  const store = useMemo(() => ({
+  // Call all hooks at top level (Zustand selectors are already optimized)
+  const store = {
     state: {
       // Tree data and stage
       treeData: useTreeStore(s => s.treeData),
@@ -38,8 +38,11 @@ const TreeView = (props) => {
       focusOnProfile: useTreeStore(s => s.focusOnProfile),
       loadingState: useTreeStore(s => s.loadingState),
 
-      // Highlighting
+      // Highlighting (legacy cousin highlight)
       pendingCousinHighlight: useTreeStore(s => s.pendingCousinHighlight),
+
+      // Enhanced Highlighting System (Phase 3E)
+      highlights: useTreeStore(s => s.highlights),
 
       // Profile sheet
       profileSheetProgress: useTreeStore(s => s.profileSheetProgress),
@@ -64,13 +67,21 @@ const TreeView = (props) => {
       setFocusOnProfile: useTreeStore(s => s.setFocusOnProfile),
       setLoadingState: useTreeStore(s => s.setLoadingState),
 
-      // Highlighting
+      // Highlighting (legacy cousin highlight)
       setPendingCousinHighlight: useTreeStore(s => s.setPendingCousinHighlight),
+
+      // Enhanced Highlighting System (Phase 3E)
+      addHighlight: useTreeStore(s => s.addHighlight),
+      removeHighlight: useTreeStore(s => s.removeHighlight),
+      updateHighlight: useTreeStore(s => s.updateHighlight),
+      clearHighlights: useTreeStore(s => s.clearHighlights),
+      getHighlightRenderData: useTreeStore(s => s.getHighlightRenderData),
+      getHighlightStats: useTreeStore(s => s.getHighlightStats),
 
       // Profile sheet
       initializeProfileSheetProgress: useTreeStore(s => s.initializeProfileSheetProgress),
     }
-  }), []);
+  };
 
   return <TreeViewCoreWithProviders store={store} {...props} />;
 };

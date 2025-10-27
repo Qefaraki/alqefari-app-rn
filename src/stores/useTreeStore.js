@@ -3,6 +3,7 @@ import {
   DEFAULT_BOUNDS,
   clampStageToBounds,
 } from "../utils/cameraConstraints";
+import { highlightingServiceV2 } from "../services/highlightingServiceV2";
 
 // Schema version - increment when adding new fields to profiles table
 // This forces cache invalidation after migrations
@@ -39,6 +40,10 @@ export const useTreeStore = create((set, get) => ({
   // Cousin marriage highlighting trigger (set from nested components like TabFamily)
   // When set, TreeView will activate dual-path highlighting for these spouse IDs
   pendingCousinHighlight: null, // { spouse1Id, spouse2Id, highlightProfileId }
+
+  // Enhanced Highlighting System (Phase 3E) - Map<id, HighlightDefinition>
+  // State managed by Zustand, logic handled by highlightingServiceV2 (pure service)
+  highlights: {},
 
   // Profile sheet state for coordinating animations
   profileSheetIndex: -1,
@@ -457,5 +462,131 @@ export const useTreeStore = create((set, get) => ({
     };
 
     requestAnimationFrame(tick);
+  },
+
+  // ============================================
+  // ENHANCED HIGHLIGHTING SYSTEM ACTIONS (Phase 3E)
+  // ============================================
+
+  /**
+   * Add highlight definition to state
+   * @param {Object} definition - Highlight definition (type, style, etc.)
+   * @returns {string} Generated highlight ID
+   */
+  addHighlight: (definition) => {
+    const currentState = get();
+
+    // CRITICAL: Enforce 200-highlight limit to prevent performance issues
+    const MAX_HIGHLIGHTS = 200;
+    const currentCount = Object.keys(currentState.highlights).length;
+
+    if (currentCount >= MAX_HIGHLIGHTS) {
+      console.warn(
+        `[TreeStore] Cannot add highlight: Maximum limit (${MAX_HIGHLIGHTS}) reached. ` +
+        `Remove existing highlights before adding new ones.`
+      );
+      return null; // Return null to indicate failure
+    }
+
+    const newHighlights = highlightingServiceV2.addHighlight(
+      currentState.highlights,
+      definition
+    );
+
+    // Get the newly added highlight ID
+    const newId = Object.keys(newHighlights).find(
+      id => !currentState.highlights[id]
+    );
+
+    set({ highlights: newHighlights });
+
+    if (__DEV__) {
+      console.log(`[TreeStore] Added highlight ${newId}:`, definition.type);
+    }
+
+    return newId;
+  },
+
+  /**
+   * Remove highlight by ID
+   * @param {string} id - Highlight ID
+   */
+  removeHighlight: (id) => {
+    const currentState = get();
+    const newHighlights = highlightingServiceV2.removeHighlight(
+      currentState.highlights,
+      id
+    );
+
+    set({ highlights: newHighlights });
+
+    if (__DEV__) {
+      console.log(`[TreeStore] Removed highlight ${id}`);
+    }
+  },
+
+  /**
+   * Update highlight definition
+   * @param {string} id - Highlight ID
+   * @param {Object} updates - Fields to update
+   */
+  updateHighlight: (id, updates) => {
+    const currentState = get();
+    const newHighlights = highlightingServiceV2.updateHighlight(
+      currentState.highlights,
+      id,
+      updates
+    );
+
+    set({ highlights: newHighlights });
+
+    if (__DEV__) {
+      console.log(`[TreeStore] Updated highlight ${id}:`, Object.keys(updates));
+    }
+  },
+
+  /**
+   * Clear all highlights
+   */
+  clearHighlights: () => {
+    set({ highlights: {} });
+
+    if (__DEV__) {
+      console.log('[TreeStore] Cleared all highlights');
+    }
+  },
+
+  /**
+   * Get render data for highlights (viewport-culled)
+   * @param {Object} viewport - Current viewport bounds { minX, maxX, minY, maxY }
+   * @returns {Array<SegmentData>} Visible segments with highlight info
+   */
+  getHighlightRenderData: (viewport) => {
+    const { highlights, nodesMap } = get();
+
+    if (Object.keys(highlights).length === 0) {
+      return [];
+    }
+
+    return highlightingServiceV2.getRenderData(highlights, nodesMap, viewport);
+  },
+
+  /**
+   * Get highlighting statistics (for debugging/monitoring)
+   * @param {Object} viewport - Current viewport bounds
+   * @returns {Object} Statistics about current highlights
+   */
+  getHighlightStats: (viewport) => {
+    const { highlights, nodesMap } = get();
+    return highlightingServiceV2.getStats(highlights, nodesMap, viewport);
+  },
+
+  /**
+   * Set cousin highlight (convenience method for existing feature)
+   * This wraps the existing pendingCousinHighlight with new highlighting system
+   * @param {Object} cousinData - { spouse1Id, spouse2Id, highlightProfileId }
+   */
+  setPendingCousinHighlight: (cousinData) => {
+    set({ pendingCousinHighlight: cousinData });
   },
 }));

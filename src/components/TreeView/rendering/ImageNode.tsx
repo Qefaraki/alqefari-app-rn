@@ -37,10 +37,15 @@ import { PixelRatio } from 'react-native';
 import { Group, RoundedRect, rrect, rect, Image as SkiaImage } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
+import { blurhashToSkiaImage } from '../../../utils/blurhashToSkia';
+import { featureFlags } from '../../../config/featureFlags';
 
 export interface ImageNodeProps {
   // Image source
   url: string;
+
+  // BlurHash placeholder string (optional, for progressive loading)
+  blurhash?: string;
 
   // Position and size (top-left corner)
   x: number;
@@ -302,6 +307,7 @@ export function renderMorphTransition(
 export const ImageNode: React.FC<ImageNodeProps> = React.memo(
   ({
     url,
+    blurhash,
     x,
     y,
     width,
@@ -318,9 +324,25 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const lastBucketRef = React.useRef<number | null>(null);
     const lastIsUpgradingRef = React.useRef(false);
     const previousImageRef = React.useRef<any>(null); // Track previous image for morph transitions
+    const blurhashImageRef = React.useRef<any>(null); // BlurHash Skia Image
 
     // Determine if image should load
     const shouldLoad = shouldLoadImage(tier, url, showPhotos);
+
+    // Convert blurhash to Skia Image (only if feature enabled and no photo loaded yet)
+    React.useEffect(() => {
+      if (featureFlags.enableBlurhash && blurhash && !blurhashImageRef.current && shouldLoad) {
+        blurhashToSkiaImage(blurhash, 32, 32).then((img) => {
+          if (img) {
+            blurhashImageRef.current = img;
+            // Verbose log disabled to reduce console spam
+            // if (__DEV__) {
+            //   console.log(`[BlurHash] ${nodeId}: Converted blurhash to Skia Image`);
+            // }
+          }
+        });
+      }
+    }, [blurhash, shouldLoad, nodeId]);
 
     // Calculate physical pixel size
     const pixelSize = calculatePixelSize(width, scale);
@@ -375,11 +397,12 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
             const previousImage = skiaImageCache.get(previousUrl);
             if (previousImage) {
               previousImageRef.current = previousImage;
-              if (__DEV__) {
-                console.log(
-                  `[PhotoMorph] ${nodeId}: Transition ready: ${previousBucket}px → ${currentBucket}px`
-                );
-              }
+              // Verbose log disabled to reduce console spam
+              // if (__DEV__) {
+              //   console.log(
+              //     `[PhotoMorph] ${nodeId}: Transition ready: ${previousBucket}px → ${currentBucket}px`
+              //   );
+              // }
             }
           });
         }
@@ -403,9 +426,10 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       if (!isAnimating && previousImageRef.current) {
         const timer = setTimeout(() => {
           previousImageRef.current = null;
-          if (__DEV__) {
-            console.log(`[PhotoMorph] ${nodeId}: Cleared previous image after transition`);
-          }
+          // Verbose log disabled to reduce console spam
+          // if (__DEV__) {
+          //   console.log(`[PhotoMorph] ${nodeId}: Cleared previous image after transition`);
+          // }
         }, 100); // Small delay to ensure animation finished
         return () => clearTimeout(timer);
       }
@@ -431,21 +455,43 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       return null;
     }
 
-    // Show skeleton if image not loaded
-    if (!image) {
+    // State 1: Skeleton (no blurhash, no image)
+    // Show gray placeholder while both blurhash and image are loading
+    if (!image && !blurhashImageRef.current) {
       return renderImageSkeleton(x, y, width, cornerRadius);
     }
 
+    // State 2: Blurhash (has blurhash, no image yet)
+    // Show blurred placeholder while high-res image loads
+    if (!image && blurhashImageRef.current) {
+      // Verbose log disabled to reduce console spam
+      // if (__DEV__) {
+      //   console.log(`[BlurHash] ${nodeId}: Rendering blurhash placeholder`);
+      // }
+      // Render blurhash with 90% opacity to distinguish from final photo
+      return renderLoadedImage(
+        blurhashImageRef.current,
+        x,
+        y,
+        width,
+        height,
+        cornerRadius,
+        0.9
+      );
+    }
+
+    // State 3: Photo loaded
     // Show loaded image with optional morph animation
     // Use morph transition if we have both images and animation is active
     const previousImage = previousImageRef.current;
     if (isAnimating && previousImage && image && previousImage !== image) {
-      if (__DEV__) {
-        console.log(`[PhotoMorph] ${nodeId}: 🎬 ANIMATING morph transition (scale: ${scale.toFixed(1)})`);
-      }
+      // Verbose log disabled to reduce console spam
+      // if (__DEV__) {
+      //   console.log(`[PhotoMorph] ${nodeId}: 🎬 ANIMATING morph transition (scale: ${scale.toFixed(1)})`);
+      // }
       return renderMorphTransition(
         previousImage, // Low-res image (fading out)
-        image, // High-res image (fading in) 
+        image, // High-res image (fading in)
         x,
         y,
         width,
@@ -456,8 +502,8 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         highResScale
       );
     }
-    
-    // Default: render single image
+
+    // Default: render single image (full opacity)
     return renderLoadedImage(image, x, y, width, height, cornerRadius);
   }
 );

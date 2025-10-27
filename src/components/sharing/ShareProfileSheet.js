@@ -24,7 +24,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
-  Image,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +32,8 @@ import * as Haptics from 'expo-haptics';
 import ProfileQRCode from './ProfileQRCode';
 import { shareProfile, copyProfileLink } from '../../services/profileSharing';
 import tokens from '../ui/tokens';
+import { formatNameWithTitle } from '../../services/professionalTitleService';
+import { useTreeStore } from '../../stores/useTreeStore';
 
 const COLORS = {
   alJassWhite: tokens.colors.najdi.background,      // #F9F7F3
@@ -52,6 +53,63 @@ const SPACING = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
+};
+
+// TODO: Extract constructCommonName to shared utility (duplicated in 4 files)
+// See: EnhancedHero.js, CompactHero.js, Hero.js, ShareProfileSheet.js
+const constructCommonName = (person, nodesMap) => {
+  if (!person) return '';
+
+  // CRITICAL: nodesMap can be undefined during progressive loading (Phase 3B)
+  // or invalid due to store initialization timing issues. Always validate before use.
+  if (!nodesMap || !(nodesMap instanceof Map) || nodesMap.size === 0) {
+    console.warn('[ShareProfileSheet] Invalid or empty nodesMap, cannot construct lineage for:', person?.id);
+    const safeName = person?.name?.trim();
+    return safeName ? `${safeName} القفاري` : 'القفاري';
+  }
+
+  const ancestors = [];
+  // Cycle detection prevents infinite loops from data corruption (e.g., profile.father_id = profile.id)
+  const visited = new Set();
+  let currentId = person.father_id;
+  const MAX_DEPTH = 20; // Prevent infinite loops on corrupted data
+  let depth = 0;
+
+  while (currentId && depth < MAX_DEPTH) {
+    // Check for circular references
+    if (visited.has(currentId)) {
+      console.error(`[ShareProfileSheet] Circular reference detected in lineage for ${person.id}`);
+      break;
+    }
+
+    const ancestor = nodesMap.get(currentId);
+    if (!ancestor) {
+      console.warn(`[ShareProfileSheet] Ancestor ${currentId} missing at depth ${depth}. Possible progressive loading issue.`);
+      break;
+    }
+
+    visited.add(currentId);
+    ancestors.push(ancestor.name);
+    currentId = ancestor.father_id;
+    depth++;
+  }
+
+  if (depth >= MAX_DEPTH) {
+    console.warn('[ShareProfileSheet] Lineage chain exceeded max depth for profile:', person?.id);
+  }
+
+  if (ancestors.length === 0) return '';
+
+  // Case-insensitive check handles database inconsistencies ("Female" vs "female")
+  const firstConnector = person.gender?.toLowerCase() === 'female' ? 'بنت' : 'بن';
+  const [firstAncestor, ...rest] = ancestors;
+
+  let chain = `${firstConnector} ${firstAncestor}`;
+  rest.forEach((ancestor) => {
+    chain += ` ${ancestor}`; // ✅ SPACE ONLY, NO "بن"
+  });
+
+  return `${chain} القفاري`;
 };
 
 export default function ShareProfileSheet({
@@ -121,31 +179,43 @@ export default function ShareProfileSheet({
     ]).start();
   }, [toastOpacity]);
 
-  // Get display name (fallback chain)
-  const displayName = useMemo(() => {
-    return profile?.name_chain || profile?.first_name || profile?.name || 'مجهول';
-  }, [profile?.name_chain, profile?.first_name, profile?.name]);
+  // Access nodesMap from tree store
+  const nodesMap = useTreeStore((s) => s.nodesMap);
 
-  // Get metadata text (HID + Generation)
-  const metadataText = useMemo(() => {
-    const parts = [];
-
-    if (profile?.hid) {
-      parts.push(profile.hid);
-    }
-
-    if (profile?.generation) {
-      const genText = `الجيل ${profile.generation === 1 ? 'الأول' :
-                                 profile.generation === 2 ? 'الثاني' :
-                                 profile.generation === 3 ? 'الثالث' :
-                                 profile.generation === 4 ? 'الرابع' :
-                                 profile.generation === 5 ? 'الخامس' :
-                                 `${profile.generation}`}`;
-      parts.push(genText);
-    }
-
-    return parts.join(' • ');
+  // Format name with professional title
+  const formattedName = useMemo(() => {
+    return formatNameWithTitle(profile);
   }, [profile]);
+
+  // Construct lineage chain
+  const lineage = useMemo(() => {
+    try {
+      if (!profile) return '';
+      if (profile.common_name) return `${profile.common_name} القفاري`;
+      return constructCommonName(profile, nodesMap);
+    } catch (error) {
+      console.error('[ShareProfileSheet] Lineage construction failed:', error);
+      // Three-tier fallback: full lineage → name+family → family only
+      const safeName = profile?.name?.trim();
+      return safeName ? `${safeName} القفاري` : 'القفاري';
+    }
+  }, [profile, nodesMap]);
+
+  // Build metadata (kunya + generation)
+  const metadataSegments = [];
+  if (profile?.kunya) {
+    metadataSegments.push(profile.kunya);
+  }
+  if (profile?.generation) {
+    const genText = `الجيل ${profile.generation === 1 ? 'الأول' :
+                             profile.generation === 2 ? 'الثاني' :
+                             profile.generation === 3 ? 'الثالث' :
+                             profile.generation === 4 ? 'الرابع' :
+                             profile.generation === 5 ? 'الخامس' :
+                             `${profile.generation}`}`;
+    metadataSegments.push(genText);
+  }
+  const metadata = metadataSegments.join(' | ');
 
   // Button text based on mode
   const shareButtonText = useMemo(() => {
@@ -175,31 +245,24 @@ export default function ShareProfileSheet({
         <View style={styles.container}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          {/* Profile Photo */}
-          <View style={styles.photoContainer}>
-            {profile?.photo_url ? (
-              <Image
-                source={{ uri: profile.photo_url }}
-                style={styles.photo}
-              />
-            ) : (
-              <View style={[styles.photo, styles.photoPlaceholder]}>
-                <Text style={styles.photoInitial}>
-                  {displayName.charAt(0)}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Name */}
+          {/* Name with professional title */}
           <Text style={styles.name} numberOfLines={2}>
-            {displayName}
+            {formattedName}
           </Text>
 
-          {/* Metadata (HID + Generation) */}
-          {metadataText && (
-            <Text style={styles.metadata}>{metadataText}</Text>
-          )}
+          {/* Lineage chain */}
+          {lineage ? (
+            <Text style={styles.lineage} numberOfLines={2}>
+              {lineage}
+            </Text>
+          ) : null}
+
+          {/* Metadata (kunya + generation) */}
+          {metadata ? (
+            <Text style={styles.metadata} numberOfLines={1}>
+              {metadata}
+            </Text>
+          ) : null}
         </View>
 
         {/* QR Code */}
@@ -298,46 +361,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxxl,
   },
 
   // Profile Header Section
   profileHeader: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
-  },
-  photoContainer: {
-    marginBottom: SPACING.md,
-  },
-  photo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: COLORS.camelHairBeige,
-  },
-  photoPlaceholder: {
-    backgroundColor: COLORS.camelHairBeige,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photoInitial: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: COLORS.saduNight,
+    marginBottom: 40,
+    paddingHorizontal: SPACING.md,
   },
   name: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORS.saduNight,
     textAlign: 'center',
     maxWidth: '90%',
     marginBottom: SPACING.xs,
   },
+  lineage: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    maxWidth: '90%',
+    marginTop: SPACING.xs,  // 4px (minimum design system unit)
+    marginBottom: SPACING.xs,
+  },
   metadata: {
     fontSize: 13,
-    fontWeight: '400',
+    fontWeight: '600',
     color: COLORS.textMuted,
     textAlign: 'center',
   },
@@ -350,7 +403,7 @@ const styles = StyleSheet.create({
 
   // Action Buttons
   actions: {
-    gap: SPACING.md,
+    gap: SPACING.lg,
   },
   primaryButton: {
     flexDirection: 'row',
@@ -358,8 +411,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 52,
     backgroundColor: COLORS.camelHairBeige,
-    borderRadius: SPACING.md,
+    borderRadius: SPACING.md,  // 12px from local constants (line 52)
     paddingHorizontal: SPACING.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonIcon: {
     marginEnd: SPACING.sm,
@@ -375,9 +433,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 52,
     backgroundColor: COLORS.surface,
-    borderRadius: SPACING.md,
+    borderRadius: SPACING.md,  // 12px from local constants (line 52)
     borderWidth: 1.5,
-    borderColor: `${COLORS.camelHairBeige}40`, // 25% opacity
+    borderColor: `${COLORS.camelHairBeige}40`,
     paddingHorizontal: SPACING.xl,
   },
   secondaryButtonText: {

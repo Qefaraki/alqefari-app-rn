@@ -29,7 +29,13 @@ export const SettingsProvider = ({ children }) => {
     // Tree display settings
     showPhotos: true, // Show profile photos in tree view (default ON)
     highlightMyLine: false, // Highlight user's direct lineage (default OFF)
+
+    // PHASE 4: Unified tree style (2 cohesive modes)
+    treeStyle: "normal", // 'normal' (rectangular + straight) or 'bezier' (circular + curves)
+
+    // DEPRECATED: Keep for backward compatibility (will be removed in v2.1.0)
     lineStyle: "straight", // Connection line style: 'straight' or 'bezier' (default straight)
+    nodeStyle: "rectangular", // Node style: 'rectangular' or 'circular' (default rectangular)
   });
 
   // Load settings from storage on mount
@@ -66,7 +72,17 @@ export const SettingsProvider = ({ children }) => {
           // Tree display settings with defaults
           showPhotos: parsed.showPhotos !== false, // Default ON
           highlightMyLine: parsed.highlightMyLine === true, // Default OFF
+
+          // PHASE 4: Migrate to treeStyle (unified mode)
+          treeStyle: parsed.treeStyle || (
+            (parsed.nodeStyle === 'circular' && parsed.lineStyle === 'bezier')
+              ? 'bezier'
+              : 'normal'
+          ),
+
+          // DEPRECATED: Keep for backward compatibility (will be removed in v2.1.0)
           lineStyle: parsed.lineStyle === "bezier" ? "bezier" : "straight", // Default straight
+          nodeStyle: parsed.nodeStyle === "circular" ? "circular" : "rectangular", // Default rectangular
         };
 
         console.log('[SettingsContext] Loaded settings from storage:', validatedSettings);
@@ -83,7 +99,10 @@ export const SettingsProvider = ({ children }) => {
             showEnglishNames: validatedSettings.showEnglishNames,
             showPhotos: validatedSettings.showPhotos,
             highlightMyLine: validatedSettings.highlightMyLine,
+            treeStyle: validatedSettings.treeStyle, // PHASE 4: New unified mode
+            // DEPRECATED: Keep for backward compatibility
             lineStyle: validatedSettings.lineStyle,
+            nodeStyle: validatedSettings.nodeStyle,
           }),
         );
       }
@@ -108,6 +127,13 @@ export const SettingsProvider = ({ children }) => {
           newSettings.defaultCalendar = value; // 'hijri' or 'gregorian'
           newSettings.dateDisplay = value;
         }
+      } else if (key === "treeStyle") {
+        // PHASE 4: Handle treeStyle specially - also update derived settings
+        newSettings.treeStyle = value;
+
+        // Derive lineStyle and nodeStyle from treeStyle
+        newSettings.lineStyle = value === 'bezier' ? 'bezier' : 'straight';
+        newSettings.nodeStyle = value === 'bezier' ? 'circular' : 'rectangular';
       } else {
         newSettings[key] = value;
 
@@ -131,7 +157,10 @@ export const SettingsProvider = ({ children }) => {
         showEnglishNames: newSettings.showEnglishNames,
         showPhotos: newSettings.showPhotos,
         highlightMyLine: newSettings.highlightMyLine,
+        treeStyle: newSettings.treeStyle, // PHASE 4: New unified mode
+        // DEPRECATED: Keep for backward compatibility
         lineStyle: newSettings.lineStyle,
+        nodeStyle: newSettings.nodeStyle,
       }));
     } catch (error) {
       // Using Alert instead of console.error to avoid lint issues
@@ -158,7 +187,10 @@ export const SettingsProvider = ({ children }) => {
         dateDisplay: "gregorian",
         showPhotos: true, // Default ON
         highlightMyLine: false, // Default OFF
+        treeStyle: "normal", // PHASE 4: Default unified mode
+        // DEPRECATED: Keep for backward compatibility
         lineStyle: "straight", // Default straight lines
+        nodeStyle: "rectangular", // Default rectangular nodes
       };
 
       setSettings(defaultSettings);

@@ -60,7 +60,7 @@ describe('GestureHandler', () => {
     test('should export expected constants', () => {
       expect(GESTURE_CONSTANTS.MIN_ZOOM).toBe(0.1);
       expect(GESTURE_CONSTANTS.MAX_ZOOM).toBe(5.0);
-      expect(GESTURE_CONSTANTS.DEFAULT_DECELERATION).toBe(0.995);
+      expect(GESTURE_CONSTANTS.DEFAULT_DECELERATION).toBe(0.998); // iOS-native deceleration
       expect(GESTURE_CONSTANTS.DEFAULT_TAP_MAX_DURATION).toBe(250);
       expect(GESTURE_CONSTANTS.DEFAULT_TAP_MAX_DISTANCE).toBe(10);
       expect(GESTURE_CONSTANTS.DEFAULT_LONG_PRESS_MIN_DURATION).toBe(500);
@@ -152,7 +152,7 @@ describe('GestureHandler', () => {
       expect(withDecay).toHaveBeenCalledWith(
         expect.objectContaining({
           velocity: 500,
-          deceleration: 0.995,
+          deceleration: 0.998, // iOS-native deceleration
         }),
         expect.any(Function)
       );
@@ -160,7 +160,7 @@ describe('GestureHandler', () => {
       expect(withDecay).toHaveBeenCalledWith(
         expect.objectContaining({
           velocity: -300,
-          deceleration: 0.995,
+          deceleration: 0.998, // iOS-native deceleration
         })
       );
     });
@@ -308,7 +308,7 @@ describe('GestureHandler', () => {
       expect(sharedValues.translateY.value).toBe(50);
     });
 
-    test('should clamp scale to min zoom', () => {
+    test('should allow over-zoom below min during gesture (iOS bounce)', () => {
       const gesture = createPinchGesture(sharedValues, callbacks);
       const pinchMock = Gesture.Pinch.mock.results[0].value;
       const onUpdateHandler = pinchMock.onUpdate.mock.calls[0][0];
@@ -325,11 +325,12 @@ describe('GestureHandler', () => {
         focalY: 100
       });
 
-      // Should clamp to MIN_ZOOM (0.1)
-      expect(sharedValues.scale.value).toBe(0.1);
+      // Should ALLOW over-zoom during gesture (iOS-native behavior)
+      // Spring bounce happens on onEnd, not during onUpdate
+      expect(sharedValues.scale.value).toBeCloseTo(0.02, 2);
     });
 
-    test('should clamp scale to max zoom', () => {
+    test('should allow over-zoom above max during gesture (iOS bounce)', () => {
       const gesture = createPinchGesture(sharedValues, callbacks);
       const pinchMock = Gesture.Pinch.mock.results[0].value;
       const onUpdateHandler = pinchMock.onUpdate.mock.calls[0][0];
@@ -346,8 +347,9 @@ describe('GestureHandler', () => {
         focalY: 100
       });
 
-      // Should clamp to MAX_ZOOM (5.0)
-      expect(sharedValues.scale.value).toBe(5.0);
+      // Should ALLOW over-zoom during gesture (iOS-native behavior)
+      // Spring bounce happens on onEnd, not during onUpdate
+      expect(sharedValues.scale.value).toBe(9.0);
     });
 
     test('should not update with only 1 finger', () => {
@@ -398,7 +400,7 @@ describe('GestureHandler', () => {
       expect(callbacks.onGestureEnd).toHaveBeenCalled();
     });
 
-    test('should use custom zoom limits from config', () => {
+    test('should allow over-zoom with custom limits during gesture', () => {
       const customConfig = { minZoom: 0.5, maxZoom: 3.0 };
       const gesture = createPinchGesture(sharedValues, callbacks, customConfig);
       const pinchMock = Gesture.Pinch.mock.results[0].value;
@@ -408,23 +410,25 @@ describe('GestureHandler', () => {
       sharedValues.initialFocalX.value = 100;
       sharedValues.initialFocalY.value = 100;
 
-      // Test min clamp
+      // Test min over-zoom (allowed during gesture)
       onUpdateHandler({
         numberOfPointers: 2,
-        scale: 0.1,
+        scale: 0.1, // Results in 0.1 (below custom min 0.5)
         focalX: 100,
         focalY: 100
       });
-      expect(sharedValues.scale.value).toBe(0.5);
+      expect(sharedValues.scale.value).toBe(0.1); // Allows over-zoom
 
-      // Test max clamp
+      // Test max over-zoom (allowed during gesture)
       onUpdateHandler({
         numberOfPointers: 2,
-        scale: 10.0,
+        scale: 10.0, // Results in 10.0 (above custom max 3.0)
         focalX: 100,
         focalY: 100
       });
-      expect(sharedValues.scale.value).toBe(3.0);
+      expect(sharedValues.scale.value).toBe(10.0); // Allows over-zoom
+
+      // Spring bounce to custom limits happens on onEnd (not tested here)
     });
   });
 

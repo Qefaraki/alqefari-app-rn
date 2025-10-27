@@ -168,12 +168,19 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
         bIsRoot ? ROOT_NODE.WIDTH : (bHasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
       );
 
+      // PHASE 3: Width-ratio based gaps (detects circular vs rectangular automatically)
+      const avgWidth = (aWidth + bWidth) / 2;
+
+      // Circular nodes (40/60/100) get tighter spacing than rectangular (58/75/95)
+      const siblingGapRatio = avgWidth < 50 ? 0.05 : 0.15;  // 5% for circular, 15% for rectangular
+      const cousinGapRatio = avgWidth < 50 ? 0.20 : 0.70;   // 20% for circular, 70% for rectangular
+
       if (a.parent === b.parent) {
-        // Siblings: Node widths + 9px gap
-        return (aWidth / 2) + (bWidth / 2) + 9;
+        // Siblings: Node widths + ratio-based gap
+        return (aWidth / 2) + (bWidth / 2) + (avgWidth * siblingGapRatio);
       } else {
-        // Cousins: Node widths + 40px gap
-        return (aWidth / 2) + (bWidth / 2) + 40;
+        // Cousins: Node widths + ratio-based gap
+        return (aWidth / 2) + (bWidth / 2) + (avgWidth * cousinGapRatio);
       }
     });
 

@@ -130,8 +130,8 @@ export function generateBezierPaths(
     
     paths.push(pathBuilder);
   } else {
-    // Multiple children - elegant branching curves
-    // Calculate the average Y position for smoother branching
+    // Multiple children - fan-out curves with horizontal spread (PHASE 2: Fix overlapping)
+    // Calculate child positions once
     const childPositions = children.map(child => {
       const isRootChild = !child.father_id;
       const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
@@ -142,41 +142,44 @@ export function generateBezierPaths(
         height: childHeight
       };
     });
-    
-    // Find the closest child for branching point calculation
-    const avgChildY = childPositions.reduce((sum, child) => sum + child.topY, 0) / childPositions.length;
-    const branchY = parentBottomY + (avgChildY - parentBottomY) * 0.6; // 60% down from parent
-    
+
+    // PHASE 2: Calculate fan-out spread parameters (optimized: calculated once)
+    const centerIndex = (children.length - 1) / 2;
+    const spreadFactor = Math.min(children.length * 4, 20); // 4px per child, max 20px
+
     children.forEach((child, index) => {
       const childPos = childPositions[index];
       const pathBuilder = Skia.Path.Make();
-      
+
       // Start from parent bottom
       pathBuilder.moveTo(parent.x, parentBottomY);
-      
+
+      // PHASE 2: Calculate horizontal offset for fan-out effect
+      const offsetFromCenter = index - centerIndex;
+      const horizontalSpread = offsetFromCenter * spreadFactor;
+
       // Calculate control points for elegant branching
       const deltaX = child.x - parent.x;
       const deltaY = childPos.topY - parentBottomY;
       const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      
-      // Control point strength based on distance and sibling count
-      const baseStrength = Math.min(totalDistance * BEZIER_CONFIG.CURVE_STRENGTH, 60); // Cap at 60px
-      const lateralOffset = Math.abs(deltaX) * 0.2; // Horizontal curve component
-      
-      // First control point - slight vertical drop with horizontal bias toward child
-      const cp1X = parent.x + deltaX * 0.1;
-      const cp1Y = parentBottomY + baseStrength;
-      
-      // Second control point - approach child from optimal angle
-      const cp2X = child.x - deltaX * 0.2;
-      const cp2Y = childPos.topY - baseStrength * 0.8;
-      
+
+      // Control point strength based on distance
+      const baseStrength = Math.min(totalDistance * BEZIER_CONFIG.CURVE_STRENGTH, 60);
+
+      // PHASE 2: First control point - spread horizontally from parent
+      const cp1X = parent.x + deltaX * 0.2 + horizontalSpread;
+      const cp1Y = parentBottomY + baseStrength * 0.6;
+
+      // Second control point - converge to child
+      const cp2X = child.x - deltaX * 0.1;
+      const cp2Y = childPos.topY - baseStrength * 0.4;
+
       pathBuilder.cubicTo(
-        cp1X, cp1Y,           // First control point
-        cp2X, cp2Y,           // Second control point
-        child.x, childPos.topY // End point
+        cp1X, cp1Y,              // First control point (with horizontal spread)
+        cp2X, cp2Y,              // Second control point
+        child.x, childPos.topY   // End point
       );
-      
+
       paths.push(pathBuilder);
     });
   }

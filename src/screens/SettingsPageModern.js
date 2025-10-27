@@ -1087,23 +1087,28 @@ export default function SettingsPageModern({ user }) {
               />
             }
           />
+          {/* PHASE 4.3: Unified tree style control (2 cohesive modes) */}
           <SettingsCell
-            label="نمط الخطوط"
-            description={settings.lineStyle === "bezier" ? "خطوط منحنية ناعمة" : "خطوط مستقيمة تقليدية"}
-            rightAccessory={
-              <Switch
-                value={settings.lineStyle === "bezier"}
-                onValueChange={(value) => {
-                  console.log('[Settings] Line Style toggle changed to:', value ? 'bezier' : 'straight');
-                  console.log('[Settings] Current settings.lineStyle:', settings.lineStyle);
-                  handleFeedback();
-                  updateSetting('lineStyle', value ? 'bezier' : 'straight');
-                }}
-                trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                thumbColor={colors.white}
-              />
+            label="نمط الشجرة"
+            description={
+              settings.treeStyle === 'bezier'
+                ? "عصري - عقد دائرية مع خطوط منحنية"
+                : "عادي - بطاقات مستطيلة مع خطوط مستقيمة"
             }
           />
+          <View style={styles.segmentedContainer}>
+            <SegmentedControl
+              values={["عادي", "عصري"]}
+              selectedIndex={settings.treeStyle === 'bezier' ? 1 : 0}
+              onChange={(index) => {
+                const newTreeStyle = index === 1 ? 'bezier' : 'normal';
+                console.log('[Settings] Tree Style changed to:', newTreeStyle);
+                handleFeedback();
+                updateSetting('treeStyle', newTreeStyle);
+              }}
+              style={{ marginHorizontal: 16, marginVertical: 8 }}
+            />
+          </View>
         </SettingsSection>
 
         {/* Notifications Settings - Only for authenticated users */}
