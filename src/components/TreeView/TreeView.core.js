@@ -250,7 +250,7 @@ const debounce = (func, wait) => {
 };
 
 const SF_ARABIC_ALIAS = "SF Arabic";
-const SF_ARABIC_ASSET = require("../../assets/fonts/SF Arabic Regular.ttf");
+const SF_ARABIC_ASSET = require("../../../assets/fonts/SF Arabic Regular.ttf");
 
 try {
   fontMgr = Skia.FontMgr.System();
