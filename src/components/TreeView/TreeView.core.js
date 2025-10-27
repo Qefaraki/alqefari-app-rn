@@ -61,22 +61,22 @@ import Animated, {
 } from "react-native-reanimated";
 
 // Phase 2 Day 8 - Import SimpleTreeSkeleton
-import { SimpleTreeSkeleton } from './TreeView/SimpleTreeSkeleton';
+import { SimpleTreeSkeleton } from './SimpleTreeSkeleton';
 
 // Phase 0 Infrastructure - Import context providers
-import { FontProvider } from './TreeView/contexts/FontProvider';
-import { ParagraphCacheProvider } from './TreeView/contexts/ParagraphCacheProvider';
+import { FontProvider } from './contexts/FontProvider';
+import { ParagraphCacheProvider } from './contexts/ParagraphCacheProvider';
 
 // Phase 2 Integration - Import extracted components
-import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './TreeView/spatial/SpatialGrid';
-import { ImageNode } from './TreeView/rendering/ImageNode';
-import { SaduIcon, G2SaduIcon } from './TreeView/rendering/SaduIcon';
-import { calculateLODTier, createTierState } from './TreeView/lod/LODCalculator';
-import { BadgeRenderer } from './TreeView/rendering/BadgeRenderer';
-import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './TreeView/rendering/ShadowRenderer';
-import { TextPillRenderer } from './TreeView/rendering/TextPillRenderer';
-import { T3ChipRenderer } from './TreeView/rendering/T3ChipRenderer';
-import { NodeRenderer } from './TreeView/rendering/NodeRenderer';
+import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './spatial/SpatialGrid';
+import { ImageNode } from './rendering/ImageNode';
+import { SaduIcon, G2SaduIcon } from './rendering/SaduIcon';
+import { calculateLODTier, createTierState } from './lod/LODCalculator';
+import { BadgeRenderer } from './rendering/BadgeRenderer';
+import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './rendering/ShadowRenderer';
+import { TextPillRenderer } from './rendering/TextPillRenderer';
+import { T3ChipRenderer } from './rendering/T3ChipRenderer';
+import { NodeRenderer } from './rendering/NodeRenderer';
 
 // Phase 1 Day 4a - Import node constants from centralized source
 import {
@@ -105,7 +105,7 @@ import {
   MAX_SIBLING_GAP,
   MIN_GENERATION_GAP,
   MAX_GENERATION_GAP,
-} from './TreeView/rendering/nodeConstants';
+} from './rendering/nodeConstants';
 
 // Phase 1 Day 4a - Import viewport, animation, and utility functions
 import {
@@ -135,7 +135,7 @@ import {
   createGrayscaleMatrix,
   interpolateColor,
   performanceMonitor,
-} from './TreeView/utils';
+} from './utils';
 
 // Phase 1 Day 3 - Import gesture functions
 import {
@@ -144,10 +144,10 @@ import {
   createTapGesture,
   createLongPressGesture,
   createComposedGesture,
-} from './TreeView/interaction/GestureHandler';
+} from './interaction/GestureHandler';
 
 // Phase 3 - Import hit detection functions
-import { detectTap } from './TreeView/interaction/HitDetection';
+import { detectTap } from './interaction/HitDetection';
 
 // Phase 1 Day 4c - Import path calculation functions
 import {
@@ -157,21 +157,21 @@ import {
   calculateBusLine,
   calculateChildVerticalPaths,
   calculateConnectionPaths,
-} from './TreeView/spatial/PathCalculator';
+} from './spatial/PathCalculator';
 
 // Phase 1 Day 4d - Import Arabic text rendering
-import { createArabicParagraph } from './TreeView/rendering/ArabicTextRenderer';
+import { createArabicParagraph } from './rendering/ArabicTextRenderer';
 
 // Import line styles system for bezier curves
-import { buildBatchedPaths, LINE_STYLES, BEZIER_CONFIG } from './TreeView/utils/lineStyles';
+import { buildBatchedPaths, LINE_STYLES, BEZIER_CONFIG } from './utils/lineStyles';
 
 // Phase 2 Day 10 - Import paragraph cache
-import { getCachedParagraph } from './TreeView/rendering/ParagraphCache';
+import { getCachedParagraph } from './rendering/ParagraphCache';
 
 // Phase 2 Day 10 - Import custom hooks
-import { useTreeDataLoader } from './TreeView/hooks/useTreeDataLoader';
+import { useTreeDataLoader } from './hooks/useTreeDataLoader';
 // Phase 3B - Import progressive loading hook (two-phase loading strategy)
-import { useProgressiveTreeView } from './TreeView/hooks/useProgressiveTreeView';
+import { useProgressiveTreeView } from './hooks/useProgressiveTreeView';
 import { useDebounce } from '../hooks/useDebounce';
 
 import { Asset } from "expo-asset";
@@ -197,7 +197,7 @@ import * as Haptics from "expo-haptics";
 import NetworkStatusIndicator from "./NetworkStatusIndicator";
 import { useHighlighting } from "../hooks/useHighlighting";
 import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingService";
-import { createRenderer } from "./TreeView/highlightRenderers";
+import { createRenderer } from "./highlightRenderers";
 import { detectCousinMarriage } from "../utils/cousinMarriageDetector";
 
 // Phase 1 Day 4b: All constants now imported from ./TreeView/utils
