@@ -172,33 +172,33 @@ import { getCachedParagraph } from './rendering/ParagraphCache';
 import { useTreeDataLoader } from './hooks/useTreeDataLoader';
 // Phase 3B - Import progressive loading hook (two-phase loading strategy)
 import { useProgressiveTreeView } from './hooks/useProgressiveTreeView';
-import { useDebounce } from '../hooks/useDebounce';
+import { useDebounce } from '../../hooks/useDebounce';
 
 import { Asset } from "expo-asset";
-import { calculateTreeLayout } from "../utils/treeLayout";
-import { TREE_DATA_SCHEMA_VERSION } from "../stores/useTreeStore";
-import profilesService from "../services/profiles";
-import { formatDateDisplay } from "../services/migrationHelpers";
-import { useSettings } from "../contexts/SettingsContext";
-import { useAuth } from "../contexts/AuthContextSimple";
-import { formatDateByPreference } from "../utils/dateDisplay";
-import NavigateToRootButton from "./NavigateToRootButton";
-import { useAdminMode } from "../contexts/AdminModeContext";
-import SystemStatusIndicator from "./admin/SystemStatusIndicator";
-import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
-import MarriageEditor from "./admin/MarriageEditor";
-import skiaImageCache from "../services/skiaImageCache";
-import { useBatchedSkiaImageWithMorph } from "../hooks/useBatchedSkiaImageWithMorph";
-import NodeContextMenu from "./admin/NodeContextMenu";
-import QuickAddOverlay from "./admin/QuickAddOverlay";
-import SearchBar from "./SearchBar";
-import { supabase } from "../services/supabase";
+import { calculateTreeLayout } from "../../utils/treeLayout";
+import { TREE_DATA_SCHEMA_VERSION } from "../../stores/useTreeStore";
+import profilesService from "../../services/profiles";
+import { formatDateDisplay } from "../../services/migrationHelpers";
+import { useSettings } from "../../contexts/SettingsContext";
+import { useAuth } from "../../contexts/AuthContextSimple";
+import { formatDateByPreference } from "../../utils/dateDisplay";
+import NavigateToRootButton from "../NavigateToRootButton";
+import { useAdminMode } from "../../contexts/AdminModeContext";
+import SystemStatusIndicator from "../admin/SystemStatusIndicator";
+import MultiAddChildrenModal from "../admin/MultiAddChildrenModal";
+import MarriageEditor from "../admin/MarriageEditor";
+import skiaImageCache from "../../services/skiaImageCache";
+import { useBatchedSkiaImageWithMorph } from "../../hooks/useBatchedSkiaImageWithMorph";
+import NodeContextMenu from "../admin/NodeContextMenu";
+import QuickAddOverlay from "../admin/QuickAddOverlay";
+import SearchBar from "../SearchBar";
+import { supabase } from "../../services/supabase";
 import * as Haptics from "expo-haptics";
-import NetworkStatusIndicator from "./NetworkStatusIndicator";
-import { useHighlighting } from "../hooks/useHighlighting";
-import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingService";
+import NetworkStatusIndicator from "../NetworkStatusIndicator";
+import { useHighlighting } from "../../hooks/useHighlighting";
+import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../../services/highlightingService";
 import { createRenderer } from "./highlightRenderers";
-import { detectCousinMarriage } from "../utils/cousinMarriageDetector";
+import { detectCousinMarriage } from "../../utils/cousinMarriageDetector";
 
 // Phase 1 Day 4b: All constants now imported from ./TreeView/utils
 // Removed inline definitions:
