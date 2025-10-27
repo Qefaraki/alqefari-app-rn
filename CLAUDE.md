@@ -11,8 +11,8 @@
 - **[Undo System](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)** - Activity log undo functionality
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
 - **[OTA Updates](docs/OTA_UPDATES.md)** - Over-the-air update deployment & rollback
-- **[BlurHash System](docs/BLURHASH_DAY1_COMPLETION.md)** - Photo placeholder backend (68/68 complete)
-- **[Photo Crop System](docs/features/PHOTO_CROP_FIXES_APPLIED.md)** - Non-destructive photo cropping (v2.1, A- grade)
+- **[BlurHash System](docs/BLURHASH_DAY1_COMPLETION.md)** - Progressive photo placeholders (skeleton→blur→photo) | [Day 2: Frontend](docs/BLURHASH_DAY2_COMPLETION.md)
+- **[Photo Crop System](docs/features/PHOTO_CROP_BACKEND_DEPLOYED.md)** - Non-destructive photo cropping (✅ Backend deployed, ready for frontend)
 
 ### Perfect Tree System (PTS)
 - **[PTS Documentation Hub](docs/PTS/README.md)** - Complete Perfect Tree System documentation
