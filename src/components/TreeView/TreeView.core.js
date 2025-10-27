@@ -137,6 +137,9 @@ import {
   performanceMonitor,
 } from './utils';
 
+// Phase 1 October 2025 - Import iOS-native gesture physics
+import { GESTURE_PHYSICS } from './utils/constants/gesturePhysics';
+
 // Phase 1 Day 3 - Import gesture functions
 import {
   createPanGesture,
@@ -197,7 +200,7 @@ import * as Haptics from "expo-haptics";
 import NetworkStatusIndicator from "../NetworkStatusIndicator";
 import { useHighlighting } from "../../hooks/useHighlighting";
 import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../../services/highlightingService";
-import { createRenderer } from "./highlightRenderers";
+import { createRenderer, UnifiedHighlightRenderer } from "./highlightRenderers";
 import { detectCousinMarriage } from "../../utils/cousinMarriageDetector";
 
 // Phase 1 Day 4b: All constants now imported from ./TreeView/utils
@@ -349,6 +352,12 @@ const TreeViewCore = ({
   // Extract tree display settings
   const { showPhotos, highlightMyLine, lineStyle } = settings;
 
+  // Step 4.2: Extract nodeStyle with default fallback
+  const nodeStyle = settings.nodeStyle || 'rectangular';
+
+  // Step 4.8: Memoization barrier to prevent SettingsContext re-render cascades
+  const nodeStyleValue = useMemo(() => nodeStyle, [nodeStyle]);
+
   // Store settings in ref for access in callbacks (prevents stale closures)
   // NOTE: We use ref pattern because settings are accessed in debounced
   // callbacks that would otherwise capture stale closures. Direct useState
@@ -356,11 +365,13 @@ const TreeViewCore = ({
   const settingsRef = useRef(settings);
 
   // Extract layout-affecting settings to prevent unnecessary viewport recalculations
-  // Only showPhotos affects node layout (changes node heights: 105px with photo, 35px without)
+  // showPhotos affects node layout (changes node heights: 75px with photo, 35px without)
+  // nodeStyle affects node layout (circular: 70px total, rectangular: 75px/35px)
   // Other settings like highlightMyLine only affect visual rendering, not layout
   const layoutAffectingSettings = useMemo(() => ({
     showPhotos: settings.showPhotos,
-  }), [settings.showPhotos]);
+    nodeStyle: settings.nodeStyle ?? 'rectangular', // Step 4.1: Defensive fallback
+  }), [settings.showPhotos, settings.nodeStyle]);
 
   // Update ref whenever ANY settings change (needed for event handlers)
   useEffect(() => {
@@ -1499,10 +1510,22 @@ const TreeViewCore = ({
         clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = null;
       }
+      // Cancel highlight animation on unmount
+      cancelAnimation(pathOpacity);
       // Cancel pending navigation syncs on unmount
       lastNavigationRef.current = null;
     };
-  }, []);
+  }, [pathOpacity]);
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BRANCH TREE MODAL HOOKS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // IMPORTANT: These hooks MUST be placed after `nodes` (line ~894) and
+  // `navigateToNode` (line ~1431) are defined. Moving them earlier will cause
+  // "Cannot read property 'length' of undefined" crashes.
+  //
+  // See commit 579b4f676 for context on why this placement is critical.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // Auto-activate highlight if provided externally (branch tree modal)
   useEffect(() => {
@@ -1930,6 +1953,7 @@ const TreeViewCore = ({
       };
 
       // 3. Perform hit detection using extracted detectTap function
+      // Step 4.5: Pass nodeStyleValue for circular hit detection
       const result = detectTap(
         x,
         y,
@@ -1938,7 +1962,8 @@ const TreeViewCore = ({
         NODE_WIDTH_WITH_PHOTO,
         NODE_HEIGHT_WITH_PHOTO,
         NODE_WIDTH_TEXT_ONLY,
-        NODE_HEIGHT_TEXT_ONLY
+        NODE_HEIGHT_TEXT_ONLY,
+        nodeStyleValue
       );
 
       // 4. Handle result based on type
@@ -1975,6 +2000,7 @@ const TreeViewCore = ({
       if (state.tier === 3) return;
 
       // 5. Perform node hit detection (reuse same logic as tap)
+      // Step 4.6: Pass nodeStyleValue for circular hit detection
       const result = detectTap(
         x,
         y,
@@ -1983,7 +2009,8 @@ const TreeViewCore = ({
         NODE_WIDTH_WITH_PHOTO,
         NODE_HEIGHT_WITH_PHOTO,
         NODE_WIDTH_TEXT_ONLY,
-        NODE_HEIGHT_TEXT_ONLY
+        NODE_HEIGHT_TEXT_ONLY,
+        nodeStyleValue
       );
 
       // 6. If node hit, show QuickAdd overlay
@@ -2032,7 +2059,7 @@ const TreeViewCore = ({
 
   // Phase 2 Integration - Gesture configuration
   const gestureConfig = {
-    decelerationRate: 0.995, // Pan momentum decay rate
+    decelerationRate: GESTURE_PHYSICS.PAN_DECELERATION, // iOS-native momentum (0.998)
     minZoom: minZoom,
     maxZoom: maxZoom,
   };
@@ -2244,7 +2271,8 @@ const TreeViewCore = ({
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
     
     // Generate all paths using the line styles system
-    const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos);
+    // Step 4.3: Pass nodeStyleValue for circular edge calculations
+    const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos, nodeStyleValue);
 
     // Configure line styling based on line style (bezier vs straight)
     const lineConfig = lineStyle === 'bezier'
@@ -2330,6 +2358,64 @@ const TreeViewCore = ({
     return allElements;
   }, [activeHighlights, nodes, connections, showPhotos]); // pathOpacity is stable shared value, no need in deps
 
+  // ============================================
+  // ENHANCED HIGHLIGHTING SYSTEM (Phase 3E)
+  // ============================================
+
+  /**
+   * Calculate render data for UnifiedHighlightRenderer
+   * Uses highlightingServiceV2 via store.actions.getHighlightRenderData
+   */
+  const highlightRenderData = useMemo(() => {
+    const highlights = store.state.highlights;
+
+    // Early return if no highlights
+    if (!highlights || Object.keys(highlights).length === 0) {
+      return [];
+    }
+
+    // Calculate viewport bounds from current transform
+    // Transform: world space coordinates
+    // Viewport: screen space coordinates
+    // We need to convert screen viewport to world viewport for culling
+    const scale = currentTransform.scale;
+    const translateX = currentTransform.x;
+    const translateY = currentTransform.y;
+
+    // Screen space viewport (what user sees)
+    const screenMinX = 0;
+    const screenMaxX = dimensions.width;
+    const screenMinY = 0;
+    const screenMaxY = dimensions.height;
+
+    // Convert to world space (where nodes live)
+    // Inverse transform: screenPoint = worldPoint * scale + translate
+    // Therefore: worldPoint = (screenPoint - translate) / scale
+    const worldViewport = {
+      minX: (screenMinX - translateX) / scale,
+      maxX: (screenMaxX - translateX) / scale,
+      minY: (screenMinY - translateY) / scale,
+      maxY: (screenMaxY - translateY) / scale,
+    };
+
+    // Get render data from store (calls highlightingServiceV2.getRenderData internally)
+    const renderData = store.actions.getHighlightRenderData(worldViewport);
+
+    if (__DEV__ && renderData.length > 0) {
+      console.log(`[TreeViewCore] UnifiedHighlightRenderer: ${renderData.length} visible segments`);
+    }
+
+    return renderData;
+  }, [
+    store.state.highlights,
+    store.actions.getHighlightRenderData,
+    currentTransform.scale,
+    currentTransform.x,
+    currentTransform.y,
+    dimensions.width,
+    dimensions.height,
+  ]);
+
   // Render T3 aggregation chips (only 3 chips for hero branches) - Phase 2: Using extracted T3ChipRenderer
   const renderTier3 = useCallback(
     (heroNodes, indices, scale, translateX, translateY) => {
@@ -2388,10 +2474,11 @@ const TreeViewCore = ({
           SaduIconG2={G2SaduIcon}
           useBatchedSkiaImage={useBatchedSkiaImageWithMorph}
           nodeFramesRef={nodeFramesRef}
+          nodeStyle={nodeStyleValue}
         />
       );
     },
-    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph],
+    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph, nodeStyleValue],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2596,7 +2683,15 @@ const TreeViewCore = ({
                 {/* Pre-built batched paths - no rebuilding on pan/zoom */}
                 {allBatchedEdgePaths.elements}
 
-                {/* Highlighted ancestry paths (above edges, below nodes) - UNIFIED SYSTEM */}
+                {/* Enhanced Highlighting System (Phase 3E) - UnifiedHighlightRenderer */}
+                {highlightRenderData.length > 0 && (
+                  <UnifiedHighlightRenderer
+                    renderData={highlightRenderData}
+                    showGlow={true}
+                  />
+                )}
+
+                {/* Highlighted ancestry paths (above edges, below nodes) - LEGACY SYSTEM */}
                 {renderAllHighlights()}
 
                 {/* Render visible nodes */}
