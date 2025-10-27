@@ -135,7 +135,7 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
   lastDeepLinkTime = now;
 
   // Check if scanning own profile
-  const treeStore = useTreeStore.getState();
+  let treeStore = useTreeStore.getState(); // Changed to 'let' for reassignment later
   const currentUserProfile = treeStore.userProfile;
   if (currentUserProfile?.hid === hid.toUpperCase()) {
     Alert.alert('ملفك الشخصي', 'هذا هو ملفك الشخصي');
@@ -154,7 +154,8 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
   }
 
   // Edge case 1: Tree not loaded yet
-  const treeStore = useTreeStore.getState();
+  // Reassign to get fresh state after network check
+  treeStore = useTreeStore.getState();
   if (!treeStore.treeData || treeStore.treeData.length === 0) {
     Alert.alert(
       'يتم تحميل الشجرة',
@@ -177,7 +178,8 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
 
   try {
     // Find profile in tree store by HID
-    const treeStore = useTreeStore.getState();
+    // Reassign to get fresh state before search
+    treeStore = useTreeStore.getState();
     let profile = treeStore.treeData.find((node) => node.hid === normalizedHID);
 
     if (!profile) {

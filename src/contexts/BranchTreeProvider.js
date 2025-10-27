@@ -34,8 +34,9 @@ export const BranchTreeProvider = ({ children, focusPersonId }) => {
    * Uses get_branch_data RPC with correct parameters learned from V1
    */
   const loadBranchTree = async (targetPersonId) => {
-    if (!targetPersonId || isLoadingRef.current) return;
-    
+    // Defensive checks: both synchronous (ref) and asynchronous (store state)
+    if (!targetPersonId || isLoadingRef.current || store.isLoading) return;
+
     try {
       isLoadingRef.current = true;
       store.setLoading(true);

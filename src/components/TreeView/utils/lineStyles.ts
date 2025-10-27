@@ -27,36 +27,55 @@ export const LINE_STYLES = {
 export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
 
 /**
+ * Bezier Curve Configuration
+ * Optimized for elegant, subtle curves in family tree
+ */
+export const BEZIER_CONFIG = {
+  CURVE_STRENGTH: 0.40,      // Reduced from 0.50 - gentler curves
+  STROKE_WIDTH: 1.5,         // Reduced from 2.0 - thinner lines
+  STROKE_OPACITY: 0.25,      // Subtle background element
+  STROKE_COLOR: '#9E9E9E',   // Neutral gray (not themed color)
+} as const;
+
+/**
  * Generate straight line paths (original system)
  * Uses the existing PathCalculator functions for elbow-style connections
+ *
+ * @param connection - Parent and children nodes
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  */
-export function generateStraightPaths(connection: Connection, showPhotos: boolean = true): SkPath[] {
+export function generateStraightPaths(
+  connection: Connection,
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): SkPath[] {
   const { parent, children } = connection;
   const paths: SkPath[] = [];
-  
-  // Use existing PathCalculator logic
+
+  // Use existing PathCalculator logic (now with circular node support)
   const busY = calculateBusY(parent, children, showPhotos);
-  const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
-  
+  const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos, nodeStyle);
+
   // Create Skia path for parent vertical line
   const pathBuilder = Skia.Path.Make();
   pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
   pathBuilder.lineTo(parentVertical.endX, parentVertical.endY);
-  
+
   // Add horizontal bus line if needed
   if (shouldRenderBusLine(children, parent)) {
     const busLine = calculateBusLine(children, busY);
     pathBuilder.moveTo(busLine.startX, busLine.startY);
     pathBuilder.lineTo(busLine.endX, busLine.endY);
   }
-  
+
   // Add child vertical lines
-  const childVerticals = calculateChildVerticalPaths(children, busY, showPhotos);
+  const childVerticals = calculateChildVerticalPaths(children, busY, showPhotos, nodeStyle);
   childVerticals.forEach((path) => {
     pathBuilder.moveTo(path.startX, path.startY);
     pathBuilder.lineTo(path.endX, path.endY);
   });
-  
+
   return [pathBuilder];
 }
 
@@ -64,8 +83,16 @@ export function generateStraightPaths(connection: Connection, showPhotos: boolea
  * Generate bezier curve paths for smooth connections
  * Creates beautiful curved lines from parent to each child
  * Uses optimized control points for family tree aesthetics
+ *
+ * @param connection - Parent and children nodes
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  */
-export function generateBezierPaths(connection: Connection, showPhotos: boolean = true): SkPath[] {
+export function generateBezierPaths(
+  connection: Connection,
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): SkPath[] {
   const { parent, children } = connection;
   const paths: SkPath[] = [];
   
@@ -93,7 +120,7 @@ export function generateBezierPaths(connection: Connection, showPhotos: boolean 
     
     // Calculate control points for smooth single curve
     const deltaY = childTopY - parentBottomY;
-    const controlOffset = Math.abs(deltaY) * 0.5; // More pronounced curve for single child
+    const controlOffset = Math.abs(deltaY) * BEZIER_CONFIG.CURVE_STRENGTH;
     
     pathBuilder.cubicTo(
       parent.x, parentBottomY + controlOffset,     // First control point (vertical from parent)
@@ -133,7 +160,7 @@ export function generateBezierPaths(connection: Connection, showPhotos: boolean 
       const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
       
       // Control point strength based on distance and sibling count
-      const baseStrength = Math.min(totalDistance * 0.3, 60); // Cap at 60px
+      const baseStrength = Math.min(totalDistance * BEZIER_CONFIG.CURVE_STRENGTH, 60); // Cap at 60px
       const lateralOffset = Math.abs(deltaX) * 0.2; // Horizontal curve component
       
       // First control point - slight vertical drop with horizontal bias toward child
@@ -161,13 +188,26 @@ export function generateBezierPaths(connection: Connection, showPhotos: boolean 
  * Generate line paths based on selected style
  * Unified interface for both straight and bezier curves
  */
-export function generateLinePaths(connection: Connection, lineStyle: LineStyle = LINE_STYLES.STRAIGHT, showPhotos: boolean = true): SkPath[] {
+/**
+ * Generate line paths based on style
+ *
+ * @param connection - Parent and children nodes
+ * @param lineStyle - 'straight' or 'bezier'
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
+ */
+export function generateLinePaths(
+  connection: Connection,
+  lineStyle: LineStyle = LINE_STYLES.STRAIGHT,
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): SkPath[] {
   switch (lineStyle) {
     case LINE_STYLES.BEZIER:
-      return generateBezierPaths(connection, showPhotos);
+      return generateBezierPaths(connection, showPhotos, nodeStyle);
     case LINE_STYLES.STRAIGHT:
     default:
-      return generateStraightPaths(connection, showPhotos);
+      return generateStraightPaths(connection, showPhotos, nodeStyle);
   }
 }
 
@@ -186,8 +226,18 @@ interface BatchedResult {
  * Pre-build all connection paths with specified style
  * Compatible with existing batched rendering system
  * Includes performance optimizations for large datasets
+ *
+ * @param connections - Array of parent-children connections
+ * @param lineStyle - 'straight' or 'bezier'
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  */
-export function buildBatchedPaths(connections: Connection[], lineStyle: LineStyle = LINE_STYLES.STRAIGHT, showPhotos: boolean = true): BatchedResult {
+export function buildBatchedPaths(
+  connections: Connection[],
+  lineStyle: LineStyle = LINE_STYLES.STRAIGHT,
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): BatchedResult {
   const elements: PathElement[] = [];
   let edgeCount = 0;
   const maxConnections = 1000; // Performance limit
@@ -211,11 +261,12 @@ export function buildBatchedPaths(connections: Connection[], lineStyle: LineStyl
     processedConnections.add(connectionKey);
     
     try {
-      // Generate paths based on line style
+      // Generate paths based on line style (now with circular node support)
       const paths = generateLinePaths(
-        { parent, children }, 
-        lineStyle, 
-        showPhotos
+        { parent, children },
+        lineStyle,
+        showPhotos,
+        nodeStyle
       );
       
       // Add to elements array with proper error handling

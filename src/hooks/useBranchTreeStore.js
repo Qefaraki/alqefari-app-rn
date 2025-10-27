@@ -19,36 +19,65 @@ const useBranchTreeStore = create(
     treeData: [],
     isLoading: false,
     error: null,
-    
+
+    // Tree stage
+    stage: 'idle',
+
+    // Selection and linking
+    selectedPersonId: null,
+    linkedProfileId: null,
+
     // Focus and highlighting
     focusPersonId: null,
     highlightProfileId: null,
-    
+
     // Viewport state (simplified)
     translateX: 0,
     translateY: 0,
     scale: 1,
-    
+
+    // Zoom constraints
+    minZoom: 0.1,
+    maxZoom: 3,
+
+    // Data structures (for compatibility with TreeView.core)
+    nodesMap: new Map(),
+    indices: { byId: new Map(), byHid: new Map() },
+
+    // UI state
+    showPhotos: true,
+    loadingState: { isLoading: false, message: null },
+
     // Highlighted ancestry for path rendering
     highlightedAncestry: [],
     
     // Actions
     setTreeData: (data) => set({ treeData: data }),
-    
+
     setLoading: (loading) => set({ isLoading: loading }),
-    
+
     setError: (error) => set({ error }),
-    
+
+    setStage: (stage) => set({ stage }),
+
+    setSelectedPersonId: (id) => set({ selectedPersonId: id }),
+
+    setLinkedProfileId: (id) => set({ linkedProfileId: id }),
+
     setFocusPersonId: (id) => set({ focusPersonId: id }),
-    
+
     setHighlightProfileId: (id) => set({ highlightProfileId: id }),
-    
+
+    setShowPhotos: (showPhotos) => set({ showPhotos }),
+
+    setLoadingState: (loadingState) => set({ loadingState }),
+
     setViewport: (viewport) => set((state) => ({
       translateX: viewport.translateX ?? state.translateX,
       translateY: viewport.translateY ?? state.translateY,
       scale: viewport.scale ?? state.scale,
     })),
-    
+
     setHighlightedAncestry: (ancestry) => set({ highlightedAncestry: ancestry }),
     
     // Reset all state (for cleanup)
@@ -56,11 +85,20 @@ const useBranchTreeStore = create(
       treeData: [],
       isLoading: false,
       error: null,
+      stage: 'idle',
+      selectedPersonId: null,
+      linkedProfileId: null,
       focusPersonId: null,
       highlightProfileId: null,
       translateX: 0,
       translateY: 0,
       scale: 1,
+      minZoom: 0.1,
+      maxZoom: 3,
+      nodesMap: new Map(),
+      indices: { byId: new Map(), byHid: new Map() },
+      showPhotos: true,
+      loadingState: { isLoading: false, message: null },
       highlightedAncestry: [],
     }),
     

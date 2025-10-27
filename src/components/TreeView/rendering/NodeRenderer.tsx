@@ -55,7 +55,16 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 
 // Import extracted components
 import { ImageNode } from './ImageNode';
-import { STANDARD_NODE, ROOT_NODE, G2_NODE, PHOTO_SIZE, SHADOW_STYLES, COLORS } from './nodeConstants';
+import { CircularNodeRenderer } from './CircularNodeRenderer';
+import {
+  STANDARD_NODE,
+  ROOT_NODE,
+  G2_NODE,
+  CIRCULAR_NODE,
+  PHOTO_SIZE,
+  SHADOW_STYLES,
+  COLORS,
+} from './nodeConstants';
 
 export interface LayoutNode {
   id: string;
@@ -79,6 +88,7 @@ export interface NodeRendererProps {
   // Display settings
   showPhotos: boolean;
   selectedPersonId: string | null;
+  nodeStyle?: 'rectangular' | 'circular'; // Tree Design System (Oct 2025)
 
   // Hero nodes for T1 detection
   heroNodes?: Array<{ id: string }>;
@@ -123,11 +133,53 @@ export function calculateNodeDimensions(
   node: LayoutNode,
   showPhotos: boolean,
   hasChildren: boolean,
-): { width: number; height: number; borderRadius: number } {
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): {
+  width: number;
+  height: number;
+  borderRadius: number;
+  shape: 'rectangular' | 'circular';
+  diameter?: number;
+} {
   const isRoot = !node.father_id;
   const hasPhoto = showPhotos && !!node.photo_url;
   const isG2Parent = node.generation === 2 && hasChildren;
 
+  // Circular node dimensions
+  if (nodeStyle === 'circular') {
+    if (isRoot) {
+      const totalHeight = CIRCULAR_NODE.ROOT_DIAMETER + CIRCULAR_NODE.NAME_GAP + CIRCULAR_NODE.ROOT_NAME_HEIGHT;
+      return {
+        width: CIRCULAR_NODE.ROOT_DIAMETER,
+        height: totalHeight,
+        borderRadius: CIRCULAR_NODE.ROOT_DIAMETER / 2,
+        shape: 'circular',
+        diameter: CIRCULAR_NODE.ROOT_DIAMETER,
+      };
+    }
+
+    if (isG2Parent) {
+      const totalHeight = CIRCULAR_NODE.G2_DIAMETER + CIRCULAR_NODE.NAME_GAP + CIRCULAR_NODE.G2_NAME_HEIGHT;
+      return {
+        width: CIRCULAR_NODE.G2_DIAMETER,
+        height: totalHeight,
+        borderRadius: CIRCULAR_NODE.G2_DIAMETER / 2,
+        shape: 'circular',
+        diameter: CIRCULAR_NODE.G2_DIAMETER,
+      };
+    }
+
+    const totalHeight = CIRCULAR_NODE.DIAMETER + CIRCULAR_NODE.NAME_GAP + CIRCULAR_NODE.NAME_HEIGHT;
+    return {
+      width: CIRCULAR_NODE.DIAMETER,
+      height: totalHeight,
+      borderRadius: CIRCULAR_NODE.DIAMETER / 2,
+      shape: 'circular',
+      diameter: CIRCULAR_NODE.DIAMETER,
+    };
+  }
+
+  // Rectangular node dimensions (existing logic)
   let width: number;
   let height: number;
   let borderRadius: number;
@@ -146,7 +198,12 @@ export function calculateNodeDimensions(
     borderRadius = STANDARD_NODE.CORNER_RADIUS;
   }
 
-  return { width, height, borderRadius };
+  return {
+    width,
+    height,
+    borderRadius,
+    shape: 'rectangular',
+  };
 }
 
 /**
@@ -371,6 +428,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   node,
   showPhotos,
   selectedPersonId,
+  nodeStyle = 'rectangular', // Default to rectangular for backwards compatibility
   heroNodes,
   searchTiers,
   getCachedParagraph,
@@ -387,12 +445,29 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   const isT1 = isHeroNode(node.id, heroNodes);
   const isT2 = isSearchTier2(node.id, searchTiers);
 
-  // Calculate dimensions
-  const { width, height, borderRadius } = calculateNodeDimensions(
+  // Calculate dimensions (now with nodeStyle support)
+  const dimensions = calculateNodeDimensions(
     node,
     showPhotos,
     node._hasChildren || false,
+    nodeStyle,
   );
+
+  // Conditional rendering: Use CircularNodeRenderer for circular nodes
+  if (dimensions.shape === 'circular') {
+    return (
+      <CircularNodeRenderer
+        node={node}
+        showPhotos={showPhotos}
+        isSelected={isSelected}
+        dimensions={dimensions}
+        getCachedParagraph={getCachedParagraph}
+      />
+    );
+  }
+
+  // Rectangular node rendering (existing logic below)
+  const { width, height, borderRadius } = dimensions;
 
   // Calculate position (centered)
   // Unified PTS Architecture: node.y already includes root offset + top-alignment

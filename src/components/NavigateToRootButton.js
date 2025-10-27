@@ -11,7 +11,15 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
 
-const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, onNavigate }) => {
+const NavigateToRootButton = ({
+  nodes,
+  viewport,
+  sharedValues,
+  focusPersonId,
+  onNavigate,
+  size = 56,      // Button diameter (default 56, branch tree uses 40)
+  bottom = 120,   // Bottom position (default 120, branch tree uses 60)
+}) => {
   const [targetNode, setTargetNode] = useState(null);
 
   // Find and cache the target node when nodes change
@@ -75,23 +83,63 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, on
   // Always render the button, but disable if target not found
   const isDisabled = !targetNode;
 
+  // Calculate icon size proportionally (30/56 ratio from original)
+  const iconSize = size * 0.536;
+
+  // Dynamic styles based on size/bottom props
+  const dynamicStyles = {
+    container: {
+      position: "absolute",
+      left: 16,
+      bottom: bottom,
+    },
+    shadowWrapper: {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      backgroundColor: "#FFFFFF",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 12,
+    },
+    button: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: size,
+      height: size,
+      backgroundColor: "transparent",
+      borderRadius: size / 2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconContainer: {
+      width: size,
+      height: size,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.shadowWrapper}>
+    <View style={dynamicStyles.container}>
+      <View style={dynamicStyles.shadowWrapper}>
         <Pressable
           onPress={handleNavigateToCenter}
           disabled={isDisabled}
           style={({ pressed }) => [
-            styles.button,
+            dynamicStyles.button,
             pressed && styles.buttonPressed,
             isDisabled && styles.buttonDisabled,
           ]}
         >
           {/* Pointer icon */}
-          <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
+          <Animated.View style={[dynamicStyles.iconContainer, animatedIconStyle]}>
             <Svg
-              width={30}
-              height={30}
+              width={iconSize}
+              height={iconSize}
               viewBox="0 0 24 24"
               preserveAspectRatio="xMidYMid meet"
               style={{ transform: [{ scaleX: -1 }, { scale: 0.75 }] }}
@@ -112,45 +160,8 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, on
   );
 };
 
+// Static styles (not dependent on props)
 const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    left: 16,  // Move to left side of screen
-    bottom: 120,  // Raised higher for better visibility
-  },
-  shadowWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FFFFFF",
-    // Shadow properties for iOS
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    // Shadow for Android
-    elevation: 12,
-  },
-  button: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 56,
-    height: 56,
-    backgroundColor: "transparent",
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   buttonPressed: {
     backgroundColor: "rgba(0,0,0,0.05)",
     transform: [{ scale: 0.96 }],

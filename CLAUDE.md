@@ -322,6 +322,75 @@ Error: Unable to open URL: whatsapp://... Add whatsapp to LSApplicationQueriesSc
 ```
 **Solution:** Add missing scheme to `app.json` and rebuild.
 
+## 📱 QR Code & Deep Linking System
+
+**Status**: 🚨 Security Fixes Required - B+ (87/100)
+**Last Updated**: October 27, 2025
+**Feature Flag**: `enableDeepLinking: __DEV__` (dev-only, not production)
+
+**Quick Summary**: Production-grade QR code sharing with deep linking, but **requires 3 critical security fixes** before enabling in production.
+
+### Core Features
+- **Smart QR Generation**: 3-tier logo fallback (profile photo → emblem → plain)
+- **Deep Linking**: Custom scheme (`alqefari://profile/H12345`) + universal links ready
+- **10 Safety Checks**: Own profile detection, network check, permission validation, etc.
+- **Analytics**: Tracks QR scans, link copies, WhatsApp shares via `profile_share_events` table
+- **Platform Support**: iOS + Android with proper intent filters
+
+### Key Files
+- `src/components/sharing/ProfileQRCode.js` - QR generation with smart logo
+- `src/components/sharing/ShareProfileSheet.js` - Share UI modal
+- `src/utils/deepLinking.ts` - Link parsing and deep link handler (10 safety checks)
+- `src/services/profileSharing.ts` - Share methods (copy, WhatsApp, native)
+- `app/_layout.tsx` lines 79+ - Deep link event listeners (cold + warm start)
+- `supabase/migrations/20251027000001_create_profile_share_events.sql` - Analytics table
+
+### 🚨 Critical Security Issues (MUST FIX)
+
+**Solution Auditor Grade**: B+ (87/100) - Down from self-assessed A- (92/100)
+
+**Blockers for Production**:
+1. **Analytics RLS Too Permissive**: `WITH CHECK (true)` allows ANY user to insert fake analytics data
+   - **Risk**: Spam, corrupted metrics, database bloat
+   - **Fix**: Require authenticated user + validate profile_id/sharer_id exist
+
+2. **No Rate Limiting**: Users can scan unlimited QR codes
+   - **Risk**: Analytics spam, DoS via database load
+   - **Fix**: Add per-user rate limit (20 scans per 5 minutes)
+
+3. **Unsanitized Image.prefetch()**: PhotoUrl not validated before prefetch
+   - **Risk**: Potential file:// or data: URI exploitation
+   - **Fix**: Validate photoUrl starts with `https://` before prefetch
+
+### Medium Risks
+- Global debounce (1-sec cooldown shared across all users in household)
+- No enrichment timeout (can hang indefinitely on slow network)
+- Feature flag disabled (not in production despite "production-ready" claim)
+
+### Next Steps (Once Security Fixed)
+1. Apply security fixes (RLS policy, rate limiting, URL validation)
+2. Manual testing on physical devices (iOS + Android)
+3. Enable production feature flag: `enableDeepLinking: true`
+4. Deploy via OTA: `npm run update:production`
+5. Monitor `profile_share_events` table for spam/abuse (first 48 hours)
+
+### Usage
+```javascript
+// Generate QR code
+<ProfileQRCode hid="H12345" photoUrl={profile.photo_url} />
+
+// Share profile
+<ShareProfileSheet
+  visible={true}
+  profile={profile}
+  mode="share"  // or "invite"
+  onClose={() => setVisible(false)}
+/>
+```
+
+📖 **Full Documentation**: [`/docs/QR_CODE_DEEP_LINKING.md`](docs/QR_CODE_DEEP_LINKING.md) (528 lines)
+🔒 **Security Audit**: Solution auditor report shows 3 critical fixes required before production
+
 ## 👥 Munasib Management System
 
 Full management dashboard for Munasib (spouse) profiles:
@@ -482,6 +551,90 @@ if (error?.message.includes('version')) {
 - Performance: <200ms for 50 children
 
 📖 Full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md#-batch-operations-pattern) (Batch Operations section)
+
+## ⚡ TreeView Performance (Photo Update Freeze Fix)
+
+**Status**: ✅ Fixed (October 27, 2025)
+
+**Problem**: Photo changes caused 200-500ms freeze
+**Solution**: O(n²)→O(1) prefetch + smart update path
+**Result**: 96% faster (500ms → <20ms)
+
+📖 Full docs: [`/docs/TREEVIEW_PERFORMANCE_OPTIMIZATION.md`](docs/TREEVIEW_PERFORMANCE_OPTIMIZATION.md)
+
+## 🖼️ BlurHash Implementation (Image Placeholders)
+
+**Status**: 🚧 Day 1 Backend (80% Complete) - October 27, 2025
+**Purpose**: Show smooth blurred image placeholders while real photos load
+**Timeline**: 10 mins remaining (Day 1) + 8 hours (Day 2 frontend)
+
+**What It Is**: BlurHash generates a tiny ~25-character string representing a blurred version of an image. Used by Twitter, Medium, Unsplash for instant placeholder rendering.
+
+**Example**:
+```
+Photo URL: https://.../profile-photo.jpg
+BlurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj"  ← 25 chars
+         ↓ decodes instantly ↓
+     [Smooth blur preview] ← Shows while real photo loads
+```
+
+### Day 1 Backend (80% Complete)
+
+**✅ Completed**:
+- Database migration applied: Added `blurhash TEXT` column to profiles table
+- RPC updated: `get_structure_only()` now returns blurhash (15th field)
+- Edge Function created: `supabase/functions/generate-blurhash/index.ts`
+  - Uses sharp@0.33.0 for image processing
+  - Generates 32×32 blurhash (4x3 components)
+- Batch script created: `scripts/generate-blurhashes-batch.ts`
+  - Processes 68 existing photos in parallel (5 at a time)
+  - Automatic retry, estimated 20 seconds runtime
+
+**❌ Remaining (10 Minutes)**:
+1. Deploy Edge Function via Supabase CLI: `npx supabase functions deploy generate-blurhash`
+2. Run batch script: `npx ts-node scripts/generate-blurhashes-batch.ts`
+3. Verify: `SELECT COUNT(*) FROM profiles WHERE blurhash IS NOT NULL;` (expect 68)
+
+### Day 2 Frontend (Pending)
+
+**Tasks (8 Hours Estimated)**:
+1. Install `react-native-blurhash` native library
+2. Create separate blurhash cache in `skiaImageCache.ts`
+3. Integrate blurhash placeholders in TreeView node renderer
+4. Bump schema version to 1.2.0 in `useStructureLoader.js` (forces cache invalidation)
+5. Test on physical devices (blur → photo transition)
+
+### Why BlurHash?
+
+**Before BlurHash**:
+```
+[White box] → [Photo loads] (0-3 seconds, jarring)
+```
+
+**After BlurHash**:
+```
+[Instant blur preview] → [Photo fades in] (smooth, perceived performance)
+```
+
+**Benefits**:
+- Improves perceived performance (no white boxes during loading)
+- Tiny data size (~25 chars vs 50KB+ for real image)
+- Works with Progressive Loading (blurhash in structure, photos on-demand)
+- Industry-standard (BlurHash algorithm open-source)
+
+### Key Files
+- `supabase/migrations/20251027000000_add_blurhash_to_profiles_and_structure_rpc.sql` - DB schema
+- `supabase/functions/generate-blurhash/index.ts` - Edge Function (NOT DEPLOYED)
+- `scripts/generate-blurhashes-batch.ts` - Batch processor (NOT RUN)
+
+### Next Steps
+1. Deploy Edge Function (5 mins)
+2. Run batch script (2-3 mins)
+3. Continue to Day 2 frontend integration (8 hours)
+
+📖 **Full Documentation**: [`/docs/BLURHASH_DAY1_COMPLETION.md`](docs/BLURHASH_DAY1_COMPLETION.md)
+
+**Note**: BlurHash is **separate** from QR code work (different feature, happened same day).
 
 ## 🔑 Key Implementation Rules
 
@@ -947,7 +1100,7 @@ npm run update:rollback                     # Emergency undo
 
 ## 📊 Progressive Loading (Phase 3B) Quick Ref
 
-**Status**: ✅ Implementation Complete (Days 1-3) | ⏳ Testing In Progress (Day 4)
+**Status**: 🔄 Active Development - Feature Iteration
 
 **Strategy**: Two-phase loading - structure (0.45 MB) + viewport enrichment
 
@@ -957,11 +1110,10 @@ npm run update:rollback                     # Emergency undo
 - Zero jumping (d3 layout determinism)
 - Progressive photos as user scrolls
 
-**Enable for Testing**:
-```javascript
-// src/components/TreeView.js line 215
-const USE_PROGRESSIVE_LOADING = true; // Change false → true
-```
+**Current State**:
+- ✅ Enabled in production (`USE_PROGRESSIVE_LOADING = true`)
+- ✅ Core testing completed
+- 🔄 Iterating on additional features
 
 **Architecture**:
 - **Phase 1**: Load structure (RPC: `get_structure_only()`) → <500ms
@@ -973,16 +1125,6 @@ const USE_PROGRESSIVE_LOADING = true; // Change false → true
 - Service: `getStructureOnly()`, `enrichVisibleNodes()` methods
 - Hooks: `useProgressiveTreeView()`, `useStructureLoader()`, `useViewportEnrichment()`
 - Feature flag: `USE_PROGRESSIVE_LOADING` in TreeView.js
-
-**Test Documentation**:
-- **[Test Plan](docs/PROGRESSIVE_LOADING_TEST_PLAN.md)** - 50+ test cases covering all phases
-- **[Integration Checklist](docs/PROGRESSIVE_LOADING_INTEGRATION_CHECKLIST.md)** - Verification & production readiness
-
-**Next Steps**:
-1. Run comprehensive test suite (2-3 hours)
-2. Document results in `PROGRESSIVE_LOADING_TEST_RESULTS.md`
-3. Integrate real-time subscriptions (~3 hours)
-4. Production rollout planning
 
 📖 Full docs: [`/docs/PTS/README.md`](docs/PTS/README.md) (Phase 3B section)
 

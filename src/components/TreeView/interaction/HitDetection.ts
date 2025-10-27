@@ -79,6 +79,7 @@ export type TapResult = ChipTapResult | NodeTapResult | null;
 import {
   ROOT_NODE,
   STANDARD_NODE,
+  CIRCULAR_NODE,
 } from '../rendering/nodeConstants';
 
 /**
@@ -152,17 +153,62 @@ export function detectChipTap(
   return null;
 }
 
+// === Tree Design System (October 2025) - Circular Node Hit Detection ===
+
+/**
+ * Check if point is inside circular node
+ *
+ * Uses distance formula to check if tap point is within circle radius.
+ *
+ * @param canvasX - Tap X in canvas space
+ * @param canvasY - Tap Y in canvas space
+ * @param node - Tree node
+ * @param hasChildren - Whether node has children (for G2 detection)
+ * @returns True if point is inside circle
+ */
+function isPointInCircle(
+  canvasX: number,
+  canvasY: number,
+  node: TreeNode,
+  hasChildren: boolean
+): boolean {
+  const isRoot = !node.father_id;
+  const isG2Parent = node.generation === 2 && hasChildren;
+
+  // Determine radius based on node type
+  let radius: number;
+  if (isRoot) {
+    radius = CIRCULAR_NODE.ROOT_DIAMETER / 2;
+  } else if (isG2Parent) {
+    radius = CIRCULAR_NODE.G2_DIAMETER / 2;
+  } else {
+    radius = CIRCULAR_NODE.DIAMETER / 2;
+  }
+
+  // Distance formula: √((x2-x1)² + (y2-y1)²)
+  const dx = canvasX - node.x;
+  const dy = canvasY - node.y;
+  const distanceSquared = dx * dx + dy * dy;
+  const radiusSquared = radius * radius;
+
+  return distanceSquared <= radiusSquared;
+}
+
+// === End Circular Node Hit Detection ===
+
 /**
  * Detect T1/T2 node tap
  *
  * Checks if tap coordinates hit any visible node bounds.
  * Nodes have dynamic dimensions based on type (root, photo, text-only).
+ * Supports both rectangular and circular nodes (Tree Design System).
  *
  * Algorithm:
  * 1. Transforms tap coordinates from screen to canvas space
  * 2. Iterates visible nodes checking bounds
- * 3. Root nodes: 120x100, Photo nodes: NODE_WIDTH_WITH_PHOTO x NODE_HEIGHT_WITH_PHOTO
- * 4. Text-only nodes: NODE_WIDTH_TEXT_ONLY x NODE_HEIGHT_TEXT_ONLY
+ * 3. Root nodes: 120x100 (rect) or 100px diameter (circular)
+ * 4. Photo nodes: NODE_WIDTH_WITH_PHOTO x NODE_HEIGHT_WITH_PHOTO (rect) or 40px diameter (circular)
+ * 5. Text-only nodes: NODE_WIDTH_TEXT_ONLY x NODE_HEIGHT_TEXT_ONLY (rect) or 40px diameter (circular)
  *
  * @param tapX - Screen X coordinate
  * @param tapY - Screen Y coordinate
@@ -171,6 +217,7 @@ export function detectChipTap(
  * @param nodeHeightWithPhoto - Photo node height constant
  * @param nodeWidthTextOnly - Text-only node width constant
  * @param nodeHeightTextOnly - Text-only node height constant
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  * @returns NodeTapResult with nodeId (or null if no hit)
  */
 export function detectNodeTap(
@@ -180,7 +227,8 @@ export function detectNodeTap(
   nodeWidthWithPhoto: number,
   nodeHeightWithPhoto: number,
   nodeWidthTextOnly: number,
-  nodeHeightTextOnly: number
+  nodeHeightTextOnly: number,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): NodeTapResult {
   // Transform screen coordinates to canvas space
   const canvasX = (tapX - context.transform.x) / context.transform.scale;
@@ -188,6 +236,17 @@ export function detectNodeTap(
 
   // Check each visible node
   for (const node of context.visibleNodes) {
+    const hasChildren = (node as any)._hasChildren || false;
+
+    // Circular hit detection (Tree Design System)
+    if (nodeStyle === 'circular') {
+      if (isPointInCircle(canvasX, canvasY, node, hasChildren)) {
+        return { type: 'node', nodeId: node.id };
+      }
+      continue;
+    }
+
+    // Rectangular hit detection (original system)
     const isRoot = !node.father_id;
 
     // Determine node dimensions based on type
@@ -247,7 +306,8 @@ export function detectTap(
   nodeWidthWithPhoto: number,
   nodeHeightWithPhoto: number,
   nodeWidthTextOnly: number,
-  nodeHeightTextOnly: number
+  nodeHeightTextOnly: number,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): TapResult {
   // Check T3 chips first (priority over nodes)
   const chipResult = detectChipTap(tapX, tapY, context, aggregationEnabled);
@@ -260,7 +320,7 @@ export function detectTap(
     return null;
   }
 
-  // Check T1/T2 nodes
+  // Check T1/T2 nodes (with circular support)
   return detectNodeTap(
     tapX,
     tapY,
@@ -268,6 +328,7 @@ export function detectTap(
     nodeWidthWithPhoto,
     nodeHeightWithPhoto,
     nodeWidthTextOnly,
-    nodeHeightTextOnly
+    nodeHeightTextOnly,
+    nodeStyle
   );
 }

@@ -92,6 +92,35 @@ export const TEXT_PILL = {
   SELECTED_BORDER_WIDTH: 1.5,  // KNOWN ISSUE: Causes 0.5px jump when selected
 } as const;
 
+// Circular nodes (October 2025 - Tree Design System)
+// For modern avatar-style circular node rendering
+export const CIRCULAR_NODE = {
+  // Standard circular node (40px diameter)
+  DIAMETER: 40,
+  PHOTO_SIZE: 36,         // 36px photo inside 40px circle (4px border space)
+  NAME_HEIGHT: 24,        // Space for name text below circle
+  NAME_GAP: 6,           // Gap between circle bottom and text top
+  SELECTION_BORDER: 1.5,  // Thinner than rectangular (proportional to size)
+  IMAGE_BUCKET: 40,      // Use 40px image bucket for standard nodes
+
+  // Root circular node (100px diameter - maintains hierarchy)
+  ROOT_DIAMETER: 100,
+  ROOT_PHOTO_SIZE: 92,    // 92px photo inside 100px circle
+  ROOT_NAME_HEIGHT: 28,
+  ROOT_SELECTION_BORDER: 2,
+  ROOT_IMAGE_BUCKET: 120, // Better quality for prominent node
+
+  // G2 parent circular node (60px diameter)
+  G2_DIAMETER: 60,
+  G2_PHOTO_SIZE: 54,      // 54px photo inside 60px circle
+  G2_NAME_HEIGHT: 24,
+  G2_SELECTION_BORDER: 1.5,
+  G2_IMAGE_BUCKET: 60,
+
+  // Text-only circular node (no photo) - solid fill
+  TEXT_ONLY_FILL: '#A13333',  // Najdi Crimson solid fill (no initials)
+} as const;
+
 // Shadow styling (Najdi Sadu palette)
 export const SHADOW_STYLES = {
   STANDARD_DX: 0,
@@ -121,6 +150,7 @@ export const NODE_CONSTANTS = {
   ROOT_NODE,
   G2_NODE,
   TEXT_PILL,
+  CIRCULAR_NODE,
   SHADOW_STYLES,
   COLORS,
 } as const;

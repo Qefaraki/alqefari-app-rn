@@ -9,8 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import BranchTreeViewer from "./BranchTreeViewer";
-import TreeErrorBoundary from "./TreeErrorBoundary";
+import BranchTreeView from "./TreeView/BranchTreeView";
+import { BranchTreeProvider } from "../contexts/BranchTreeProvider";
 import { buildNameChain } from "../utils/nameChainBuilder";
 import { getArabicOrdinal } from "../utils/generationUtils";
 import { useAuth } from "../contexts/AuthContextSimple";
@@ -92,14 +92,15 @@ const BranchTreeModal = ({
           </View>
         </View>
 
-        {/* Simplified Tree View with Glow Effect */}
+        {/* Branch Tree View - Read-only with ANCESTRY_COLORS highlighting */}
         <View style={styles.treeContainer}>
-          <TreeErrorBoundary
-            fallbackMessage="لم نتمكن من عرض شجرة العائلة لهذا الشخص"
-            onRetry={() => {}}
-          >
-            <BranchTreeViewer focusPersonId={profile.id} user={user} />
-          </TreeErrorBoundary>
+          <BranchTreeProvider focusPersonId={profile.id}>
+            <BranchTreeView
+              focusPersonId={profile.id}
+              user={user}
+              modalView={true}
+            />
+          </BranchTreeProvider>
         </View>
 
         {/* Action Buttons */}

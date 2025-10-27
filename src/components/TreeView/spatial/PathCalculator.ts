@@ -20,6 +20,7 @@
 import {
   NODE_HEIGHT_WITH_PHOTO,
   NODE_HEIGHT_TEXT_ONLY,
+  CIRCULAR_NODE,
 } from '../rendering/nodeConstants';
 
 export interface LayoutNode {
@@ -42,6 +43,106 @@ export interface Connection {
   parent: LayoutNode;
   children: LayoutNode[];
 }
+
+// === Tree Design System (October 2025) - Circular Node Support ===
+
+/**
+ * Calculate connection point on circular node edge
+ *
+ * Returns the point on the circle's circumference closest to the target point.
+ * Used for connecting lines to circular avatar nodes.
+ *
+ * @param centerX - Circle center X coordinate
+ * @param centerY - Circle center Y coordinate
+ * @param radius - Circle radius
+ * @param targetX - Target point X (where line is going)
+ * @param targetY - Target point Y (where line is going)
+ * @returns Point on circle circumference {x, y}
+ */
+export function calculateCircularEdgePoint(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  // Vector from center to target
+  const dx = targetX - centerX;
+  const dy = targetY - centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Handle edge case: target at center
+  if (distance === 0) {
+    return { x: centerX, y: centerY };
+  }
+
+  // Normalize and scale to radius
+  return {
+    x: centerX + (dx / distance) * radius,
+    y: centerY + (dy / distance) * radius,
+  };
+}
+
+/**
+ * Get node edge point for connection lines
+ *
+ * Works for both rectangular and circular nodes.
+ * For rectangular: Returns top/bottom center point
+ * For circular: Returns edge point in direction of target
+ *
+ * @param node - Node to connect to
+ * @param targetX - Target X coordinate (where line is going)
+ * @param targetY - Target Y coordinate (where line is going)
+ * @param nodeStyle - 'rectangular' or 'circular'
+ * @param position - 'top' or 'bottom' (for rectangular nodes)
+ * @param showPhotos - Whether photos are visible (affects height calculation)
+ * @returns Edge point coordinates {x, y}
+ */
+export function getNodeEdgePoint(
+  node: LayoutNode,
+  targetX: number,
+  targetY: number,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+  position: 'top' | 'bottom',
+  showPhotos: boolean = true,
+): { x: number; y: number } {
+  if (nodeStyle === 'circular') {
+    // Circular node: calculate edge point based on direction to target
+    // Determine radius based on node type
+    const isRoot = !node.father_id;
+    const hasChildren = (node as any)._hasChildren || false;
+    const isG2Parent = node.generation === 2 && hasChildren;
+
+    let radius: number;
+    if (isRoot) {
+      radius = CIRCULAR_NODE.ROOT_DIAMETER / 2;
+    } else if (isG2Parent) {
+      radius = CIRCULAR_NODE.G2_DIAMETER / 2;
+    } else {
+      radius = CIRCULAR_NODE.DIAMETER / 2;
+    }
+
+    return calculateCircularEdgePoint(node.x, node.y, radius, targetX, targetY);
+  }
+
+  // Rectangular node: use existing logic (top/bottom center)
+  const nodeShowingPhoto = ((node as any)._showPhoto ?? showPhotos) && node.photo_url;
+  const isRoot = !node.father_id;
+
+  let height: number;
+  if (isRoot) {
+    height = 100; // Root nodes
+  } else {
+    height = nodeShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+  }
+
+  return {
+    x: node.x,
+    y: position === 'bottom' ? node.y + height / 2 : node.y - height / 2,
+  };
+}
+
+// === End Circular Node Support ===
 
 /**
  * Calculate bus line Y coordinate (midpoint between parent bottom and nearest child top)
@@ -90,22 +191,28 @@ export function calculateBusY(
  * @param parent - Parent node
  * @param busY - Bus line Y coordinate
  * @param showPhotos - Whether photos are visible (affects node height)
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  * @returns Path segment from parent bottom to bus line
  */
 export function calculateParentVerticalPath(
   parent: LayoutNode,
   busY: number,
-  showPhotos: boolean = true
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): PathSegment {
-  // Unified PTS Architecture: parent.y already includes all offsets
-  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
-  const parentHeight = parentShowingPhoto
-    ? NODE_HEIGHT_WITH_PHOTO
-    : NODE_HEIGHT_TEXT_ONLY;
+  // Get parent bottom edge point (circular-aware)
+  const parentBottom = getNodeEdgePoint(
+    parent,
+    parent.x,      // Target X (bus line is directly below)
+    busY,          // Target Y (bus line)
+    nodeStyle,
+    'bottom',
+    showPhotos
+  );
 
   return {
-    startX: parent.x,
-    startY: parent.y + parentHeight / 2,
+    startX: parentBottom.x,
+    startY: parentBottom.y,
     endX: parent.x,
     endY: busY,
   };
@@ -161,28 +268,31 @@ export function calculateBusLine(
  * @param children - Array of child nodes
  * @param busY - Bus line Y coordinate
  * @param showPhotos - Whether photos are visible (affects node height)
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  * @returns Array of path segments from bus line to each child top
  */
 export function calculateChildVerticalPaths(
   children: LayoutNode[],
   busY: number,
-  showPhotos: boolean = true
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): PathSegment[] {
   return children.map((child) => {
-    // Unified PTS Architecture: child.y already includes all offsets
-    const isRootChild = !child.father_id;
-    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-    const childHeight = isRootChild
-      ? 100 // Root nodes have fixed 100px height
-      : childShowingPhoto
-      ? NODE_HEIGHT_WITH_PHOTO
-      : NODE_HEIGHT_TEXT_ONLY;
+    // Get child top edge point (circular-aware)
+    const childTop = getNodeEdgePoint(
+      child,
+      child.x,       // Target X (bus line is directly above)
+      busY,          // Target Y (bus line)
+      nodeStyle,
+      'top',
+      showPhotos
+    );
 
     return {
       startX: child.x,
       startY: busY,
-      endX: child.x,
-      endY: child.y - childHeight / 2,
+      endX: childTop.x,
+      endY: childTop.y,
     };
   });
 }
@@ -195,6 +305,7 @@ export function calculateChildVerticalPaths(
  *
  * @param connection - Parent and children nodes
  * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  * @returns Array of all path segments for this connection
  *
  * @example
@@ -204,12 +315,13 @@ export function calculateChildVerticalPaths(
  *     { id: '2', x: 80, y: 150, father_id: '1' },
  *     { id: '3', x: 120, y: 150, father_id: '1' }
  *   ]
- * }, true);
+ * }, true, 'rectangular');
  * // Returns: [parentVertical, busLine, child1Vertical, child2Vertical]
  */
 export function calculateConnectionPaths(
   connection: Connection,
-  showPhotos: boolean = true
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): PathSegment[] {
   const { parent, children } = connection;
   const segments: PathSegment[] = [];
@@ -218,7 +330,7 @@ export function calculateConnectionPaths(
   const busY = calculateBusY(parent, children, showPhotos);
 
   // Add parent vertical line
-  segments.push(calculateParentVerticalPath(parent, busY, showPhotos));
+  segments.push(calculateParentVerticalPath(parent, busY, showPhotos, nodeStyle));
 
   // Add horizontal bus line if needed
   if (shouldRenderBusLine(children, parent)) {
@@ -226,7 +338,7 @@ export function calculateConnectionPaths(
   }
 
   // Add child vertical lines
-  segments.push(...calculateChildVerticalPaths(children, busY, showPhotos));
+  segments.push(...calculateChildVerticalPaths(children, busY, showPhotos, nodeStyle));
 
   return segments;
 }
