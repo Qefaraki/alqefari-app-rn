@@ -12,7 +12,7 @@
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
 - **[OTA Updates](docs/OTA_UPDATES.md)** - Over-the-air update deployment & rollback
 - **[BlurHash System](docs/BLURHASH_DAY1_COMPLETION.md)** - Progressive photo placeholders (skeleton→blur→photo) | [Day 2: Frontend](docs/BLURHASH_DAY2_COMPLETION.md)
-- **[Photo Crop System](docs/features/PHOTO_CROP_BACKEND_DEPLOYED.md)** - Non-destructive photo cropping (✅ Backend deployed, ready for frontend)
+- **[Photo Crop System](docs/features/PHOTO_CROP_IMPLEMENTATION_PLAN.md)** - Non-destructive photo cropping implementation plan (17h, A- grade)
 
 ### Perfect Tree System (PTS)
 - **[PTS Documentation Hub](docs/PTS/README.md)** - Complete Perfect Tree System documentation
