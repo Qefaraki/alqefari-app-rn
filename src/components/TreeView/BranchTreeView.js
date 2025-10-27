@@ -28,7 +28,13 @@ const BranchTreeView = ({
 }) => {
   // Map branch store to prop interface
   // This creates isolated state separate from main tree
-  const store = useMemo(() => ({
+  //
+  // IMPORTANT: All hooks MUST be called at top level (React Rules of Hooks)
+  // We use a plain object instead of useMemo() because Zustand hooks already
+  // have built-in selector optimization. The store object reference doesn't
+  // need memoization - only the selectors inside each hook call are optimized.
+  // This pattern matches TreeView.js and is production-proven.
+  const store = {
     state: {
       // Tree data and stage
       treeData: useBranchTreeStore(s => s.treeData),
@@ -85,7 +91,7 @@ const BranchTreeView = ({
       // Profile sheet
       initializeProfileSheetProgress: () => {}, // No-op
     }
-  }), []);
+  };
 
   // Auto-highlight configuration
   // Uses existing SEARCH highlight type with ANCESTRY_COLORS palette
