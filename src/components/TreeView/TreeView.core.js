@@ -440,46 +440,6 @@ const TreeViewCore = ({
   // Highlighting API hook
   const { calculatePathData, clearCache } = useHighlighting();
 
-  // Auto-activate highlight if provided externally
-  useEffect(() => {
-    if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
-      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
-
-      if (pathData) {
-        setActiveHighlights(prev => ({
-          ...prev,
-          search: pathData,
-          cousinMarriage: null,
-          userLineage: null,
-        }));
-
-        // Fade in opacity
-        cancelAnimation(pathOpacity);
-        pathOpacity.value = withDelay(
-          600,  // Wait for camera to settle
-          withTiming(0.65, {
-            duration: 400,
-            easing: Easing.out(Easing.ease),
-          })
-        );
-      }
-    }
-  }, [autoHighlight, calculatePathData, nodes.length, pathOpacity]);
-
-  // Focus on specific node after d3 layout completes
-  useEffect(() => {
-    if (initialFocusId && nodes.length > 0) {
-      const targetNode = nodes.find(n => n.id === initialFocusId);
-      if (targetNode) {
-        // Use existing navigateToNode function (will be defined below)
-        const timer = setTimeout(() => {
-          navigateToNode(initialFocusId);
-        }, 300);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [initialFocusId, nodes.length]);
-
   // LEGACY STATE (kept for backwards compatibility during migration)
   // These will be removed after full migration is complete
   const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
@@ -1543,6 +1503,45 @@ const TreeViewCore = ({
       lastNavigationRef.current = null;
     };
   }, []);
+
+  // Auto-activate highlight if provided externally (branch tree modal)
+  useEffect(() => {
+    if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
+      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
+
+      if (pathData) {
+        setActiveHighlights(prev => ({
+          ...prev,
+          search: pathData,
+          cousinMarriage: null,
+          userLineage: null,
+        }));
+
+        // Fade in opacity
+        cancelAnimation(pathOpacity);
+        pathOpacity.value = withDelay(
+          600,  // Wait for camera to settle
+          withTiming(0.65, {
+            duration: 400,
+            easing: Easing.out(Easing.ease),
+          })
+        );
+      }
+    }
+  }, [autoHighlight, calculatePathData, nodes.length, pathOpacity]);
+
+  // Focus on specific node after d3 layout completes (branch tree modal)
+  useEffect(() => {
+    if (initialFocusId && nodes.length > 0) {
+      const targetNode = nodes.find(n => n.id === initialFocusId);
+      if (targetNode) {
+        const timer = setTimeout(() => {
+          navigateToNode(initialFocusId);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [initialFocusId, nodes.length, navigateToNode]);
 
   // Calculate ancestry path from node to root
   const calculateAncestryPath = useCallback((nodeId) => {
