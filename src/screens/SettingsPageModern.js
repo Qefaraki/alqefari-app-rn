@@ -374,6 +374,19 @@ export default function SettingsPageModern({ user }) {
         return;
       }
 
+      // One-time migration: Clear old profile cache (missing share_code field)
+      // This runs once per device after share_code implementation
+      try {
+        const migrated = await AsyncStorage.getItem('profile-cache-migrated-v1.8.0');
+        if (!migrated) {
+          await profileCacheUtils.clear(user.id);
+          await AsyncStorage.setItem('profile-cache-migrated-v1.8.0', 'true');
+          console.log('[Profile Cache] ✅ One-time migration: cleared old cache (missing share_code)');
+        }
+      } catch (migrationError) {
+        console.warn('[Profile Cache] Migration failed, non-critical:', migrationError);
+      }
+
       // Try AsyncStorage cache first (unless force refresh)
       if (!forceRefresh) {
         const cached = await profileCacheUtils.get(user.id);
@@ -389,7 +402,7 @@ export default function SettingsPageModern({ user }) {
       // Cache miss - fetch from database
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, father_id, user_id, hid, photo_url, professional_title, title_abbreviation")
+        .select("id, name, father_id, user_id, hid, photo_url, professional_title, title_abbreviation, share_code")
         .eq('user_id', user.id)
         .single();
 

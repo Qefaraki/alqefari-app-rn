@@ -110,17 +110,17 @@ export function createPanGesture(
   } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
-  // Calculate fixed bounds at median zoom (1.0x) - acceptable trade-off
-  // 90% correct behavior, slight overshoot at extreme zoom levels
-  const MEDIAN_ZOOM = 1.0;
+  // Calculate loose bounds (2.5x larger than content) for rubber banding
+  // Prevents crashes while avoiding premature edge stops
+  const LOOSE_MULTIPLIER = 2.5;
   const boundsX = (
     config.viewport &&
     config.bounds &&
     Number.isFinite(config.bounds.minX) &&
     Number.isFinite(config.bounds.maxX)
   ) ? [
-    config.bounds.minX * MEDIAN_ZOOM,
-    config.bounds.maxX * MEDIAN_ZOOM
+    config.bounds.minX * LOOSE_MULTIPLIER,
+    config.bounds.maxX * LOOSE_MULTIPLIER
   ] : undefined;
 
   const boundsY = (
@@ -129,8 +129,8 @@ export function createPanGesture(
     Number.isFinite(config.bounds.minY) &&
     Number.isFinite(config.bounds.maxY)
   ) ? [
-    config.bounds.minY * MEDIAN_ZOOM,
-    config.bounds.maxY * MEDIAN_ZOOM
+    config.bounds.minY * LOOSE_MULTIPLIER,
+    config.bounds.maxY * LOOSE_MULTIPLIER
   ] : undefined;
 
   return Gesture.Pan()
@@ -230,13 +230,14 @@ export function createPanGesture(
         }
       };
 
-      // Apply momentum with Reanimated 4 native API (rubberBandEffect only, no hard clamp)
-      // iOS pattern: Use rubber banding for natural edge resistance, not hard clamping
+      // Apply momentum with Reanimated 4 native API (loose bounds + rubber band)
+      // Bounds are 2.5x larger than content to prevent premature stops
       translateX.value = withDecay({
         velocity: clampedVelocityX,
         deceleration: decelerationRate,
         rubberBandEffect: true,
         rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+        clamp: boundsX, // Loose bounds (2.5x) - provides edge reference without hard stop
       }, onAxisComplete);
 
       translateY.value = withDecay({
@@ -244,6 +245,7 @@ export function createPanGesture(
         deceleration: decelerationRate,
         rubberBandEffect: true,
         rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+        clamp: boundsY, // Loose bounds (2.5x) - provides edge reference without hard stop
       }, onAxisComplete);
 
       // Save current values (before decay animation modifies them)
