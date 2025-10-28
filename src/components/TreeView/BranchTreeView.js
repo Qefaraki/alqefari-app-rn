@@ -26,41 +26,60 @@ const BranchTreeView = ({
   modalView = true,
   ...restProps
 }) => {
-  // Map branch store to prop interface
-  // This creates isolated state separate from main tree
-  //
-  // IMPORTANT: All hooks MUST be called at top level (React Rules of Hooks)
-  // We use a plain object instead of useMemo() because Zustand hooks already
-  // have built-in selector optimization. The store object reference doesn't
-  // need memoization - only the selectors inside each hook call are optimized.
-  // This pattern matches TreeView.js and is production-proven.
-  const store = {
+  // Call all Zustand selectors at top level (React Rules of Hooks)
+  // Zustand selectors are optimized and return stable references
+  const treeData = useBranchTreeStore(s => s.treeData);
+  const stage = useBranchTreeStore(s => s.stage);
+  const selectedPersonId = useBranchTreeStore(s => s.selectedPersonId);
+  const linkedProfileId = useBranchTreeStore(s => s.linkedProfileId);
+  const minZoom = useBranchTreeStore(s => s.minZoom || 0.1);
+  const maxZoom = useBranchTreeStore(s => s.maxZoom || 3);
+  const nodesMap = useBranchTreeStore(s => s.nodesMap || new Map());
+  const indices = useBranchTreeStore(s => s.indices || { byId: new Map(), byHid: new Map() });
+  const showPhotos = useBranchTreeStore(s => s.showPhotos !== undefined ? s.showPhotos : true);
+  const loadingState = useBranchTreeStore(s => s.loadingState || { isLoading: false, message: null });
+  const highlights = useBranchTreeStore(s => s.highlights || {});
+
+  // Actions
+  const setTreeData = useBranchTreeStore(s => s.setTreeData);
+  const setStage = useBranchTreeStore(s => s.setStage || (() => {}));
+  const setLinkedProfileId = useBranchTreeStore(s => s.setLinkedProfileId || (() => {}));
+  const setShowPhotos = useBranchTreeStore(s => s.setShowPhotos || (() => {}));
+  const setLoadingState = useBranchTreeStore(s => s.setLoadingState || (() => {}));
+  const addHighlight = useBranchTreeStore(s => s.addHighlight || (() => null));
+  const removeHighlight = useBranchTreeStore(s => s.removeHighlight || (() => {}));
+  const clearHighlights = useBranchTreeStore(s => s.clearHighlights || (() => {}));
+  const getHighlightRenderData = useBranchTreeStore(s => s.getHighlightRenderData || (() => []));
+
+  // Memoize store object to prevent infinite render loops
+  // TreeView.core.js useEffect depends on store.actions - must be stable reference
+  const store = useMemo(() => ({
     state: {
       // Tree data and stage
-      treeData: useBranchTreeStore(s => s.treeData),
-      stage: useBranchTreeStore(s => s.stage),
-      isTreeLoaded: useBranchTreeStore(s => s.treeData.length > 0),
+      treeData,
+      stage,
+      isTreeLoaded: treeData.length > 0,
 
       // Selection and linking
-      selectedPersonId: useBranchTreeStore(s => s.selectedPersonId),
-      linkedProfileId: useBranchTreeStore(s => s.linkedProfileId),
+      selectedPersonId,
+      linkedProfileId,
 
       // Zoom constraints
-      minZoom: useBranchTreeStore(s => s.minZoom || 0.1),
-      maxZoom: useBranchTreeStore(s => s.maxZoom || 3),
+      minZoom,
+      maxZoom,
 
       // Data structures
-      nodesMap: useBranchTreeStore(s => s.nodesMap || new Map()),
-      indices: useBranchTreeStore(s => s.indices || { byId: new Map(), byHid: new Map() }),
+      nodesMap,
+      indices,
 
       // UI state (mostly unused in branch tree)
-      showPhotos: useBranchTreeStore(s => s.showPhotos !== undefined ? s.showPhotos : true),
+      showPhotos,
       highlightMyLine: false,  // Not used in branch tree
       focusOnProfile: null,    // Not used in branch tree
-      loadingState: useBranchTreeStore(s => s.loadingState || { isLoading: false, message: null }),
+      loadingState,
 
       // Highlighting system (NEW - required by TreeView.core.js autoHighlight)
-      highlights: useBranchTreeStore(s => s.highlights || {}),
+      highlights,
       pendingCousinHighlight: null,
 
       // Profile sheet
@@ -68,35 +87,58 @@ const BranchTreeView = ({
     },
     actions: {
       // Tree data mutations (no-ops for read-only mode)
-      setTreeData: useBranchTreeStore(s => s.setTreeData),
+      setTreeData,
       updateNode: () => {}, // No-op (read-only)
       addNode: () => {},    // No-op (read-only)
       removeNode: () => {},  // No-op (read-only)
 
       // Stage management
-      setStage: useBranchTreeStore(s => s.setStage || (() => {})),
+      setStage,
 
       // Selection and linking
       setSelectedPersonId: () => {}, // No-op (read-only)
-      setLinkedProfileId: useBranchTreeStore(s => s.setLinkedProfileId || (() => {})),
+      setLinkedProfileId,
 
       // UI toggles
-      setShowPhotos: useBranchTreeStore(s => s.setShowPhotos || (() => {})),
+      setShowPhotos,
       setHighlightMyLine: () => {}, // No-op (no toggle in modal)
       setFocusOnProfile: () => {},  // No-op
-      setLoadingState: useBranchTreeStore(s => s.setLoadingState || (() => {})),
+      setLoadingState,
 
       // Highlighting actions (NEW - required by TreeView.core.js autoHighlight)
-      addHighlight: useBranchTreeStore(s => s.addHighlight || (() => null)),
-      removeHighlight: useBranchTreeStore(s => s.removeHighlight || (() => {})),
-      clearHighlights: useBranchTreeStore(s => s.clearHighlights || (() => {})),
-      getHighlightRenderData: useBranchTreeStore(s => s.getHighlightRenderData || (() => [])),
+      addHighlight,
+      removeHighlight,
+      clearHighlights,
+      getHighlightRenderData,
       setPendingCousinHighlight: () => {}, // No-op
 
       // Profile sheet
       initializeProfileSheetProgress: () => {}, // No-op
     }
-  };
+  }), [
+    // State dependencies (Zustand selectors return stable references)
+    treeData,
+    stage,
+    selectedPersonId,
+    linkedProfileId,
+    minZoom,
+    maxZoom,
+    nodesMap,
+    indices,
+    showPhotos,
+    loadingState,
+    highlights,
+    // Action dependencies
+    setTreeData,
+    setStage,
+    setLinkedProfileId,
+    setShowPhotos,
+    setLoadingState,
+    addHighlight,
+    removeHighlight,
+    clearHighlights,
+    getHighlightRenderData,
+  ]);
 
   // Auto-highlight configuration
   // Uses existing SEARCH highlight type with ANCESTRY_COLORS palette
