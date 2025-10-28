@@ -1187,8 +1187,20 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         fullData: data
       });
 
+      // ISSUE #2 FIX: Warn if RPC doesn't return version (indicates RPC bug or response corruption)
+      if (!data?.version) {
+        console.error('[ProfileViewer] ⚠️ RPC did not return version field! This indicates a backend issue.', {
+          profileId: person.id,
+          personVersion: person.version,
+          rpcResponse: data,
+          payload: Object.keys(payload)
+        });
+        // Data integrity warning: Local version may desync if RPC succeeded but response is malformed
+      }
+
       // CRITICAL FIX: Use returned data from RPC which includes updated version
       // This prevents "version mismatch" errors on subsequent saves
+      // Fallback: If RPC doesn't return version (backend bug), increment locally
       const updatedProfile = { ...person, ...payload, version: data?.version || (person.version || 1) + 1 };
 
       console.log('[ProfileViewer] Updating store with version:', updatedProfile.version);
@@ -1282,11 +1294,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       console.error('ProfileViewer save error', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-      // Enhanced error handling for version conflicts
+      // ISSUE #3 FIX: Enhanced error handling for version conflicts (more specific detection)
       const errorMessage = error?.message || '';
-      const isVersionConflict = errorMessage.includes('تم تحديث البيانات من مستخدم آخر') ||
-                                errorMessage.includes('version') ||
-                                errorMessage.includes('الإصدار');
+      const isVersionConflict =
+        errorMessage.includes('تم تحديث البيانات من مستخدم آخر') ||  // RPC exact message (Arabic)
+        errorMessage.match(/version.*mismatch/i) ||                     // Generic version mismatch
+        errorMessage.match(/version.*conflict/i) ||                     // Version conflict
+        errorMessage.match(/version.*changed/i) ||                      // Version changed
+        errorMessage.includes('الإصدار');                               // Arabic word for "version"
 
       if (isVersionConflict) {
         console.log('[ProfileViewer] Version conflict detected');
