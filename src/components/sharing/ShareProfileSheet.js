@@ -360,6 +360,7 @@ const styles = StyleSheet.create({
 
   // Action Buttons
   actions: {
+    alignItems: 'center', // Center button to align with QR code
     gap: SPACING.lg,
     marginTop: SPACING.lg,
   },
@@ -367,6 +368,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    width: 312, // Match QR code width (280px + 16px padding × 2)
     height: 56,
     backgroundColor: COLORS.najdiCrimson,
     borderRadius: SPACING.lg,
