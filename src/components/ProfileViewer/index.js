@@ -75,6 +75,7 @@ import { useAuth } from '../../contexts/AuthContextSimple';
 import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
 import ShareProfileSheet from '../sharing/ShareProfileSheet';
 import { PhotoCropEditor } from '../crop/PhotoCropEditor';
+import { downloadImageToCache } from '../../utils/imageCacheUtil';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -407,6 +408,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [showCropEditor, setShowCropEditor] = useState(false);
   const [savingCrop, setSavingCrop] = useState(false);
   const [retryDisabled, setRetryDisabled] = useState(false);
+  const [cachedPhotoPath, setCachedPhotoPath] = useState(null); // Pre-downloaded image for instant crop
 
   // Initialize hooks early so they're available for useCallbacks
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(person?.id);
@@ -611,6 +613,41 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       hideSkeletonImmediately('permissions');
     }
   }, [person?.id, permissionLoading, hideSkeletonImmediately]);
+
+  // Pre-download profile photo for instant crop opening
+  // Downloads happen in background when profile loads, so when user long-presses to crop,
+  // the file is already cached locally (zero visible waiting)
+  useEffect(() => {
+    if (!person?.photo_url) {
+      setCachedPhotoPath(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const preDownloadImage = async () => {
+      try {
+        console.log('[ImageCache] Pre-downloading image for instant crop:', person.photo_url);
+        const cachedPath = await downloadImageToCache(person.photo_url);
+
+        if (!isCancelled && cachedPath) {
+          setCachedPhotoPath(cachedPath);
+          console.log('[ImageCache] Image ready for instant crop:', cachedPath);
+        } else if (!isCancelled && !cachedPath) {
+          console.warn('[ImageCache] Pre-download failed, will fall back to download-on-demand');
+        }
+      } catch (error) {
+        console.error('[ImageCache] Pre-download error:', error);
+        // Non-critical: Crop will fall back to download-on-demand
+      }
+    };
+
+    preDownloadImage();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [person?.photo_url]);
 
   // Real-time subscription to keep profile synchronized with database
   // Prevents version staleness after undo operations or external edits
@@ -1576,6 +1613,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         <PhotoCropEditor
           visible={showCropEditor}
           photoUrl={person.photo_url}
+          cachedPhotoPath={cachedPhotoPath}
           initialCrop={{
             crop_top: person.crop_top ?? 0,
             crop_bottom: person.crop_bottom ?? 0,

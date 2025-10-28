@@ -1,5 +1,6 @@
 import { hierarchy, tree } from "d3-hierarchy";
 import { STANDARD_NODE, ROOT_NODE, CIRCULAR_NODE } from "../components/TreeView/rendering/nodeConstants";
+import { calculateCurvesLayout } from "./treeLayoutCurves";
 
 // Helper function to get node dimensions - uses dynamic widths from data
 function getNodeDimensions(node, showPhotos = true) {
@@ -85,9 +86,17 @@ function resolveCollisions(hierarchyData, showPhotos = true) {
   return hierarchyData;
 }
 
-export function calculateTreeLayout(familyData, showPhotos = true, nodeStyle = 'rectangular') {
-  // Safety: Handle null/undefined nodeStyle
+export function calculateTreeLayout(familyData, showPhotos = true, nodeStyle = 'rectangular', layoutMode = 'normal', viewportWidth = 800) {
+  // DISPATCHER: Route to appropriate layout calculator based on mode
+  // Curves mode uses completely separate D3 tidy tree implementation (zero shared logic)
+  if (layoutMode === 'curves' || layoutMode === 'cluster' || layoutMode === 'radial') {
+    return calculateCurvesLayout(familyData, viewportWidth);
+  }
+
+  // STRAIGHT MODE ONLY below this line
+  // Safety: Handle null/undefined parameters
   let safeNodeStyle = nodeStyle || 'rectangular';
+  let safeLayoutMode = layoutMode || 'normal';
 
   // Validation: Only allow known styles
   const validStyles = ['rectangular', 'circular', 'bezier'];
@@ -161,7 +170,8 @@ export function calculateTreeLayout(familyData, showPhotos = true, nodeStyle = '
   // Create d3 hierarchy
   const hierarchyData = hierarchy(root);
 
-  // Configure tree layout - optimized for variable width nodes
+  // Configure tree layout - STRAIGHT MODE ONLY
+  // (Curves mode routed to calculateCurvesLayout via dispatcher)
   const treeLayout = tree()
     .nodeSize([1, 110]) // TEMP: Minimal base spacing - actual spacing controlled by separation function
     .separation((a, b) => {

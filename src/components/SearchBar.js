@@ -147,9 +147,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   );
 
   // Use animated reaction to watch profileSheetProgress and update opacity
-  // Note: profileSheetProgress (shared value) not in dependency array.
-  // Per Reanimated docs, dependencies only needed without Babel plugin.
-  // Worklet tracks .value changes internally.
+  // ✅ FIX (Oct 28, 2025): Added profileSheetProgress to deps for Reanimated 4.x compatibility
+  // Reanimated 4.x requires all variables accessed in worklet to be in dependency array
+  // Previous comment was incorrect - Babel plugin does NOT auto-capture outer scope variables
   useAnimatedReaction(
     () => {
       "worklet";
@@ -176,7 +176,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       // Always call the update function, let it handle the check
       runOnJS(updateOpacity)(result.opacity, result.progress);
     },
-    [],
+    [profileSheetProgress],
   );
 
   // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)

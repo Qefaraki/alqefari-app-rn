@@ -31,13 +31,13 @@ export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
 
 /**
  * Bezier Curve Configuration
- * Optimized for elegant, subtle curves in family tree
+ * Production styling with Najdi Sadu palette
  */
 export const BEZIER_CONFIG = {
   CURVE_STRENGTH: 0.40,      // Reduced from 0.50 - gentler curves
-  STROKE_WIDTH: 1.5,         // Reduced from 2.0 - thinner lines
-  STROKE_OPACITY: 0.25,      // Subtle background element
-  STROKE_COLOR: '#9E9E9E',   // Neutral gray (not themed color)
+  STROKE_WIDTH: 2,           // Elegant, subtle line width
+  STROKE_OPACITY: 0.6,       // Soft, not overpowering
+  STROKE_COLOR: '#D1BBA3',   // Camel Hair Beige (greyish from design system)
 } as const;
 
 /**
@@ -209,33 +209,33 @@ export function generateD3CurvePaths(
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
-  // D3 curves ALWAYS use simple circle dimensions (uniform sizing for perfect connections)
-  // Ignore nodeStyle parameter - curves mode uses D3SimpleCircleRenderer
-  const isRoot = !parent.father_id;
+  // Observable Plot style: Tiny nodes for clean minimal layout
+  const NODE_HEIGHT_WITH_PHOTO = 25;  // 70% smaller!
+  const NODE_HEIGHT_TEXT_ONLY = 20;
+  const ROOT_NODE_HEIGHT = 40;
 
-  // Calculate parent bottom edge (use circle radius)
-  const parentRadius = isRoot ? D3_SIMPLE_CIRCLE.ROOT_DIAMETER / 2 : D3_SIMPLE_CIRCLE.DIAMETER / 2;
-  const parentBottomY = parent.y + parentRadius;
+  // Calculate parent right edge (horizontal tree grows left-to-right)
+  const isParentRoot = !parent.father_id;
+  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
+  const parentHeight = isParentRoot ? ROOT_NODE_HEIGHT : (parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+  const parentRightY = parent.y + parentHeight / 2;  // Right edge in horizontal tree
 
-  // Create D3 link generator (horizontal curves)
-  // Note: D3 tree layout swaps coordinates (x=vertical, y=horizontal)
-  // linkHorizontal expects [horizontal, vertical], so we pass [d.y, d.x]
+  // D3 linkHorizontal for Observable Plot-style horizontal curves
   const linkGen = linkHorizontal()
-    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical] = [d.y, d.x]
-    .target((d: any) => [d.target.y, d.target.x]);
+    .source((d: any) => [d.source.x, d.source.y])
+    .target((d: any) => [d.target.x, d.target.y]);
 
-  // Generate curve from parent to each child
-  children.forEach(child => {
-    const isRootChild = !child.father_id;
+  // Generate curve from parent right edge to each child left edge
+  children.forEach((child) => {
+    const isChildRoot = !child.father_id;
+    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
+    const childHeight = isChildRoot ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+    const childLeftY = child.y - childHeight / 2;  // Left edge in horizontal tree
 
-    // Calculate child top edge (use circle radius)
-    const childRadius = isRootChild ? D3_SIMPLE_CIRCLE.ROOT_DIAMETER / 2 : D3_SIMPLE_CIRCLE.DIAMETER / 2;
-    const childTopY = child.y - childRadius;
-
-    // Generate D3 SVG path data
+    // Connect edges (not centers) for clean convergence
     const svgPathData = linkGen({
-      source: { x: parent.x, y: parentBottomY },
-      target: { x: child.x, y: childTopY }
+      source: { x: parent.x, y: parentRightY },  // Parent right edge
+      target: { x: child.x, y: childLeftY }      // Child left edge
     });
 
     // Convert SVG path to Skia path

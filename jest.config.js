@@ -26,6 +26,8 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.test.jsx',
+    '**/__tests__/**/*.test.ts',   // TypeScript tests
+    '**/__tests__/**/*.test.tsx',  // TypeScript React tests
     '**/tests/**/*.test.js',  // Phase 1 tests
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],

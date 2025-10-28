@@ -24,7 +24,7 @@ import { useStructureLoader } from './useStructureLoader';
 import { useViewportEnrichment } from './progressive/useViewportEnrichment';
 import { calculateTreeLayout } from '../../../utils/treeLayout';
 
-export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyle = 'rectangular') {
+export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyle = 'rectangular', layoutMode = 'normal') {
   // Phase 1: Load structure-only (0.45 MB)
   const { structure, isLoading, error } = useStructureLoader();
 
@@ -53,10 +53,11 @@ export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyl
 
     // Calculate layout with showPhotos=false (text-only heights)
     // This ensures layout is stable even when photos load later
-    const layout = calculateTreeLayout(structure, false, nodeStyle);
+    // Pass actual viewport width for proper D3 curve scaling
+    const layout = calculateTreeLayout(structure, false, nodeStyle, layoutMode, dimensions?.width || 800);
 
     return layout;
-  }, [structureHash, nodeStyle]); // Hash-based dependency: only recalcs on structural changes
+  }, [structureHash, nodeStyle, layoutMode]); // Hash-based dependency: only recalcs on structural changes
 
   // Phase 3: Enrich visible nodes (background, non-blocking)
   // Hook runs internally, returns null (side effects only)

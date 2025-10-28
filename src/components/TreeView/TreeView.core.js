@@ -77,7 +77,7 @@ import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './rendering/Shad
 import { TextPillRenderer } from './rendering/TextPillRenderer';
 import { T3ChipRenderer } from './rendering/T3ChipRenderer';
 import { NodeRenderer } from './rendering/NodeRenderer';
-import { D3SimpleCircleRenderer } from './rendering/D3SimpleCircleRenderer';
+import { MinimalNameRenderer } from './rendering/MinimalNameRenderer';
 
 // Phase 1 Day 4a - Import node constants from centralized source
 import {
@@ -180,7 +180,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../../utils/treeLayout";
-import { TREE_DATA_SCHEMA_VERSION, useTreeStore } from "../../stores/useTreeStore";
+import { TREE_DATA_SCHEMA_VERSION } from "../../stores/useTreeStore";
 import profilesService from "../../services/profiles";
 import { formatDateDisplay } from "../../services/migrationHelpers";
 import { useSettings } from "../../contexts/SettingsContext";
@@ -364,7 +364,7 @@ const TreeViewCore = ({
   const { isPreloadingTree, profile: authProfile } = useAuth();
 
   // Extract tree display settings
-  const { showPhotos, highlightMyLine, lineStyle, layoutMode } = settings;
+  const { showPhotos, highlightMyLine, lineStyle } = settings;
 
   // Step 4.2: Extract nodeStyle with default fallback
   const nodeStyle = settings.nodeStyle || 'rectangular';
@@ -454,8 +454,7 @@ const TreeViewCore = ({
   const highlightTimerRef = useRef(null);
   const lastNavigationRef = useRef(null); // Track navigation ID to prevent stale callbacks
 
-  // Highlighting API hook (used for USER_LINEAGE path calculations only)
-  // NOTE: autoHighlight (SEARCH type) calculates paths inline to support branch tree
+  // Highlighting API hook (used for path calculations)
   const { calculatePathData, clearCache } = useHighlighting();
 
   // Sync shared values to state for Skia re-renders
@@ -806,6 +805,9 @@ const TreeViewCore = ({
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
   const initialFocalY = useSharedValue(0);
+  // Momentum state tracking (for pan/pinch coordination)
+  const completedAxes = useSharedValue(0);
+  const isInMomentum = useSharedValue(false);
 
   // Phase 1 Integration - Package shared values for gesture functions
   const gestureSharedValues = {
@@ -818,13 +820,17 @@ const TreeViewCore = ({
     isPinching,
     initialFocalX,
     initialFocalY,
+    completedAxes,
+    isInMomentum,
   };
 
   // Phase 2 Day 10a / Phase 3B: Tree data loading with progressive loading support
   // Progressive loading: Use two-phase strategy (structure + enrichment)
   // Traditional loading: Use full tree with real-time subscriptions
+  // Map lineStyle to layoutMode: bezier/curves → D3 tidy tree, straight → original algorithm
+  const layoutMode = (lineStyle === 'bezier' || lineStyle === 'curves') ? 'curves' : 'normal';
   const progressiveResult = USE_PROGRESSIVE_LOADING
-    ? useProgressiveTreeView(stage, dimensions, nodeStyleValue)
+    ? useProgressiveTreeView(stage, dimensions, nodeStyleValue, layoutMode)
     : null;
 
   // TRADITIONAL LOADER - COMMENTED OUT (Progressive loading enabled via USE_PROGRESSIVE_LOADING=true)
@@ -1536,29 +1542,9 @@ const TreeViewCore = ({
   const cousinMarriageRef1 = useRef(null);  // Munasib Manager navigation
   const cousinMarriageRef2 = useRef(null);  // Zustand pendingCousinHighlight
 
-  // Entry Point 2 enrichment lifecycle refs (fix race conditions)
-  const cousinEnrichmentTimerRef = useRef(null);  // Timer for delayed highlighting
-  const cousinEnrichmentMountedRef = useRef(true);  // Mounted flag for cleanup
-  const cousinEnrichmentLockRef = useRef(false);  // Mutex for concurrent operations
-
   useEffect(() => {
     if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
-      // Calculate path inline using store's nodesMap (works for both main tree and branch tree)
-      // This avoids coupling to useHighlighting() which is hardcoded to main tree store
-      const path = [];
-      let currentId = autoHighlight.nodeId;
-      const nodesMap = store.state.nodesMap;
-
-      while (currentId && nodesMap.has(currentId)) {
-        const node = nodesMap.get(currentId);
-        path.push(node);
-        currentId = node.father_id;
-      }
-
-      const pathData = path.length >= 2 ? {
-        pathNodeIds: path.map(n => n.id),
-        pathNodes: path
-      } : null;
+      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
 
       if (pathData && pathData.pathNodeIds.length > 0) {
         // Clear existing search highlight
@@ -1583,7 +1569,7 @@ const TreeViewCore = ({
         store.actions.removeHighlight(searchHighlightIdRef.current);
       }
     };
-  }, [autoHighlight, nodes.length, store.actions, store.state.nodesMap]);
+  }, [autoHighlight, calculatePathData, nodes.length, store.actions]);
 
   // Focus on specific node after d3 layout completes (branch tree modal)
   useEffect(() => {
@@ -1773,211 +1759,67 @@ const TreeViewCore = ({
   // ============================================================================
   // Triggered by nested components (TabFamily, Munasib Manager)
   // Store field: pendingCousinHighlight = { spouse1Id, spouse2Id, highlightProfileId }
-  //
-  // FIXES APPLIED (Solution Auditor recommendations):
-  // - Timer race condition fixed with useRef (cousinEnrichmentTimerRef)
-  // - Concurrent enrichment protection with lock (cousinEnrichmentLockRef)
-  // - Network guard for offline detection
-  // - Soft-delete validation after enrichment
-  // - DRY helper for store updates (updateStoreWithEnrichedData)
-  // - Loading feedback via console logs
   useEffect(() => {
-    // Reset mounted flag on mount
-    cousinEnrichmentMountedRef.current = true;
-
     if (pendingCousinHighlight && nodes.length > 0) {
       const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
 
-      // Helper: Update store with enriched data (DRY - used in success and retry paths)
-      const updateStoreWithEnrichedData = (enrichedData) => {
-        const treeStore = useTreeStore.getState();
-        const newTreeData = treeStore.treeData.map(node => {
-          const enriched = enrichedData.find(e => e.id === node.id);
-          return enriched ? { ...node, ...enriched } : node;
-        });
-        const newNodesMap = new Map(treeStore.nodesMap);
-        enrichedData.forEach(enriched => {
-          const existing = newNodesMap.get(enriched.id);
-          if (existing) {
-            newNodesMap.set(enriched.id, { ...existing, ...enriched });
-          }
-        });
-        treeStore.setTreeData(newTreeData);
-      };
+      // Validate both spouses are in loaded tree
+      const nodesMap = store.state.nodesMap;
+      if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+        console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
+        store.actions.setPendingCousinHighlight(null);
+        return;
+      }
 
-      // Enrichment-first pattern: Ensure both nodes are loaded before highlighting
-      const ensureNodesEnriched = async () => {
-        const nodesMap = store.state.nodesMap;
-        const needsEnrichment = !nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id);
-
-        if (needsEnrichment) {
-          // FIX: Concurrent enrichment protection (mutex pattern)
-          if (cousinEnrichmentLockRef.current) {
-            console.log('[TreeView] Enrichment already in progress, queueing...');
-            // Wait for lock to release (max 5s timeout)
-            const lockStartTime = Date.now();
-            while (cousinEnrichmentLockRef.current && Date.now() - lockStartTime < 5000) {
-              await new Promise(resolve => setTimeout(resolve, 100));
-              if (!cousinEnrichmentMountedRef.current) return false; // Unmounted while waiting
-            }
-            // If still locked after 5s, proceed anyway (prevent deadlock)
-            if (cousinEnrichmentLockRef.current) {
-              console.warn('[TreeView] Enrichment lock timeout, proceeding anyway');
-            }
-          }
-
-          cousinEnrichmentLockRef.current = true;
-          console.log(`[TreeView] Enriching nodes for cousin highlight: ${spouse1Id}, ${spouse2Id}`);
-          console.log('[TreeView] Loading cousin data...'); // Loading feedback
-
-          try {
-            // FIX: Network guard (offline protection)
-            // Note: NetInfo is not imported yet, so we'll use a try-catch on the network call
-            // If offline, the enrichVisibleNodes call will fail with network error
-
-            // Force enrichment of both nodes
-            const profilesService = (await import('../../services/profiles')).default;
-            const { data, error } = await profilesService.enrichVisibleNodes([spouse1Id, spouse2Id]);
-
-            if (error || !data || data.length < 2) {
-              console.warn('[TreeView] Enrichment failed, retrying once...');
-              await new Promise(resolve => setTimeout(resolve, 1000));
-
-              const { data: retryData, error: retryError } = await profilesService.enrichVisibleNodes([spouse1Id, spouse2Id]);
-
-              if (retryError || !retryData || retryData.length < 2) {
-                Alert.alert('خطأ', 'تعذر تحميل بيانات القرابة. تحقق من اتصالك بالإنترنت.');
-                store.actions.setPendingCousinHighlight(null);
-                return false;
-              }
-
-              // FIX: Soft-delete validation
-              const validNodes = retryData.filter(node => !node.deleted_at);
-              if (validNodes.length < 2) {
-                Alert.alert('خطأ', 'الملف المطلوب محذوف أو غير موجود');
-                store.actions.setPendingCousinHighlight(null);
-                return false;
-              }
-
-              // Update store with enriched data (retry success)
-              updateStoreWithEnrichedData(retryData);
-
-            } else {
-              // FIX: Soft-delete validation
-              const validNodes = data.filter(node => !node.deleted_at);
-              if (validNodes.length < 2) {
-                Alert.alert('خطأ', 'الملف المطلوب محذوف أو غير موجود');
-                store.actions.setPendingCousinHighlight(null);
-                return false;
-              }
-
-              // Update store with enriched data (first try success)
-              updateStoreWithEnrichedData(data);
-            }
-
-            // Wait for state update to propagate
-            await new Promise(resolve => setTimeout(resolve, 100));
-            console.log('[TreeView] Cousin data loaded successfully'); // Loading feedback
-
-          } catch (error) {
-            console.error('[TreeView] Enrichment error:', error);
-            // Better error message for network failures
-            const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch');
-            Alert.alert(
-              'خطأ',
-              isNetworkError
-                ? 'لا يوجد اتصال بالإنترنت. تحقق من اتصالك وحاول مرة أخرى.'
-                : 'حدث خطأ أثناء تحميل البيانات'
-            );
-            store.actions.setPendingCousinHighlight(null);
-            return false;
-          } finally {
-            // FIX: Release enrichment lock
-            cousinEnrichmentLockRef.current = false;
-          }
+      // Small delay to ensure tree is fully rendered
+      const timer = setTimeout(() => {
+        // Validate component still mounted (pending highlight still set)
+        const currentPending = store.getState().pendingCousinHighlight;
+        if (!currentPending) {
+          console.log('[TreeView] Component unmounted, skipping cousin highlight');
+          return;
         }
 
-        return true; // Nodes ready (either already present or enriched successfully)
-      };
+        // Add highlight using NEW system (calculates dual-path internally)
+        const id = store.actions.addHighlight({
+          type: 'node_to_node',
+          from: spouse1Id,
+          to: spouse2Id,
+          style: {
+            color: '#D58C4A',  // Desert Ochre
+            opacity: 0.7,
+            strokeWidth: 3
+          },
+          // No priority field (defaults to 0)
+        });
 
-      // Execute enrichment and highlighting
-      (async () => {
-        // FIX: Check if component still mounted before starting
-        if (!cousinEnrichmentMountedRef.current) return;
-
-        const ready = await ensureNodesEnriched();
-        if (!ready || !cousinEnrichmentMountedRef.current) return;
-
-        // Small delay to ensure tree is fully rendered
-        // FIX: Use ref instead of let variable (prevents race condition)
-        cousinEnrichmentTimerRef.current = setTimeout(() => {
-          // FIX: Check mounted flag before executing
-          if (!cousinEnrichmentMountedRef.current) {
-            console.log('[TreeView] Component unmounted, skipping cousin highlight');
-            return;
-          }
-
-          // Validate component still mounted (pending highlight still set)
-          const currentPending = store.state.pendingCousinHighlight;
-          if (!currentPending) {
-            console.log('[TreeView] Pending highlight cleared, skipping');
-            return;
-          }
-
-          // Add highlight using NEW system (calculates dual-path internally)
-          const id = store.actions.addHighlight({
-            type: 'node_to_node',
-            from: spouse1Id,
-            to: spouse2Id,
-            style: {
-              color: '#D58C4A',  // Desert Ochre
-              opacity: 0.7,
-              strokeWidth: 3
-            },
-          });
-
-          if (!id) {
-            console.warn('[TreeView] Failed to add cousin marriage highlight (limit reached)');
-            store.actions.setPendingCousinHighlight(null);
-            return;
-          }
-
-          cousinMarriageRef2.current = id;
-          console.log('[TreeView] Cousin marriage dual paths activated (Zustand)');
-
-          // Navigate to highlighted profile
-          if (highlightProfileId) {
-            navigateToNode(highlightProfileId);
-          }
-
-          // Clear the pending highlight (consumed)
+        if (!id) {
+          console.warn('[TreeView] Failed to add cousin marriage highlight (limit reached)');
           store.actions.setPendingCousinHighlight(null);
-        }, 500);
-      })();
-
-      // FIX: Cleanup function with proper ref handling
-      return () => {
-        cousinEnrichmentMountedRef.current = false;
-        if (cousinEnrichmentTimerRef.current) {
-          clearTimeout(cousinEnrichmentTimerRef.current);
-          cousinEnrichmentTimerRef.current = null;
+          return;
         }
+
+        cousinMarriageRef2.current = id;
+        console.log('[TreeView] Cousin marriage dual paths activated (Zustand)');
+
+        // Navigate to highlighted profile
+        if (highlightProfileId) {
+          navigateToNode(highlightProfileId);
+        }
+
+        // Clear the pending highlight (consumed)
+        store.actions.setPendingCousinHighlight(null);
+      }, 500);
+
+      return () => {
+        clearTimeout(timer);
         if (cousinMarriageRef2.current) {
           store.actions.removeHighlight(cousinMarriageRef2.current);
           cousinMarriageRef2.current = null;
         }
       };
     }
-
-    // FIX: Ensure cleanup runs even if condition is false
-    return () => {
-      cousinEnrichmentMountedRef.current = false;
-      if (cousinEnrichmentTimerRef.current) {
-        clearTimeout(cousinEnrichmentTimerRef.current);
-        cousinEnrichmentTimerRef.current = null;
-      }
-    };
-  }, [pendingCousinHighlight, nodes.length, navigateToNode, store.actions, store.state]);
+  }, [pendingCousinHighlight, nodes.length, navigateToNode, store.actions]);
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -2372,24 +2214,17 @@ const TreeViewCore = ({
     }
 
     // Use line styles system for unified path generation
-    // PHASE 5: Map layoutMode to LINE_STYLES (with fallback to lineStyle for compatibility)
-    const currentLineStyle = layoutMode
-      ? (layoutMode === 'curves' ? LINE_STYLES.CURVES :
-         layoutMode === 'normal' ? LINE_STYLES.STRAIGHT :
-         layoutMode === 'cluster' ? LINE_STYLES.STRAIGHT :
-         layoutMode === 'bezier' ? LINE_STYLES.BEZIER :  // Deprecated
-         LINE_STYLES.STRAIGHT)  // Default
-      : (lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT);  // Fallback to old lineStyle
-
+    const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+    
     // Filter connections for viewport and apply edge limit
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
-
+    
     // Generate all paths using the line styles system
     // Step 4.3: Pass nodeStyleValue for circular edge calculations
     const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos, nodeStyleValue);
 
-    // Configure line styling based on line style (curves/bezier get special styling)
-    const lineConfig = (currentLineStyle === LINE_STYLES.CURVES || currentLineStyle === LINE_STYLES.BEZIER)
+    // Configure line styling based on line style (bezier vs straight)
+    const lineConfig = lineStyle === 'bezier'
       ? {
           color: hexToRgba(BEZIER_CONFIG.STROKE_COLOR, BEZIER_CONFIG.STROKE_OPACITY),
           width: BEZIER_CONFIG.STROKE_WIDTH
@@ -2520,34 +2355,18 @@ const TreeViewCore = ({
     [selectedPersonId, getCachedParagraph],
   );
 
-  // Choose renderer based on layoutMode (Phase 3B: D3 Simple Circles)
-  // - D3 modes (curves, cluster, radial) use simple circles for perfect curve connections
-  // - Straight mode uses existing NodeRenderer (UNCHANGED - photo cards with text labels)
-  const NodeComponent = useMemo(() => {
-    if (layoutMode === 'curves' || layoutMode === 'cluster' || layoutMode === 'radial') {
-      // D3 modes: Simple circles with photos (no text labels)
-      return D3SimpleCircleRenderer;
-    } else {
-      // Straight mode: Existing rectangular/circular cards (UNCHANGED)
-      return NodeRenderer;
-    }
-  }, [layoutMode]);
-
   // Render node component (T1 - full detail) - Phase 2: Using extracted NodeRenderer
   const renderNode = useCallback(
     (node) => {
       // Use per-node photo toggle if available (from LOD), otherwise use global setting
       const shouldShowPhotos = node._showPhoto !== undefined ? node._showPhoto : showPhotos;
 
-      // Determine if node is selected
-      const isSelected = selectedPersonId === node.id;
-
+      // Use default NodeRenderer for all modes (bezier uses same circles as straight)
       return (
-        <NodeComponent
+        <NodeRenderer
           node={node}
           showPhotos={shouldShowPhotos}
           selectedPersonId={selectedPersonId}
-          isSelected={isSelected}
           heroNodes={indices?.heroNodes}
           searchTiers={indices?.searchTiers}
           getCachedParagraph={getCachedParagraph}
@@ -2559,7 +2378,7 @@ const TreeViewCore = ({
         />
       );
     },
-    [NodeComponent, selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph, nodeStyleValue],
+    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph, nodeStyleValue, lineStyle],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings

@@ -518,9 +518,8 @@ if (error?.message.includes('version')) {
 **Quick Summary**: Non-destructive photo cropping with coordinate-based architecture. Original photos unchanged, crop applied during GPU rendering.
 
 ### Core Components
-- **Crop RPC**: `admin_update_profile_crop()` - Dedicated crop RPC with version validation + audit log
-- **Delete RPC**: `admin_delete_profile_photo()` - Clears photo_url + auto-resets crop via trigger
-- **Undo**: `undo_crop_update()`, `undo_photo_delete()` - Full undo support via Activity Feed
+- **RPC**: `admin_update_profile_crop()` - Dedicated crop RPC with version validation + audit log
+- **Undo**: `undo_crop_update()` - Full undo support via Activity Feed
 - **UI**: PhotoCropEditor - Draggable crop rectangle, returns normalized coordinates (0.0-1.0)
 - **Rendering**: ImageNode.tsx - GPU crop via `makeImageFromRect()` (~0.1ms per image)
 - **Cleanup**: Auto-reset crop when photo deleted (database trigger)
@@ -539,16 +538,10 @@ crop_right: 0.05    // Crop 5% from right
 
 ### Usage (ProfileViewer)
 ```javascript
-// Edit Photo Menu: "تعديل الصورة"
+// Menu: "تعديل الصورة" (Edit Photo)
 // Permission: canEdit && photo_url
 // Returns: { crop_top, crop_bottom, crop_left, crop_right }
 // RPC: admin_update_profile_crop(profile_id, crop values, version)
-
-// Delete Photo Menu: "حذف الصورة"
-// Permission: canEdit && photo_url
-// Shows: Confirmation dialog with undo mention (30-day window)
-// RPC: admin_delete_profile_photo(profile_id, version, user_id)
-// Result: Sets photo_url to NULL, resets crop to 0.0, full undo support
 ```
 
 ### Test Coverage (72 total tests)
