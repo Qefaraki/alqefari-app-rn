@@ -33,13 +33,13 @@ export const PAN_DECELERATION = 0.998;
  *
  * Clamps gesture velocity to prevent jarring ultra-fast flicks.
  * iOS native gestures typically max out around 2800-3500 pts/sec.
- * Previous value (2000) was too low - caught 100% of user throws.
+ * Tuned to 2800 for responsive feel without jarring (40% increase from original 2000).
  *
  * @constant
  * @type {number}
- * @default 3500
+ * @default 2800
  */
-export const PAN_VELOCITY_MAX = 3500;
+export const PAN_VELOCITY_MAX = 2800;
 
 /**
  * Minimum velocity threshold (points per second)

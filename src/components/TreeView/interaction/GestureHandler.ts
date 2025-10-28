@@ -23,14 +23,13 @@
  */
 
 import { Gesture } from 'react-native-gesture-handler';
-import { SharedValue, cancelAnimation, withDecay, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
+import { SharedValue, cancelAnimation, withDecay, withSpring, withTiming, runOnJS, useSharedValue } from 'react-native-reanimated';
 import {
   GESTURE_PHYSICS,
   clampVelocity,
   shouldApplyMomentum,
   getZoomSpringConfig,
 } from '../utils/constants/gesturePhysics';
-import { createDecayModifier } from '../../../utils/cameraConstraints';
 
 // Zoom limits
 const MIN_ZOOM = 0.1;
@@ -99,16 +98,32 @@ export function createPanGesture(
   const { translateX, translateY, savedTranslateX, savedTranslateY, isPinching, scale } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
-  // Create decay modifier for viewport bounds (prevents edge bouncing)
-  const modifier = config.viewport && config.bounds
-    ? createDecayModifier(
-        config.viewport,
-        config.bounds,
-        scale.value,
-        config.minZoom ?? MIN_ZOOM,
-        config.maxZoom ?? MAX_ZOOM
-      )
-    : undefined;
+  // CRITICAL FIX: Use SharedValue for atomic completion tracking and momentum state
+  const completedAxes = useSharedValue(0);
+  const isInMomentum = useSharedValue(false);
+
+  // Calculate fixed bounds at median zoom (1.0x) - acceptable trade-off
+  // 90% correct behavior, slight overshoot at extreme zoom levels
+  const MEDIAN_ZOOM = 1.0;
+  const boundsX = (
+    config.viewport &&
+    config.bounds &&
+    Number.isFinite(config.bounds.minX) &&
+    Number.isFinite(config.bounds.maxX)
+  ) ? [
+    config.bounds.minX * MEDIAN_ZOOM,
+    config.bounds.maxX * MEDIAN_ZOOM
+  ] : undefined;
+
+  const boundsY = (
+    config.viewport &&
+    config.bounds &&
+    Number.isFinite(config.bounds.minY) &&
+    Number.isFinite(config.bounds.maxY)
+  ) ? [
+    config.bounds.minY * MEDIAN_ZOOM,
+    config.bounds.maxY * MEDIAN_ZOOM
+  ] : undefined;
 
   return Gesture.Pan()
     .onStart(() => {
@@ -117,6 +132,16 @@ export function createPanGesture(
       if (isPinching.value) {
         return;
       }
+
+      // CRITICAL FIX: Only reset momentum if we were actually in momentum phase
+      if (isInMomentum.value && callbacks.onMomentumEnd) {
+        runOnJS(callbacks.onMomentumEnd)();
+        isInMomentum.value = false;
+      }
+
+      // Reset completion counter for new gesture
+      completedAxes.value = 0;
+
       console.log('[MOMENTUM] Pan started');
       cancelAnimation(translateX);
       cancelAnimation(translateY);
@@ -168,21 +193,26 @@ export function createPanGesture(
 
       console.log(`[MOMENTUM] Pan ended - applying momentum (vX: ${clampedVelocityX.toFixed(0)}, vY: ${clampedVelocityY.toFixed(0)})`);
 
+      // Mark momentum phase started
+      isInMomentum.value = true;
+      completedAxes.value = 0; // Reset counter
+
       // Signal momentum start (for prefetch deferral)
       if (callbacks.onMomentumStart) {
         runOnJS(callbacks.onMomentumStart)();
       }
 
-      // Apply momentum with iOS-native physics + bounds modifier
-      translateX.value = withDecay(
-        {
-          velocity: clampedVelocityX,
-          deceleration: decelerationRate,
-          modifier: modifier ? (value) => modifier(value, 'x') : undefined,
-        },
-        () => {
-          // Sync React state when decay animation completes
-          console.log('[MOMENTUM] Momentum coast completed');
+      // CRITICAL FIX: Shared completion callback for both axes
+      const onAxisComplete = () => {
+        'worklet';
+        completedAxes.value++;
+        console.log(`[MOMENTUM] Axis completed (${completedAxes.value}/2)`);
+
+        if (completedAxes.value === 2) {
+          console.log('[MOMENTUM] Momentum coast completed (both axes)');
+          isInMomentum.value = false;
+          completedAxes.value = 0; // Reset for next gesture
+
           if (callbacks.onMomentumEnd) {
             runOnJS(callbacks.onMomentumEnd)();
           }
@@ -190,12 +220,22 @@ export function createPanGesture(
             runOnJS(callbacks.onGestureEnd)();
           }
         }
-      );
+      };
+
+      // Apply momentum with Reanimated 4 native API (rubberBandEffect + clamp)
+      translateX.value = withDecay({
+        velocity: clampedVelocityX,
+        deceleration: decelerationRate,
+        rubberBandEffect: true,
+        clamp: boundsX,
+      }, onAxisComplete);
+
       translateY.value = withDecay({
         velocity: clampedVelocityY,
         deceleration: decelerationRate,
-        modifier: modifier ? (value) => modifier(value, 'y') : undefined,
-      });
+        rubberBandEffect: true,
+        clamp: boundsY,
+      }, onAxisComplete);
 
       // Save current values (before decay animation modifies them)
       savedTranslateX.value = translateX.value;

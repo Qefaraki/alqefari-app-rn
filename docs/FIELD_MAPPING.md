@@ -97,6 +97,11 @@ When you add a **new column** to the `profiles` table, you **MUST** update these
 | gender | ✅ | ✅ | ✅ | ✅ |
 | status | ✅ | ✅ | ✅ | ✅ |
 | photo_url | ✅ | ✅ | ✅ | ✅ |
+| **Photo Cropping** | | | | |
+| crop_top | ✅ | ✅ | ✅ | ✅* |
+| crop_bottom | ✅ | ✅ | ✅ | ✅* |
+| crop_left | ✅ | ✅ | ✅ | ✅* |
+| crop_right | ✅ | ✅ | ✅ | ✅* |
 | **Dates** | | | | |
 | dob_data | ✅ | ✅ | ✅ | ✅ |
 | dod_data | ✅ | ✅ | ✅ | ✅ |
@@ -127,6 +132,8 @@ When you add a **new column** to the `profiles` table, you **MUST** update these
 | created_at | ✅ | ✅ | ❌ | ❌ |
 | updated_at | ✅ | ✅ | ❌ | ❌ |
 | deleted_at | ✅ | ❌ | ❌ | ❌ |
+
+**Note:** *Crop fields use dedicated RPC `admin_update_profile_crop()` instead of `admin_update_profile()` for atomic updates with activity log integration. See Migration 20251027140000.*
 
 ## Step-by-Step: Adding a New Field
 
@@ -327,6 +334,99 @@ const totalCount = data[0]?.total_count || 0;
 ```
 
 **Permission:** Admin/super_admin only (checked in function)
+
+### Photo Cropping: admin_update_profile_crop()
+
+**Added:** Migrations `20251027140000` (crop fields) + `20251027141000` (RPC fix) + `20251027141100` (undo integration)
+
+Dedicated RPC for updating photo crop coordinates with atomic operation, version validation, and activity log integration.
+
+**Architecture:**
+- **Non-Destructive:** Original photo unchanged, coordinates stored in database
+- **Normalized Coordinates:** Values 0.0-1.0 (0 = no crop, 0.25 = crop 25% from edge)
+- **GPU Rendering:** Crop applied during rendering via `makeImageFromRect()` (~0.1ms per image)
+- **Backwards Compatible:** NULL values handled via `normalizeCropValues()` utility
+
+**Fields:**
+- `crop_top NUMERIC(4,3)` - Crop from top edge (0.000-1.000)
+- `crop_bottom NUMERIC(4,3)` - Crop from bottom edge
+- `crop_left NUMERIC(4,3)` - Crop from left edge
+- `crop_right NUMERIC(4,3)` - Crop from right edge
+
+**Parameters:**
+- `p_profile_id UUID` - Profile to update
+- `p_crop_top NUMERIC(4,3)` - New top crop value
+- `p_crop_bottom NUMERIC(4,3)` - New bottom crop value
+- `p_crop_left NUMERIC(4,3)` - New left crop value
+- `p_crop_right NUMERIC(4,3)` - New right crop value
+- `p_version INTEGER` - Current version (optimistic locking)
+- `p_user_id UUID` - Actor performing the crop
+- `p_operation_group_id UUID` - Optional operation group for grouped undo (default: NULL)
+
+**Returns:**
+```sql
+TABLE(new_version INTEGER)
+```
+
+**Validation:**
+- Permission check via `check_family_permission_v4()`
+- Version conflict detection (prevents concurrent edits)
+- Minimum visible area 10% (width and height)
+- Sum checks: `left + right < 1.0`, `top + bottom < 1.0`
+- Range checks: All values 0.0-1.0
+
+**Activity Log:**
+- Action type: `crop_update`
+- JSONB old_data/new_data format (not TEXT old_value/new_value)
+- Single entry with all 4 fields (not 4 separate entries)
+- Changed fields: `['crop_top', 'crop_bottom', 'crop_left', 'crop_right']`
+- Integrated with undo system via `undo_crop_update()` RPC
+
+**Usage:**
+```javascript
+const { data, error } = await supabase.rpc('admin_update_profile_crop', {
+  p_profile_id: person.id,
+  p_crop_top: 0.1,
+  p_crop_bottom: 0.1,
+  p_crop_left: 0.05,
+  p_crop_right: 0.05,
+  p_version: person.version ?? 1,
+  p_user_id: userProfile.id,
+});
+
+if (error) {
+  if (error.message?.includes('version')) {
+    // Version conflict - reload and retry
+  } else if (error.message?.includes('permission')) {
+    // Permission denied
+  } else if (error.message?.includes('منطقة المحصورة صغير')) {
+    // Validation failed - crop too small
+  }
+}
+
+const newVersion = data[0]?.new_version;
+```
+
+**Undo Support:**
+```javascript
+const { data, error } = await supabase.rpc('undo_crop_update', {
+  p_audit_log_id: 'abc-123',
+  p_undo_reason: 'Accidental crop change'
+});
+```
+
+**UI Integration:**
+- ProfileViewer → Three-dots menu → "تعديل الصورة" (Edit Photo)
+- Permission-gated: Only shows if `canEdit && photo_url`
+- Custom PhotoCropEditor component with draggable crop rectangle
+- Returns normalized coordinates (0.0-1.0), not cropped files
+- Success feedback: Haptic + Arabic alert + cache invalidation
+
+**Rendering:**
+- ImageNode.tsx applies crop during Skia rendering
+- Flow: Source → `makeImageFromRect()` (crop) → `fit="cover"` → `Group.clip()` (rounded corners)
+- Crop BEFORE circular mask for correct aspect ratio
+- Optimized: Skip GPU operation if all crop values = 0
 
 ## Location System (October 2025)
 
