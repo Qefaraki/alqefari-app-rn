@@ -189,14 +189,6 @@ export default function FamilyStatistics({ onClose }) {
     }
   };
 
-  // Format relative time for "last updated"
-  const formatRelativeTime = (timestamp) => {
-    const seconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
-    if (seconds < 60) return 'الآن';
-    if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
-    return `منذ ${Math.floor(seconds / 3600)} ساعة`;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <LargeTitleHeader
@@ -367,7 +359,10 @@ const HeroSection = ({ stats }) => {
       </View>
 
       {/* Gender Donut Chart - Clean, no labels */}
-      <View style={styles.chartContainer}>
+      <View
+        style={styles.chartContainer}
+        accessibilityLabel={`توزيع الأفراد: ${gender.male} ذكور و ${gender.female} إناث من إجمالي ${gender.total}`}
+      >
         <RTLVictoryPie
           data={[
             { x: '', y: gender.male },
@@ -426,7 +421,10 @@ const GenerationsSection = ({ stats }) => {
   };
 
   return (
-    <View style={styles.section}>
+    <View
+      style={styles.section}
+      accessibilityLabel={`توزيع ${generations.length} أجيال. الجيل ${getArabicOrdinal(largestGen.generation)} هو الأكبر بـ ${largestGen.count.toLocaleString('ar-SA')} فرد`}
+    >
       <Text style={styles.sectionHeader}>رحلة الأجيال</Text>
 
       <RTLVictoryBar

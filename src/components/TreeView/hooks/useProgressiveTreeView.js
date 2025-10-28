@@ -30,11 +30,17 @@ export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyl
 
   // Compute structural hash (excludes non-structural fields like photos, bio)
   // This prevents layout recalculation when only photos/bio change via enrichment
-  // Hash includes only fields that affect tree structure: id, father_id, sibling_order
+  // Hash includes ALL fields that affect tree structure and d3 layout:
+  // - id: Node identity
+  // - father_id: Parent relationship (affects hierarchy)
+  // - mother_id: Parent relationship (affects Munasib profiles)
+  // - sibling_order: Birth order (affects horizontal positioning)
+  // - deleted_at: Soft delete status (affects filtering)
+  // Excluded: photo_url, bio, name, etc. (non-structural, trigger enrichment not layout)
   const structureHash = useMemo(() => {
     if (!structure || structure.length === 0) return '';
     return structure
-      .map(n => `${n.id}-${n.father_id || 'null'}-${n.sibling_order || 0}`)
+      .map(n => `${n.id}-${n.father_id || 'null'}-${n.mother_id || 'null'}-${n.sibling_order ?? 0}-${n.deleted_at || 'null'}`)
       .join('|');
   }, [structure]);
 
