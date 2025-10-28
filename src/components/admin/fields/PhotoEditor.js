@@ -48,9 +48,6 @@ import CardSurface from "../../ios/CardSurface";
 import { LinearGradient } from "expo-linear-gradient";
 import storageService from "../../../services/storage";
 import imageOptimizationService from "../../../services/imageOptimization";
-import { supabase } from "../../../services/supabase";
-import suggestionService from "../../../services/suggestionService";
-import { fetchWithTimeout } from "../../../utils/fetchWithTimeout";
 
 const PhotoEditor = ({
   value,
@@ -394,82 +391,22 @@ const PhotoEditor = ({
         {
           text: isDirectDelete ? "حذف" : "إرسال اقتراح",
           style: "destructive",
-          onPress: async () => {
-            try {
-              setIsLoading(true);
+          onPress: () => {
+            // Update form state - deletion happens atomically on Save button
+            // This ensures transactional integrity (all changes or none)
+            if (onPhotoDeleted) {
+              onPhotoDeleted(null);  // null = no version change yet
+            }
 
-              if (isDirectDelete) {
-                // DIRECT DELETE: Call admin_delete_profile_photo RPC
-                if (!version) {
-                  Alert.alert("خطأ", "معلومات النسخة مفقودة");
-                  setIsLoading(false);
-                  return;
-                }
+            // Update local preview
+            setPreviewUrl(null);
 
-                const { data, error } = await fetchWithTimeout(
-                  supabase.rpc('admin_delete_profile_photo', {
-                    p_profile_id: profileId,
-                    p_version: version,
-                    p_user_id: userId,
-                  }),
-                  3000,  // 3-second timeout (matches permission checks)
-                  'Delete photo operation'
-                );
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-                if (error) {
-                  if (error.message?.includes('version')) {
-                    Alert.alert(
-                      "خطأ في النسخة",
-                      "تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة تحميل الصفحة."
-                    );
-                  } else if (error.message?.includes('PERMISSION_DENIED')) {
-                    Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
-                  } else if (error.message === 'NETWORK_OFFLINE') {
-                    Alert.alert("خطأ", "لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.");
-                  } else if (error.message?.includes('NETWORK_TIMEOUT')) {
-                    Alert.alert("خطأ", "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
-                  } else {
-                    Alert.alert("خطأ", "فشل حذف الصورة. يرجى المحاولة مرة أخرى.");
-                  }
-                  return;
-                }
-
-                // Success - update UI via callback with RPC's returned version
-                const newVersion = data?.[0]?.new_version;
-                if (onPhotoDeleted) {
-                  onPhotoDeleted(newVersion);  // Pass RPC's returned version
-                }
-
-                // Update local preview
-                setPreviewUrl(null);
-
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert("تم الحذف", "تم حذف الصورة بنجاح");
-
-              } else if (accessMode === 'review') {
-                // SUGGESTION: Call suggestionService.submitEditSuggestion
-                const suggestionId = await suggestionService.submitEditSuggestion(
-                  profileId,
-                  'photo_url',
-                  null,  // new_value is null (indicates deletion)
-                  'حذف الصورة'  // reason
-                );
-
-                // Update local state even for suggestions
-                // Version doesn't change, but photo_url should clear to prevent dirty state confusion
-                if (onPhotoDeleted) {
-                  onPhotoDeleted(null);  // Pass null (version doesn't change for suggestions)
-                }
-
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert("تم الإرسال", "سيتم مراجعة الاقتراح من قبل مسؤول العائلة.");
-              }
-
-            } catch (err) {
-              console.error('Error deleting photo:', err);
-              Alert.alert("خطأ", err.message || "حدث خطأ غير متوقع");
-            } finally {
-              setIsLoading(false);
+            if (isDirectDelete) {
+              Alert.alert("تم التحديد", "سيتم حذف الصورة عند حفظ التغييرات");
+            } else {
+              Alert.alert("تم التحديد", "سيتم إرسال اقتراح الحذف عند حفظ التغييرات");
             }
           },
         },
