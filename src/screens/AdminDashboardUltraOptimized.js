@@ -572,8 +572,8 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
                     color={tokens.colors.najdi.secondary}
                   />
                 }
-                title="إحصائيات العائلة"
-                subtitle="عرض إحصائيات شاملة"
+                title="إحصائيات"
+                subtitle="بيانات ومعلومات"
                 trailing={
                   <Ionicons
                     name="chevron-back"

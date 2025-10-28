@@ -198,8 +198,7 @@ export default function FamilyStatistics({ onClose }) {
   return (
     <SafeAreaView style={styles.container}>
       <LargeTitleHeader
-        title="إحصائيات العائلة"
-        subtitle={coreStats ? `آخر تحديث: ${formatRelativeTime(coreStats.calculated_at)}` : ''}
+        title="إحصائيات"
         emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
         rightSlot={
           <TouchableOpacity
@@ -315,20 +314,21 @@ const SkeletonContent = () => (
   </View>
 );
 
-// Intro Surface with Sadu Pattern
+// Intro Surface with Sadu Pattern (exact copy from Munasib Manager)
 const IntroSurface = () => (
   <View style={styles.introSurface}>
     <View style={styles.patternRow}>
-      {[...Array(7)].map((_, i) => (
+      {[...Array(6)].map((_, i) => (
         <Image
           key={i}
           source={require('../../../assets/sadu_patterns/png/7.png')}
           style={styles.introPattern}
+          resizeMode="contain"
         />
       ))}
     </View>
     <View style={styles.introContent}>
-      <Text style={styles.introTitle}>إحصائيات شاملة لعائلة القفاري</Text>
+      <Text style={styles.introTitle}>إحصائيات العائلة</Text>
       <Text style={styles.introSubtitle}>
         تعرّف على أرقام ومعلومات مفصلة عن العائلة عبر الأجيال
       </Text>
@@ -336,7 +336,7 @@ const IntroSurface = () => (
   </View>
 );
 
-// Hero Section: Total members + Gender donut chart
+// Hero Section: Total members + Gender donut chart (simplified, HIG-compliant)
 const HeroSection = ({ stats }) => {
   if (!stats?.gender || stats.gender.total === 0) {
     return (
@@ -347,62 +347,43 @@ const HeroSection = ({ stats }) => {
   }
 
   const { gender } = stats;
-  const malePercentage = ((gender.male / gender.total) * 100).toFixed(1);
-  const femalePercentage = ((gender.female / gender.total) * 100).toFixed(1);
+  const malePercentage = ((gender.male / gender.total) * 100).toFixed(0);
+  const femalePercentage = ((gender.female / gender.total) * 100).toFixed(0);
   const generations = stats.generations?.length || 0;
 
   return (
     <View style={styles.section}>
+      {/* Hero Number */}
       <View style={styles.heroNumberContainer}>
         <Text style={styles.heroNumber}>{gender.total.toLocaleString('ar-SA')}</Text>
-        <Text style={styles.heroLabel}>أفراد عبر {generations} أجيال</Text>
-      </View>
-
-      {/* Quick Stats Cards */}
-      <View style={styles.quickStatsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{malePercentage}%</Text>
-          <Text style={styles.statLabel}>ذكور</Text>
-          <Text style={styles.statCount}>{gender.male.toLocaleString('ar-SA')}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{femalePercentage}%</Text>
-          <Text style={styles.statLabel}>إناث</Text>
-          <Text style={styles.statCount}>{gender.female.toLocaleString('ar-SA')}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.marriage_stats?.total_marriages || 0}</Text>
-          <Text style={styles.statLabel}>زواج</Text>
+        <Text style={styles.heroLabel}>فرد عبر {generations} أجيال</Text>
+        <View style={styles.genderBreakdown}>
+          <Text style={styles.genderText}>
+            {gender.male.toLocaleString('ar-SA')} ذكور ({malePercentage}%)  •  {gender.female.toLocaleString('ar-SA')} إناث ({femalePercentage}%)
+          </Text>
         </View>
       </View>
 
-      {/* Gender Donut Chart */}
+      {/* Gender Donut Chart - Clean, no labels */}
       <View style={styles.chartContainer}>
         <RTLVictoryPie
           data={[
-            { x: `ذكور\n${malePercentage}%`, y: gender.male },
-            { x: `إناث\n${femalePercentage}%`, y: gender.female },
+            { x: '', y: gender.male },
+            { x: '', y: gender.female },
           ]}
-          colorScale={['#A13333', '#D58C4A']} // Najdi Crimson & Desert Ochre
-          innerRadius={80}
-          labelRadius={105}
-          width={350}
-          height={300}
-          padding={{ top: 20, bottom: 20, left: 50, right: 50 }}
+          colorScale={[palette.primary, palette.secondary]} // Najdi Crimson & Desert Ochre
+          innerRadius={90}
+          width={320}
+          height={280}
+          padding={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          labels={() => null} // No labels on chart
           style={{
             data: {
               stroke: palette.background,
-              strokeWidth: 3, // Cleaner separation
-            },
-            labels: {
-              fontSize: 16,
-              fontFamily: 'SFArabic-Semibold',
-              fill: palette.text,
-              padding: 10,
-              backgroundColor: `${palette.background}E6`, // Semi-transparent background
+              strokeWidth: 4,
             },
           }}
-          animate={{ duration: 800, easing: 'bounce' }}
+          animate={{ duration: 600, easing: 'cubicOut' }}
         />
       </View>
     </View>
@@ -705,52 +686,56 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  // Intro Surface
+  // Intro Surface (exact copy from Munasib Manager)
   introSurface: {
-    backgroundColor: palette.surface,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
     overflow: 'hidden',
+    position: 'relative',
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: {
-        elevation: 2,
-      },
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
     }),
   },
   patternRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     height: 32,
-    opacity: 0.4,
+    overflow: 'hidden',
+    borderTopLeftRadius: tokens.radii.lg,
+    borderTopRightRadius: tokens.radii.lg,
   },
   introPattern: {
-    width: 40,
+    width: 64,
     height: 32,
     tintColor: palette.primary,
+    opacity: 0.4,
   },
   introContent: {
-    padding: 20,
+    paddingTop: spacing.md + 24,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   introTitle: {
-    fontSize: 20,
-    fontFamily: 'SFArabic-Bold',
+    ...typography.title3,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginBottom: 8,
-    textAlign: 'center',
+    fontWeight: '700',
   },
   introSubtitle: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
     color: `${palette.text}99`,
-    textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: typography.subheadline.lineHeight,
   },
 
   // Section
@@ -760,87 +745,57 @@ const styles = StyleSheet.create({
     paddingTop: 8, // Added for spacing after divider
   },
   sectionHeader: {
-    fontSize: 22,
-    fontFamily: 'SFArabic-Bold',
+    ...typography.title2,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginBottom: 16,
+    fontWeight: '700',
+    marginBottom: spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: palette.secondary,
-    paddingBottom: 8,
+    paddingBottom: spacing.xs,
     alignSelf: 'flex-start',
     paddingHorizontal: 4,
   },
   subsectionTitle: {
-    fontSize: 17,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.headline,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginBottom: 12,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
     color: `${palette.text}99`,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
 
   // Hero Section
   heroNumberContainer: {
     alignItems: 'center',
-    marginBottom: 32, // Increased from 24px
-    backgroundColor: `${palette.container}50`,
-    paddingVertical: 20,
-    borderRadius: tokens.radii.lg,
+    marginBottom: spacing.xl,
   },
   heroNumber: {
-    fontSize: 48,
-    fontFamily: 'SFArabic-Bold',
+    fontSize: 56,
+    fontFamily: 'SF Arabic',
+    fontWeight: '700',
     color: palette.text,
   },
   heroLabel: {
-    fontSize: 17,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.headline,
+    fontFamily: 'SF Arabic',
     color: `${palette.text}99`,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
-  quickStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+  genderBreakdown: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: palette.container,
-    borderRadius: tokens.radii.md,
-    borderWidth: 1,
-    borderColor: `${palette.text}14`, // Subtle border
-    padding: 16,
-    marginHorizontal: 4,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.03,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
-      },
-    }),
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: 'SFArabic-Bold',
-    color: palette.text,
-  },
-  statLabel: {
-    fontSize: 13,
-    fontFamily: 'SFArabic-Regular',
-    color: `${palette.text}99`,
-    marginTop: 4,
-  },
-  statCount: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Semibold',
-    color: palette.text,
-    marginTop: 4,
+  genderText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}80`,
+    textAlign: 'center',
   },
   chartContainer: {
     alignItems: 'center',
@@ -876,28 +831,28 @@ const styles = StyleSheet.create({
   },
   insightText: {
     flex: 1,
-    fontSize: 15,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginLeft: 12,
-    lineHeight: 22,
+    marginLeft: spacing.sm,
   },
 
   // Names Section
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   nameRank: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
     color: `${palette.text}66`,
     width: 30,
   },
   nameName: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
     color: palette.text,
     flex: 1,
   },
@@ -908,12 +863,13 @@ const styles = StyleSheet.create({
   },
   nameBar: {
     height: 24,
-    borderRadius: 4,
-    marginRight: 8,
+    borderRadius: tokens.radii.sm / 2,
+    marginRight: spacing.xs,
   },
   nameCount: {
-    fontSize: 14,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
     color: palette.text,
   },
 
@@ -937,13 +893,13 @@ const styles = StyleSheet.create({
     }),
   },
   rank: {
-    fontSize: 18,
+    ...typography.headline,
     width: 40,
     textAlign: 'center',
   },
   familyName: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
     color: palette.text,
     flex: 1,
   },
@@ -954,12 +910,13 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: 28,
-    borderRadius: 6,
-    marginRight: 8,
+    borderRadius: tokens.radii.sm / 2,
+    marginRight: spacing.xs,
   },
   count: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
     color: palette.text,
   },
 
@@ -968,14 +925,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    padding: 12,
+    marginTop: spacing.md,
+    padding: spacing.sm,
   },
   expandText: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
     color: palette.primary,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
 
   // Section Divider
@@ -992,51 +950,52 @@ const styles = StyleSheet.create({
 
   // Loading/Error Cards
   loadingCard: {
-    backgroundColor: palette.surface,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    padding: 32,
+    padding: spacing.xxl,
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   errorCard: {
-    backgroundColor: palette.surface,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    padding: 32,
+    padding: spacing.xxl,
     alignItems: 'center',
   },
   errorText: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
     color: palette.text,
-    marginTop: 12,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   retryButton: {
     backgroundColor: palette.primary,
     borderRadius: tokens.radii.md,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    marginTop: 16,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
   },
   retryButtonDisabled: {
     opacity: 0.5,
   },
   retryButtonText: {
-    fontSize: 15,
-    fontFamily: 'SFArabic-Semibold',
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
     color: palette.background,
   },
   emptyChartContainer: {
-    backgroundColor: palette.surface,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: `${palette.text}10`,
-    padding: 48,
+    padding: spacing.xxl * 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
@@ -1050,17 +1009,17 @@ const styles = StyleSheet.create({
     }),
   },
   emptyChartText: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
     color: `${palette.text}66`,
-    marginTop: 16,
+    marginTop: spacing.md,
     textAlign: 'center',
   },
   emptyStateText: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Regular',
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
     color: `${palette.text}66`,
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: spacing.xl,
   },
 });
