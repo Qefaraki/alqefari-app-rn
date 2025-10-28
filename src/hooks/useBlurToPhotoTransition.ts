@@ -8,8 +8,12 @@ import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
  * 1. Skeleton → Blurhash fade-in (opacity 0 → 0.9, 200ms)
  * 2. Blurhash → Photo crossfade (blur 0.9 → 0, photo 0 → 1, 200ms)
  *
+ * Smart caching behavior:
+ * - Cached images (both assets available on mount): Show instantly, skip animations
+ * - Incremental loads (assets arrive separately): Smooth animated transitions
+ *
  * Animation duration: 200ms per stage (iOS standard for smooth feel)
- * Triggers: On EVERY image appearance (not conditional like morph animation)
+ * Race condition protection: Stage 2 waits for Stage 1 to complete
  *
  * This eliminates ALL jarring "pops" in the loading sequence,
  * matching iOS Photos app and modern image loading UX (Instagram/Pinterest).
@@ -25,6 +29,7 @@ export function useBlurToPhotoTransition(
   // Track if we've loaded each asset (to detect first appearance)
   const hasLoadedBlurhashRef = useRef(false);
   const hasLoadedPhotoRef = useRef(false);
+  const isInitialMount = useRef(true); // Detect cached/fast loads
 
   // Animated opacity values
   const blurhashOpacity = useSharedValue(0); // Start hidden
@@ -59,6 +64,29 @@ export function useBlurToPhotoTransition(
   }, [hasPhoto, hasBlurhash]);
 
   useEffect(() => {
+    // Detect cached/fast loads: both assets available on first render
+    // Skip all animations if images are already cached
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+
+      if (hasBlurhash && hasPhoto) {
+        // Both available immediately = cached or very fast load
+        // Skip animations, show final state instantly
+        hasLoadedBlurhashRef.current = true;
+        hasLoadedPhotoRef.current = true;
+        blurhashOpacity.value = 0;
+        photoOpacity.value = 1;
+
+        if (__DEV__ && false) {
+          console.log(
+            `[ImageTransition] ⚡ Cached load detected - skipping all animations`
+          );
+        }
+
+        return; // Exit early, no animations needed
+      }
+    }
+
     // Stage 1: Blurhash fade-in (0 → 0.9 opacity, 200ms)
     // Only trigger on FIRST blurhash appearance
     if (hasBlurhash && !hasLoadedBlurhashRef.current) {
@@ -86,12 +114,14 @@ export function useBlurToPhotoTransition(
     }
 
     // Stage 2: Photo crossfade (blurhash 0.9 → 0, photo 0 → 1, 200ms)
-    // Only trigger on FIRST photo appearance AND after blurhash has loaded
+    // Only trigger on FIRST photo appearance AND after blurhash animation completes
+    // Wait for Stage 1 to finish to prevent race condition
     if (
       hasPhoto &&
       hasBlurhash &&
       !hasLoadedPhotoRef.current &&
-      hasLoadedBlurhashRef.current
+      hasLoadedBlurhashRef.current &&
+      !isBlurhashFadingIn // Wait for Stage 1 animation to complete
     ) {
       hasLoadedPhotoRef.current = true;
       setIsPhotoFadingIn(true);
@@ -143,6 +173,12 @@ export function useBlurToPhotoTransition(
       setIsBlurhashFadingIn(false);
       setIsPhotoFadingIn(false);
     }
+
+    // Cleanup: Reset animation states on unmount to prevent stale state
+    return () => {
+      setIsBlurhashFadingIn(false);
+      setIsPhotoFadingIn(false);
+    };
   }, [hasPhoto, hasBlurhash]);
 
   return {
