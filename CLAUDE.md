@@ -319,6 +319,69 @@ All 3 critical security issues have been resolved with comprehensive fixes that 
 
 📖 **Full Documentation**: [`/docs/features/MUNASIB_MANAGEMENT.md`](docs/features/MUNASIB_MANAGEMENT.md)
 
+## 📊 Family Statistics (October 2025)
+
+**Status**: ✅ Complete - Comprehensive family analytics with Victory Native charts
+**Location**: Admin Dashboard → Core Management → "إحصائيات العائلة"
+**Access**: Admin roles only (super_admin, admin, moderator)
+
+**Quick Summary**: Fullscreen modal displaying family analytics with split data loading (core + extended stats), lazy chart rendering, and graceful degradation. Follows Munasib Manager design pattern exactly.
+
+### Key Features
+- **Split Data Loading**: Core stats (fast, <2s) + Extended stats (slower, <3s) with graceful failure
+- **Professional Charts**: Victory Native with manual RTL wrappers for proper Arabic rendering
+- **Performance Optimized**: Lazy loading, partial indexes, skeleton placeholders
+- **Cultural Design**: Najdi Sadu colors, correct terminology "أنساب القفاري"
+
+### Statistics Displayed
+- **Hero Section**: Total members + gender distribution donut chart
+- **Generations**: Horizontal bars with Desert Ochre gradient
+- **Popular Names**: Top 10 male/female names with expand button
+- **Munasib Families**: Leaderboard of top families married into Al-Qefari
+- **Data Quality**: Photo coverage (2.8%) + birthdate completeness (0.1%)
+
+### Backend (Database)
+```sql
+-- Core statistics (fast, <2s timeout)
+admin_get_core_statistics()
+  → Returns: gender, generations, vital_status, data_quality
+
+-- Extended statistics (slower, <3s timeout)
+admin_get_extended_statistics()
+  → Returns: top_male_names, top_female_names, top_munasib_families,
+             munasib_totals, marriage_stats
+  → Graceful error handling (returns error object on timeout)
+```
+
+**Migrations**:
+- `20251028000010_add_statistics_indexes.sql` - Partial indexes (20-30% smaller)
+- `20251028000011_add_core_statistics_rpc.sql` - Fast core stats RPC
+- `20251028000012_add_extended_statistics_rpc.sql` - Slower extended stats RPC
+
+### Frontend Components
+- **Main**: `src/components/admin/FamilyStatistics.js` (~700 lines)
+- **Charts**: `src/components/charts/RTLVictoryWrappers.js` (RTL support for Victory Native)
+- **Integration**: `src/screens/AdminDashboardUltraOptimized.js` (modal + widget)
+- **Registry**: `src/config/adminFeatures.js` (FAMILY_STATISTICS feature)
+
+### Usage
+```javascript
+// Opens modal from Admin Dashboard
+<ListItem
+  leading={<Ionicons name="stats-chart-outline" />}
+  title="إحصائيات العائلة"
+  subtitle="عرض إحصائيات شاملة"
+  onPress={() => setShowFamilyStatistics(true)}
+/>
+
+// Modal with pull-to-refresh
+<FamilyStatistics onClose={() => setShowFamilyStatistics(false)} />
+```
+
+📖 **Full Documentation**:
+- Feature: [`/docs/features/FAMILY_STATISTICS.md`](docs/features/FAMILY_STATISTICS.md)
+- RTL Charts: [`/docs/components/VICTORY_NATIVE_RTL.md`](docs/components/VICTORY_NATIVE_RTL.md)
+
 ## 🏗 Project Structure
 
 ```

@@ -63,6 +63,15 @@ export const ADMIN_FEATURES = {
     title: 'الأنساب',
     color: 'secondary',
   },
+  FAMILY_STATISTICS: {
+    id: 'family_statistics',
+    requiredRoles: ['super_admin', 'admin', 'moderator'],
+    section: 'core',
+    icon: 'stats-chart-outline',
+    title: 'إحصائيات العائلة',
+    subtitle: 'عرض إحصائيات شاملة',
+    color: 'secondary',
+  },
   SUGGESTION_REVIEW: {
     id: 'suggestion_review',
     requiredRoles: ['super_admin', 'admin', 'moderator'],

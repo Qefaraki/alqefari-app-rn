@@ -19,6 +19,7 @@ import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionMan
 import { featureFlags } from "../config/featureFlags";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
+import FamilyStatistics from "../components/admin/FamilyStatistics";
 import PermissionManager from "../components/admin/PermissionManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
@@ -65,6 +66,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
+  const [showFamilyStatistics, setShowFamilyStatistics] = useState(false);
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [showBroadcastManager, setShowBroadcastManager] = useState(false);
@@ -534,6 +536,31 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
               />
             )}
 
+            {canAccess(ADMIN_FEATURES.FAMILY_STATISTICS.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="stats-chart-outline"
+                    size={22}
+                    color={tokens.colors.najdi.secondary}
+                  />
+                }
+                title="إحصائيات العائلة"
+                subtitle="عرض إحصائيات شاملة"
+                trailing={
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowFamilyStatistics(true);
+                }}
+              />
+            )}
+
             {canAccess(ADMIN_FEATURES.SUGGESTION_REVIEW.id) && (
               <ListItem
                 leading={
@@ -811,6 +838,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
             }, 300);
           }
         }
+      )}
+
+      {renderIOSModal(
+        showFamilyStatistics,
+        () => {
+          setShowFamilyStatistics(false);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+        FamilyStatistics
       )}
 
       {renderIOSModal(

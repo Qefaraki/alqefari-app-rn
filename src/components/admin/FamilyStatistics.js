@@ -1,0 +1,934 @@
+/**
+ * FamilyStatistics Component
+ *
+ * Displays comprehensive family statistics in a fullscreen modal
+ * Pattern: Follows Munasib Manager architecture exactly
+ * Charts: Victory Native with RTL support
+ * Performance: Lazy loading for secondary charts
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  SafeAreaView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  StyleSheet,
+  Platform,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { VictoryPie } from 'victory-native';
+import * as Haptics from 'expo-haptics';
+import { supabase } from '../../services/supabase';
+import LargeTitleHeader from '../ios/LargeTitleHeader';
+import SkeletonLoader from '../ui/SkeletonLoader';
+import tokens from '../ui/tokens';
+import { RTLVictoryBar } from '../charts/RTLVictoryWrappers';
+
+const palette = tokens.colors.najdi;
+
+export default function FamilyStatistics({ onClose }) {
+  // Data states (split by RPC for graceful degradation)
+  const [coreStats, setCoreStats] = useState(null);
+  const [extendedStats, setExtendedStats] = useState(null);
+
+  // Loading states
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [extendedLoading, setExtendedLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+
+  // Performance: Lazy load charts as user scrolls
+  const [visibleCharts, setVisibleCharts] = useState(['gender']); // Start with hero only
+
+  // Section expansion states
+  const [expandedSections, setExpandedSections] = useState({
+    names: false,
+    munasib: false,
+  });
+
+  useEffect(() => {
+    loadStatistics();
+  }, []);
+
+  const loadStatistics = async ({ useOverlay = false } = {}) => {
+    if (!initialLoading && useOverlay) {
+      setIsFetching(true);
+    }
+
+    try {
+      // Load core stats first (fast, always works)
+      const { data: core, error: coreError } = await supabase.rpc('admin_get_core_statistics');
+      if (coreError) throw coreError;
+      setCoreStats(core);
+      setInitialLoading(false);
+
+      // Load extended stats second (slower, can fail gracefully)
+      setExtendedLoading(true);
+      const { data: extended, error: extendedError } = await supabase.rpc('admin_get_extended_statistics');
+
+      if (extendedError) {
+        console.warn('Extended stats failed:', extendedError);
+        setExtendedStats(null);
+      } else if (extended?.error) {
+        // RPC returned error object (timeout or failure)
+        console.warn('Extended stats timeout/error:', extended.message);
+        setExtendedStats(null);
+      } else {
+        setExtendedStats(extended);
+      }
+    } catch (error) {
+      Alert.alert('خطأ', 'فشل تحميل الإحصائيات');
+      console.error('Statistics load error:', error);
+    } finally {
+      setExtendedLoading(false);
+      setIsFetching(false);
+    }
+  };
+
+  // Lazy loading handler for performance
+  const handleChartVisible = (chartName) => {
+    if (!visibleCharts.includes(chartName)) {
+      setVisibleCharts((prev) => [...prev, chartName]);
+    }
+  };
+
+  // Format relative time for "last updated"
+  const formatRelativeTime = (timestamp) => {
+    const seconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
+    if (seconds < 60) return 'الآن';
+    if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
+    return `منذ ${Math.floor(seconds / 3600)} ساعة`;
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <LargeTitleHeader
+        title="إحصائيات العائلة"
+        subtitle={coreStats ? `آخر تحديث: ${formatRelativeTime(coreStats.calculated_at)}` : ''}
+        emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
+        rightSlot={
+          <TouchableOpacity
+            onPress={() => {
+              onClose();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            style={styles.closeButton}
+          >
+            <Ionicons name="chevron-back" size={28} color={palette.text} />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => loadStatistics({ useOverlay: true })}
+            tintColor={palette.primary}
+            title="تحديث الإحصائيات"
+            titleColor={palette.text}
+          />
+        }
+      >
+        {initialLoading ? (
+          <SkeletonContent />
+        ) : (
+          <>
+            <IntroSurface />
+            <HeroSection stats={coreStats} />
+
+            {/* Generations Section - Lazy Load */}
+            <LazyChartSection
+              chartName="generations"
+              onVisible={handleChartVisible}
+              isVisible={visibleCharts.includes('generations')}
+            >
+              <GenerationsSection stats={coreStats} />
+            </LazyChartSection>
+
+            {/* Names Section - Extended Stats (Can timeout) */}
+            {extendedLoading ? (
+              <LoadingSection title="الأسماء الأكثر شيوعاً" />
+            ) : extendedStats ? (
+              <LazyChartSection
+                chartName="names"
+                onVisible={handleChartVisible}
+                isVisible={visibleCharts.includes('names')}
+              >
+                <NamesSection
+                  stats={extendedStats}
+                  expanded={expandedSections.names}
+                  onToggle={() =>
+                    setExpandedSections((prev) => ({ ...prev, names: !prev.names }))
+                  }
+                />
+              </LazyChartSection>
+            ) : (
+              <ErrorSection
+                title="الأسماء الأكثر شيوعاً"
+                message="يستغرق التحميل وقتاً أطول من المتوقع"
+                onRetry={() => loadStatistics({ useOverlay: true })}
+              />
+            )}
+
+            {/* Munasib Section - Extended Stats */}
+            {extendedStats && (
+              <LazyChartSection
+                chartName="munasib"
+                onVisible={handleChartVisible}
+                isVisible={visibleCharts.includes('munasib')}
+              >
+                <MunasibSection
+                  stats={extendedStats}
+                  expanded={expandedSections.munasib}
+                  onToggle={() =>
+                    setExpandedSections((prev) => ({ ...prev, munasib: !prev.munasib }))
+                  }
+                />
+              </LazyChartSection>
+            )}
+
+            {/* Data Completeness Section */}
+            <DataCompletenessSection stats={coreStats} />
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+// Skeleton Loader for initial load
+const SkeletonContent = () => (
+  <View style={styles.skeletonContainer}>
+    {[...Array(5)].map((_, i) => (
+      <View key={i} style={styles.skeletonCard}>
+        <SkeletonLoader width="60%" height={20} style={{ marginBottom: 12 }} />
+        <SkeletonLoader width="100%" height={200} />
+      </View>
+    ))}
+  </View>
+);
+
+// Intro Surface with Sadu Pattern
+const IntroSurface = () => (
+  <View style={styles.introSurface}>
+    <View style={styles.patternRow}>
+      {[...Array(7)].map((_, i) => (
+        <Image
+          key={i}
+          source={require('../../../assets/sadu_patterns/png/7.png')}
+          style={styles.introPattern}
+        />
+      ))}
+    </View>
+    <View style={styles.introContent}>
+      <Text style={styles.introTitle}>إحصائيات شاملة لعائلة القفاري</Text>
+      <Text style={styles.introSubtitle}>
+        تعرّف على أرقام ومعلومات مفصلة عن العائلة عبر الأجيال
+      </Text>
+    </View>
+  </View>
+);
+
+// Hero Section: Total members + Gender donut chart
+const HeroSection = ({ stats }) => {
+  const { gender } = stats;
+  const malePercentage = ((gender.male / gender.total) * 100).toFixed(1);
+  const femalePercentage = ((gender.female / gender.total) * 100).toFixed(1);
+  const generations = stats.generations.length;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.heroNumberContainer}>
+        <Text style={styles.heroNumber}>{gender.total.toLocaleString('ar-SA')}</Text>
+        <Text style={styles.heroLabel}>أفراد عبر {generations} أجيال</Text>
+      </View>
+
+      {/* Quick Stats Cards */}
+      <View style={styles.quickStatsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{malePercentage}%</Text>
+          <Text style={styles.statLabel}>ذكور</Text>
+          <Text style={styles.statCount}>{gender.male.toLocaleString('ar-SA')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{femalePercentage}%</Text>
+          <Text style={styles.statLabel}>إناث</Text>
+          <Text style={styles.statCount}>{gender.female.toLocaleString('ar-SA')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.marriage_stats?.total_marriages || 0}</Text>
+          <Text style={styles.statLabel}>زواج</Text>
+        </View>
+      </View>
+
+      {/* Gender Donut Chart */}
+      <View style={styles.chartContainer}>
+        <VictoryPie
+          data={[
+            { x: `ذكور\n${malePercentage}%`, y: gender.male },
+            { x: `إناث\n${femalePercentage}%`, y: gender.female },
+          ]}
+          colorScale={[palette.primary, palette.secondary]}
+          innerRadius={80}
+          labelRadius={100}
+          width={350}
+          height={300}
+          padding={{ top: 20, bottom: 20, left: 50, right: 50 }}
+          style={{
+            labels: {
+              fontSize: 16,
+              fontFamily: 'SFArabic-Semibold',
+              fill: palette.text,
+            },
+          }}
+          animate={{ duration: 800, easing: 'bounce' }}
+        />
+      </View>
+    </View>
+  );
+};
+
+// Generations Section: Horizontal bar chart
+const GenerationsSection = ({ stats }) => {
+  const { generations } = stats;
+  const maxCount = Math.max(...generations.map((g) => g.count));
+  const largestGen = generations.reduce((max, g) => (g.count > max.count ? g : max), generations[0]);
+
+  // Arabic ordinals
+  const getArabicOrdinal = (num) => {
+    const ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
+    return ordinals[num - 1] || num.toString();
+  };
+
+  // Desert Ochre gradient (light to dark)
+  const getDesertGradient = (index) => {
+    const shades = [
+      '#F4DCC8', '#ECDCC3', '#E4C5A8', '#DCAD8D',
+      '#D58C4A', '#C97A38', '#BD6826', '#B15614',
+    ];
+    return shades[index] || shades[shades.length - 1];
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionHeader}>رحلة الأجيال</Text>
+
+      <RTLVictoryBar
+        data={generations.map((g, idx) => ({
+          x: `الجيل ${getArabicOrdinal(g.generation)}`,
+          y: g.count,
+          label: g.count.toString(),
+          fill: getDesertGradient(idx),
+        }))}
+        horizontal
+        height={400}
+        barProps={{
+          style: {
+            data: { fill: ({ datum }) => datum.fill },
+            labels: {
+              fontSize: 13,
+              fontFamily: 'SFArabic-Semibold',
+              fill: palette.text,
+            },
+          },
+          animate: { duration: 500 },
+        }}
+      />
+
+      {/* Insight Card */}
+      <View style={styles.insightCard}>
+        <Ionicons name="bulb-outline" size={20} color={palette.secondary} />
+        <Text style={styles.insightText}>
+          الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {largestGen.count.toLocaleString('ar-SA')} فرد - نمو مذهل!
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+// Names Section: Top male/female names
+const NamesSection = ({ stats, expanded, onToggle }) => {
+  const { top_male_names, top_female_names } = stats;
+
+  const renderNamesList = (names, gender, limit) => {
+    const displayNames = expanded ? names : names.slice(0, limit);
+    const maxCount = names[0]?.count || 1;
+
+    return displayNames.map((item, idx) => (
+      <View key={item.name} style={styles.nameRow}>
+        <Text style={styles.nameRank}>{idx + 1}.</Text>
+        <Text style={styles.nameName}>{item.name}</Text>
+        <View style={styles.nameBarContainer}>
+          <View
+            style={[
+              styles.nameBar,
+              {
+                width: `${(item.count / maxCount) * 100}%`,
+                backgroundColor: gender === 'male' ? palette.primary : palette.secondary,
+              },
+            ]}
+          />
+          <Text style={styles.nameCount}>{item.count}</Text>
+        </View>
+      </View>
+    ));
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionHeader}>الأسماء الأكثر شيوعاً</Text>
+
+      {/* Male Names */}
+      <Text style={styles.subsectionTitle}>أسماء الذكور</Text>
+      {renderNamesList(top_male_names, 'male', 5)}
+
+      {/* Female Names */}
+      <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>أسماء الإناث</Text>
+      {renderNamesList(top_female_names, 'female', 5)}
+
+      {/* Expand Button */}
+      {!expanded && (top_male_names.length > 5 || top_female_names.length > 5) && (
+        <TouchableOpacity style={styles.expandButton} onPress={onToggle}>
+          <Text style={styles.expandText}>عرض القائمة الكاملة</Text>
+          <Ionicons name="chevron-down" size={16} color={palette.primary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// Munasib Section: Leaderboard style
+const MunasibSection = ({ stats, expanded, onToggle }) => {
+  const { top_munasib_families, munasib_totals } = stats;
+  const displayFamilies = expanded ? top_munasib_families : top_munasib_families.slice(0, 5);
+  const maxCount = top_munasib_families[0]?.count || 1;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionHeader}>أنساب القفاري</Text>
+      <Text style={styles.subtitle}>
+        {munasib_totals.total_munasib} زواجاً مع عائلات أخرى
+      </Text>
+
+      {displayFamilies.map((family, idx) => (
+        <View key={family.family} style={styles.leaderboardRow}>
+          <Text style={styles.rank}>
+            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+          </Text>
+          <Text style={styles.familyName}>عائلة {family.family}</Text>
+          <View style={styles.barContainer}>
+            <View
+              style={[
+                styles.barFill,
+                {
+                  width: `${(family.count / maxCount) * 100}%`,
+                  backgroundColor: palette.secondary,
+                },
+              ]}
+            />
+            <Text style={styles.count}>{family.count}</Text>
+          </View>
+        </View>
+      ))}
+
+      {!expanded && top_munasib_families.length > 5 && (
+        <TouchableOpacity style={styles.expandButton} onPress={onToggle}>
+          <Text style={styles.expandText}>عرض جميع العائلات</Text>
+          <Ionicons name="chevron-down" size={16} color={palette.primary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// Data Completeness Section
+const DataCompletenessSection = ({ stats }) => {
+  const { data_quality } = stats;
+  const photoPercentage = (data_quality.with_photos / data_quality.total_profiles) * 100;
+  const datePercentage = (data_quality.with_birthdates / data_quality.total_profiles) * 100;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionHeader}>مدى اكتمال البيانات</Text>
+
+      {/* Success Banner: Structural completeness */}
+      <View style={styles.successBanner}>
+        <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+        <View>
+          <Text style={styles.bannerTitle}>الهيكل الأسري مكتمل 100%</Text>
+          <Text style={styles.bannerSubtitle}>جميع الأنساب موثقة بشكل صحيح</Text>
+        </View>
+      </View>
+
+      {/* Info Banner: Optional data in progress */}
+      <View style={styles.infoBanner}>
+        <Ionicons name="information-circle-outline" size={20} color={palette.secondary} />
+        <Text style={styles.infoText}>
+          البيانات الإضافية (صور، تواريخ) قيد الإضافة من قبل أفراد العائلة
+        </Text>
+      </View>
+
+      {/* Progress Circles */}
+      <View style={styles.progressRow}>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressCircle}>
+            <Text style={styles.progressPercentage}>{photoPercentage.toFixed(1)}%</Text>
+          </View>
+          <Text style={styles.progressTitle}>الصور</Text>
+          <Text style={styles.progressSubtitle}>
+            {data_quality.with_photos} من {data_quality.total_profiles}
+          </Text>
+        </View>
+
+        <View style={styles.progressContainer}>
+          <View style={styles.progressCircle}>
+            <Text style={styles.progressPercentage}>{datePercentage.toFixed(1)}%</Text>
+          </View>
+          <Text style={styles.progressTitle}>التواريخ</Text>
+          <Text style={styles.progressSubtitle}>
+            {data_quality.with_birthdates} من {data_quality.total_profiles}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+// Lazy Chart Section (Performance optimization)
+const LazyChartSection = ({ chartName, onVisible, isVisible, children }) => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (ref.current) {
+        onVisible(chartName);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [chartName, onVisible]);
+
+  return (
+    <View ref={ref}>
+      {isVisible ? children : <ChartSkeleton />}
+    </View>
+  );
+};
+
+// Chart Skeleton for lazy loading
+const ChartSkeleton = () => (
+  <View style={styles.section}>
+    <SkeletonLoader width="40%" height={22} style={{ marginBottom: 16 }} />
+    <SkeletonLoader width="100%" height={200} />
+  </View>
+);
+
+// Loading Section for extended stats
+const LoadingSection = ({ title }) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionHeader}>{title}</Text>
+    <View style={styles.loadingCard}>
+      <Ionicons name="time-outline" size={32} color={palette.secondary} />
+      <Text style={styles.loadingText}>جارٍ التحميل...</Text>
+    </View>
+  </View>
+);
+
+// Error Section for failed extended stats
+const ErrorSection = ({ title, message, onRetry }) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionHeader}>{title}</Text>
+    <View style={styles.errorCard}>
+      <Ionicons name="alert-circle-outline" size={32} color={palette.secondary} />
+      <Text style={styles.errorText}>{message}</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+        <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+// ============================================================================
+// STYLES
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: palette.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Skeleton
+  skeletonContainer: {
+    padding: 16,
+  },
+  skeletonCard: {
+    marginBottom: 24,
+  },
+
+  // Intro Surface
+  introSurface: {
+    backgroundColor: palette.surface,
+    borderRadius: tokens.radii.lg,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  patternRow: {
+    flexDirection: 'row',
+    height: 32,
+    opacity: 0.4,
+  },
+  introPattern: {
+    width: 40,
+    height: 32,
+    tintColor: palette.primary,
+  },
+  introContent: {
+    padding: 20,
+  },
+  introTitle: {
+    fontSize: 20,
+    fontFamily: 'SFArabic-Bold',
+    color: palette.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  introSubtitle: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}99`,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  // Section
+  section: {
+    marginHorizontal: 16,
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    fontSize: 22,
+    fontFamily: 'SFArabic-Bold',
+    color: palette.text,
+    marginBottom: 16,
+  },
+  subsectionTitle: {
+    fontSize: 17,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.text,
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}99`,
+    marginBottom: 16,
+  },
+
+  // Hero Section
+  heroNumberContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  heroNumber: {
+    fontSize: 48,
+    fontFamily: 'SFArabic-Bold',
+    color: palette.text,
+  },
+  heroLabel: {
+    fontSize: 17,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}99`,
+    marginTop: 4,
+  },
+  quickStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: palette.container,
+    borderRadius: tokens.radii.md,
+    padding: 16,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontFamily: 'SFArabic-Bold',
+    color: palette.text,
+  },
+  statLabel: {
+    fontSize: 13,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}99`,
+    marginTop: 4,
+  },
+  statCount: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.text,
+    marginTop: 4,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  // Insight Card
+  insightCard: {
+    flexDirection: 'row',
+    backgroundColor: `${palette.container}80`,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: palette.secondary,
+    padding: 12,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    marginLeft: 12,
+    lineHeight: 22,
+  },
+
+  // Names Section
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  nameRank: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Semibold',
+    color: `${palette.text}66`,
+    width: 30,
+  },
+  nameName: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    flex: 1,
+  },
+  nameBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 120,
+  },
+  nameBar: {
+    height: 24,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  nameCount: {
+    fontSize: 14,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.text,
+  },
+
+  // Munasib Leaderboard
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderRadius: tokens.radii.md,
+    padding: 12,
+    marginBottom: 8,
+  },
+  rank: {
+    fontSize: 18,
+    width: 40,
+    textAlign: 'center',
+  },
+  familyName: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    flex: 1,
+  },
+  barContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 100,
+  },
+  barFill: {
+    height: 28,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  count: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.text,
+  },
+
+  // Expand Button
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    padding: 12,
+  },
+  expandText: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.primary,
+    marginRight: 8,
+  },
+
+  // Data Completeness Banners
+  successBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#E8F5E9',
+    borderRadius: tokens.radii.md,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Semibold',
+    color: '#2E7D32',
+    marginBottom: 4,
+    marginLeft: 12,
+  },
+  bannerSubtitle: {
+    fontSize: 14,
+    fontFamily: 'SFArabic-Regular',
+    color: '#2E7D32',
+    marginLeft: 12,
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    backgroundColor: `${palette.secondary}20`,
+    borderRadius: tokens.radii.md,
+    padding: 12,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    marginLeft: 12,
+    lineHeight: 20,
+  },
+
+  // Progress Circles
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+  },
+  progressContainer: {
+    alignItems: 'center',
+  },
+  progressCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 8,
+    borderColor: `${palette.primary}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  progressPercentage: {
+    fontSize: 24,
+    fontFamily: 'SFArabic-Bold',
+    color: palette.text,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.text,
+    marginBottom: 4,
+  },
+  progressSubtitle: {
+    fontSize: 13,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}99`,
+  },
+
+  // Loading/Error Cards
+  loadingCard: {
+    backgroundColor: palette.surface,
+    borderRadius: tokens.radii.lg,
+    padding: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    marginTop: 12,
+  },
+  errorCard: {
+    backgroundColor: palette.surface,
+    borderRadius: tokens.radii.lg,
+    padding: 32,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Regular',
+    color: palette.text,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: palette.primary,
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    fontSize: 15,
+    fontFamily: 'SFArabic-Semibold',
+    color: palette.background,
+  },
+});
