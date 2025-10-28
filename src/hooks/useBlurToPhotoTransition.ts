@@ -8,12 +8,14 @@ import { useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
  * 1. Skeleton → Blurhash fade-in (opacity 0 → 0.9, 200ms)
  * 2. Blurhash → Photo crossfade (blur 0.9 → 0, photo 0 → 1, 200ms)
  *
- * Smart caching behavior:
- * - Cached images (both assets available on mount): Show instantly, skip animations
- * - Incremental loads (assets arrive separately): Smooth animated transitions
+ * Smart time-based cache detection:
+ * - Cached images (both load in < 50ms): Show instantly, skip animations
+ * - Incremental loads (assets arrive > 50ms apart): Smooth animated transitions
+ * - Handles async blurhash conversion correctly (5-10ms decode time)
  *
  * Animation duration: 200ms per stage (iOS standard for smooth feel)
  * Race condition protection: Stage 2 waits for Stage 1 to complete
+ * Complete cleanup: Resets all state on unmount to prevent visual corruption
  *
  * This eliminates ALL jarring "pops" in the loading sequence,
  * matching iOS Photos app and modern image loading UX (Instagram/Pinterest).
@@ -29,7 +31,13 @@ export function useBlurToPhotoTransition(
   // Track if we've loaded each asset (to detect first appearance)
   const hasLoadedBlurhashRef = useRef(false);
   const hasLoadedPhotoRef = useRef(false);
-  const isInitialMount = useRef(true); // Detect cached/fast loads
+
+  // Time-based cache detection: track mount time and asset load times
+  const mountTime = useRef(Date.now());
+  const assetTimestamps = useRef<{
+    blurhash: number | null;
+    photo: number | null;
+  }>({ blurhash: null, photo: null });
 
   // Animated opacity values
   const blurhashOpacity = useSharedValue(0); // Start hidden
@@ -64,14 +72,27 @@ export function useBlurToPhotoTransition(
   }, [hasPhoto, hasBlurhash]);
 
   useEffect(() => {
-    // Detect cached/fast loads: both assets available on first render
-    // Skip all animations if images are already cached
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    // Time-based cache detection: Track when each asset becomes available
+    if (hasBlurhash && assetTimestamps.current.blurhash === null) {
+      assetTimestamps.current.blurhash = Date.now();
+    }
+    if (hasPhoto && assetTimestamps.current.photo === null) {
+      assetTimestamps.current.photo = Date.now();
+    }
 
-      if (hasBlurhash && hasPhoto) {
-        // Both available immediately = cached or very fast load
-        // Skip animations, show final state instantly
+    // Detect fast cache hits: both assets loaded in < 50ms = cached
+    // Skip animations for cached images (instant display)
+    if (
+      assetTimestamps.current.blurhash !== null &&
+      assetTimestamps.current.photo !== null &&
+      !hasLoadedPhotoRef.current
+    ) {
+      const blurhashLoadTime =
+        assetTimestamps.current.blurhash - mountTime.current;
+      const photoLoadTime = assetTimestamps.current.photo - mountTime.current;
+
+      if (blurhashLoadTime < 50 && photoLoadTime < 50) {
+        // Both loaded fast = cached, skip all animations
         hasLoadedBlurhashRef.current = true;
         hasLoadedPhotoRef.current = true;
         blurhashOpacity.value = 0;
@@ -79,7 +100,7 @@ export function useBlurToPhotoTransition(
 
         if (__DEV__ && false) {
           console.log(
-            `[ImageTransition] ⚡ Cached load detected - skipping all animations`
+            `[ImageTransition] ⚡ Cached load detected (blur: ${blurhashLoadTime}ms, photo: ${photoLoadTime}ms) - skipping animations`
           );
         }
 
@@ -174,10 +195,22 @@ export function useBlurToPhotoTransition(
       setIsPhotoFadingIn(false);
     }
 
-    // Cleanup: Reset animation states on unmount to prevent stale state
+    // Cleanup: Reset all state on unmount to prevent stale state and visual corruption
     return () => {
+      // Reset animation state flags
       setIsBlurhashFadingIn(false);
       setIsPhotoFadingIn(false);
+
+      // Reset refs to prevent stale state on remount (CRITICAL for scroll behavior)
+      hasLoadedBlurhashRef.current = false;
+      hasLoadedPhotoRef.current = false;
+
+      // Reset SharedValues to prevent visual corruption
+      blurhashOpacity.value = 0;
+      photoOpacity.value = 0;
+
+      // Reset timestamps for fresh cache detection on remount
+      assetTimestamps.current = { blurhash: null, photo: null };
     };
   }, [hasPhoto, hasBlurhash]);
 
