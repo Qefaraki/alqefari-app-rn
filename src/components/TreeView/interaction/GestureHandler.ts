@@ -26,6 +26,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import { SharedValue, cancelAnimation, withDecay, withSpring, withTiming, runOnJS, useSharedValue } from 'react-native-reanimated';
 import {
   GESTURE_PHYSICS,
+  PAN_BOUNDS_MULTIPLIER,
   clampVelocity,
   shouldApplyMomentum,
   getZoomSpringConfig,
@@ -110,17 +111,17 @@ export function createPanGesture(
   } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
-  // Calculate loose bounds (2.5x larger than content) for rubber banding
-  // Prevents crashes while avoiding premature edge stops
-  const LOOSE_MULTIPLIER = 2.5;
+  // Calculate loose bounds for rubber banding (prevents premature edge stops)
+  // Uses PAN_BOUNDS_MULTIPLIER (2.5x) to expand tree bounds beyond actual content
+  // Required when rubberBandEffect: true in withDecay (Reanimated constraint)
   const boundsX = (
     config.viewport &&
     config.bounds &&
     Number.isFinite(config.bounds.minX) &&
     Number.isFinite(config.bounds.maxX)
   ) ? [
-    config.bounds.minX * LOOSE_MULTIPLIER,
-    config.bounds.maxX * LOOSE_MULTIPLIER
+    config.bounds.minX * PAN_BOUNDS_MULTIPLIER,
+    config.bounds.maxX * PAN_BOUNDS_MULTIPLIER
   ] : undefined;
 
   const boundsY = (
@@ -129,8 +130,8 @@ export function createPanGesture(
     Number.isFinite(config.bounds.minY) &&
     Number.isFinite(config.bounds.maxY)
   ) ? [
-    config.bounds.minY * LOOSE_MULTIPLIER,
-    config.bounds.maxY * LOOSE_MULTIPLIER
+    config.bounds.minY * PAN_BOUNDS_MULTIPLIER,
+    config.bounds.maxY * PAN_BOUNDS_MULTIPLIER
   ] : undefined;
 
   return Gesture.Pan()
@@ -232,19 +233,22 @@ export function createPanGesture(
 
       // Apply momentum with Reanimated 4 native API (loose bounds + rubber band)
       // Bounds are 2.5x larger than content to prevent premature stops
+      // CRITICAL: Only enable rubberBandEffect if clamp is valid (Reanimated requirement)
+      const hasValidBounds = boundsX !== undefined && boundsY !== undefined;
+
       translateX.value = withDecay({
         velocity: clampedVelocityX,
         deceleration: decelerationRate,
-        rubberBandEffect: true,
-        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+        rubberBandEffect: hasValidBounds, // Only enable if clamp is valid
+        rubberBandFactor: hasValidBounds ? 0.55 : undefined, // iOS native constant
         clamp: boundsX, // Loose bounds (2.5x) - provides edge reference without hard stop
       }, onAxisComplete);
 
       translateY.value = withDecay({
         velocity: clampedVelocityY,
         deceleration: decelerationRate,
-        rubberBandEffect: true,
-        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+        rubberBandEffect: hasValidBounds, // Only enable if clamp is valid
+        rubberBandFactor: hasValidBounds ? 0.55 : undefined, // iOS native constant
         clamp: boundsY, // Loose bounds (2.5x) - provides edge reference without hard stop
       }, onAxisComplete);
 

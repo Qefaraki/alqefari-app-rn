@@ -68,6 +68,15 @@ Centralized iOS-calibrated physics for native gesture feel. All constants benchm
 - Smooth bounce when zoom exceeds max/min limits
 - Cancels pan momentum during spring (prevents viewport drift)
 
+**Pan Boundary Rubber Banding:**
+- `PAN_BOUNDS_MULTIPLIER`: 2.5 (loose bounds for iOS-native edge behavior)
+  - Expands tree bounds 2.5x to prevent premature edge stops
+  - Required when `rubberBandEffect: true` in withDecay (Reanimated constraint)
+  - Formula: `looseBounds = treeBounds × 2.5`
+  - Allows panning past tree edges with smooth resistance
+  - Works with `rubberBandFactor: 0.55` (iOS native constant, not 0.6 default)
+  - Conditional enable: Only activates if valid bounds exist (prevents crashes)
+
 **Feature Flags:**
 - `USE_VELOCITY_CLAMPING`: true (enable velocity cap)
 - `USE_VELOCITY_THRESHOLD`: true (enable micro-movement filter)
