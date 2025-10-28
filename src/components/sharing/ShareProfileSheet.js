@@ -261,9 +261,9 @@ export default function ShareProfileSheet({
         {/* QR Code */}
         <View style={styles.qrSection}>
           <ProfileQRCode
-            hid={profile?.hid}
+            shareCode={profile?.share_code}
             profileId={profile?.id}
-            inviterHid={inviterProfile?.hid}
+            inviterShareCode={inviterProfile?.share_code}
             mode={mode}
             photoUrl={profile?.photo_url}
           />

@@ -454,7 +454,8 @@ const TreeViewCore = ({
   const highlightTimerRef = useRef(null);
   const lastNavigationRef = useRef(null); // Track navigation ID to prevent stale callbacks
 
-  // Highlighting API hook (used for path calculations)
+  // Highlighting API hook (used for USER_LINEAGE path calculations only)
+  // NOTE: autoHighlight (SEARCH type) calculates paths inline to support branch tree
   const { calculatePathData, clearCache } = useHighlighting();
 
   // Sync shared values to state for Skia re-renders
@@ -1537,7 +1538,22 @@ const TreeViewCore = ({
 
   useEffect(() => {
     if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
-      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
+      // Calculate path inline using store's nodesMap (works for both main tree and branch tree)
+      // This avoids coupling to useHighlighting() which is hardcoded to main tree store
+      const path = [];
+      let currentId = autoHighlight.nodeId;
+      const nodesMap = store.state.nodesMap;
+
+      while (currentId && nodesMap.has(currentId)) {
+        const node = nodesMap.get(currentId);
+        path.push(node);
+        currentId = node.father_id;
+      }
+
+      const pathData = path.length >= 2 ? {
+        pathNodeIds: path.map(n => n.id),
+        pathNodes: path
+      } : null;
 
       if (pathData && pathData.pathNodeIds.length > 0) {
         // Clear existing search highlight
@@ -1562,7 +1578,7 @@ const TreeViewCore = ({
         store.actions.removeHighlight(searchHighlightIdRef.current);
       }
     };
-  }, [autoHighlight, calculatePathData, nodes.length, store.actions]);
+  }, [autoHighlight, nodes.length, store.actions, store.state.nodesMap]);
 
   // Focus on specific node after d3 layout completes (branch tree modal)
   useEffect(() => {

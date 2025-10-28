@@ -26,12 +26,12 @@ export async function copyProfileLink(
   inviterProfile?: any
 ): Promise<boolean> {
   try {
-    if (!profile?.hid) {
-      console.error('[ProfileSharing] Cannot copy link - profile missing HID');
+    if (!profile?.share_code) {
+      console.error('[ProfileSharing] Cannot copy link - profile missing share_code');
       return false;
     }
 
-    const link = generateProfileLink(profile.hid, inviterProfile?.hid);
+    const link = generateProfileLink(profile.share_code, inviterProfile?.share_code);
 
     if (!link) {
       Alert.alert('خطأ', 'فشل إنشاء رابط المشاركة');
@@ -65,13 +65,13 @@ export async function shareProfile(
   inviterProfile?: any
 ): Promise<void> {
   try {
-    if (!profile?.hid) {
-      console.error('[ProfileSharing] Cannot share - profile missing HID');
+    if (!profile?.share_code) {
+      console.error('[ProfileSharing] Cannot share - profile missing share_code');
       Alert.alert('خطأ', 'لا يمكن مشاركة الملف الشخصي');
       return;
     }
 
-    const link = generateProfileLink(profile.hid, inviterProfile?.hid);
+    const link = generateProfileLink(profile.share_code, inviterProfile?.share_code);
 
     if (!link) {
       Alert.alert('خطأ', 'فشل إنشاء رابط المشاركة');

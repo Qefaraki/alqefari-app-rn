@@ -8,9 +8,9 @@
  *
  * Usage:
  * <ProfileQRCode
- *   hid="H12345"
+ *   shareCode="k7m3x"  // 5-char share code for link generation
  *   profileId="uuid-1234-5678"  // Required: For caching (unique for all profiles)
- *   inviterHid="H67890"
+ *   inviterShareCode="abc12"  // Optional: Inviter's share code
  *   mode="share"
  *   photoUrl="https://..."  // Optional: Profile photo for QR center
  * />
@@ -32,9 +32,9 @@ const COLORS = {
 };
 
 export default function ProfileQRCode({
-  hid,
+  shareCode, // 5-char share code for link generation
   profileId, // Profile ID for caching (required - unique for all profiles including Munasib)
-  inviterHid,
+  inviterShareCode, // Optional: Inviter's share code
   mode = 'share',
   size = 280, // Optimal scanning size - fits iPhone SE (375px) with proper margins
   photoUrl, // Optional: Profile photo URL for QR center logo
@@ -46,19 +46,19 @@ export default function ProfileQRCode({
   const [cacheChecked, setCacheChecked] = useState(false);
   const [usedCache, setUsedCache] = useState(false);
 
-  // Generate the profile link
-  const profileLink = generateProfileLink(hid, inviterHid);
+  // Generate the profile link using share code
+  const profileLink = generateProfileLink(shareCode, inviterShareCode);
 
   // Defer QR generation to next frame to prevent UI blocking
   useEffect(() => {
-    if (!hid) {
+    if (!shareCode) {
       setQrError(true);
       return;
     }
 
     // Validate that link was generated successfully
     if (!profileLink || profileLink.length === 0) {
-      console.error('[QRCode] Failed to generate profile link for HID:', hid);
+      console.error('[QRCode] Failed to generate profile link for share code:', shareCode);
       setQrError(true);
       return;
     }
@@ -68,7 +68,7 @@ export default function ProfileQRCode({
     }, 16); // 16ms = 1 frame at 60fps
 
     return () => clearTimeout(timer);
-  }, [hid, profileLink]);
+  }, [shareCode, profileLink]);
 
   // Cache check - runs first to avoid async logo loading
   useEffect(() => {

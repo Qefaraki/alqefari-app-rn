@@ -20,14 +20,26 @@ import profilesService from '../services/profiles';
 import { supabase } from '../services/supabase';
 import { fetchWithTimeout } from './fetchWithTimeout';
 
-// HID format: H or R followed by digits or dot-separated digits
-// Examples: H1, H12345, R1, R1.1, R1.1.1.1.1.1
-// H-format: Standard profiles (H1 to H999999)
-// R-format: Root node branch profiles (R1, R1.1, R1.1.1, etc.)
+// Share code format: 5 lowercase alphanumeric characters (a-z, 0-9)
+// Examples: k7m3x, 37491, abc12
+// Capacity: 36^5 = 60,466,176 combinations (supports 100k+ profiles)
+export const SHARE_CODE_REGEX = /^[a-z0-9]{5}$/;
+
+// Legacy HID format (kept for backwards compatibility)
 export const HID_REGEX = /^[HR][\d.]*\d$/;
 
 /**
- * Validates a Human ID (HID) format
+ * Validates a share code format
+ * @param shareCode - The share code string to validate
+ * @returns True if valid share code format
+ */
+export function validateShareCode(shareCode: string): boolean {
+  if (!shareCode || typeof shareCode !== 'string') return false;
+  return SHARE_CODE_REGEX.test(shareCode.trim().toLowerCase());
+}
+
+/**
+ * Validates a Human ID (HID) format (legacy, kept for backwards compatibility)
  * @param hid - The HID string to validate
  * @returns True if valid HID format
  */
@@ -37,23 +49,23 @@ export function validateHID(hid: string): boolean {
 }
 
 /**
- * Generates a shareable profile link
- * @param hid - Target profile's HID
- * @param inviterHid - Optional inviter's HID for tracking
- * @returns Full URL for sharing (https://alqefari.com/profile/HID)
+ * Generates a shareable profile link using secure share codes
+ * @param shareCode - Target profile's share code (5-char alphanumeric)
+ * @param inviterShareCode - Optional inviter's share code for tracking
+ * @returns Full URL for sharing (alqefari://profile/k7m3x)
  */
-export function generateProfileLink(hid: string, inviterHid?: string): string {
-  if (!validateHID(hid)) {
-    console.warn('[DeepLink] Invalid HID provided to generateProfileLink:', hid);
+export function generateProfileLink(shareCode: string, inviterShareCode?: string): string {
+  if (!validateShareCode(shareCode)) {
+    console.warn('[DeepLink] Invalid share code provided to generateProfileLink:', shareCode);
     return '';
   }
 
-  const normalizedHID = hid.trim().toUpperCase();
-  const baseUrl = `alqefari://profile/${normalizedHID}`;
+  const normalizedCode = shareCode.trim().toLowerCase();
+  const baseUrl = `alqefari://profile/${normalizedCode}`;
 
   // Add inviter tracking if provided
-  if (inviterHid && validateHID(inviterHid)) {
-    const normalizedInviter = inviterHid.trim().toUpperCase();
+  if (inviterShareCode && validateShareCode(inviterShareCode)) {
+    const normalizedInviter = inviterShareCode.trim().toLowerCase();
     return `${baseUrl}?inviter=${normalizedInviter}`;
   }
 
@@ -61,29 +73,29 @@ export function generateProfileLink(hid: string, inviterHid?: string): string {
 }
 
 /**
- * Parses HID from various URL formats
+ * Parses share code from various URL formats
  * @param url - URL to parse (universal link or custom scheme)
- * @returns Extracted HID or null if invalid
+ * @returns Extracted share code or null if invalid
  */
 export function parseProfileLink(url: string): string | null {
   if (!url) return null;
 
   try {
-    // Handle custom scheme: alqefari://profile/H12345
+    // Handle custom scheme: alqefari://profile/k7m3x
     if (url.startsWith('alqefari://')) {
       const match = url.match(/alqefari:\/\/profile\/([^?&]+)/);
       if (match && match[1]) {
-        const hid = match[1].toUpperCase();
-        return validateHID(hid) ? hid : null;
+        const shareCode = match[1].toLowerCase();
+        return validateShareCode(shareCode) ? shareCode : null;
       }
     }
 
-    // Handle universal link: https://alqefari.com/profile/H12345
+    // Handle universal link: https://alqefari.com/profile/k7m3x
     if (url.includes('alqefari.com/profile/')) {
       const match = url.match(/\/profile\/([^?&]+)/);
       if (match && match[1]) {
-        const hid = match[1].toUpperCase();
-        return validateHID(hid) ? hid : null;
+        const shareCode = match[1].toLowerCase();
+        return validateShareCode(shareCode) ? shareCode : null;
       }
     }
 
@@ -95,37 +107,45 @@ export function parseProfileLink(url: string): string | null {
 }
 
 /**
- * Extracts inviter HID from URL query parameters
+ * Extracts inviter share code from URL query parameters
  * @param url - URL to parse
- * @returns Inviter HID or null if not present
+ * @returns Inviter share code or null if not present
  */
-export function parseInviterHID(url: string): string | null {
+export function parseInviterShareCode(url: string): string | null {
   if (!url) return null;
 
   try {
     const match = url.match(/[?&]inviter=([^&]+)/);
     if (match && match[1]) {
-      const inviterHid = match[1].toUpperCase();
-      return validateHID(inviterHid) ? inviterHid : null;
+      const inviterShareCode = match[1].toLowerCase();
+      return validateShareCode(inviterShareCode) ? inviterShareCode : null;
     }
     return null;
   } catch (error) {
-    console.error('[DeepLink] Error parsing inviter HID:', error);
+    console.error('[DeepLink] Error parsing inviter share code:', error);
     return null;
   }
 }
 
 /**
+ * @deprecated Use parseInviterShareCode instead
+ * Legacy function kept for backwards compatibility
+ */
+export function parseInviterHID(url: string): string | null {
+  return parseInviterShareCode(url);
+}
+
+/**
  * Main deep link handler - finds profile, enriches if needed, opens ProfileViewer
- * @param hid - Target profile's HID
- * @param inviterHid - Optional inviter's HID
+ * @param shareCode - Target profile's share code (5-char alphanumeric)
+ * @param inviterShareCode - Optional inviter's share code
  */
 // Debounce variables
 let lastDeepLinkTime = 0;
 const DEBOUNCE_MS = 1000;
 
-export async function handleDeepLink(hid: string, inviterHid?: string): Promise<void> {
-  console.log('[DeepLink] Handling deep link:', { hid, inviterHid });
+export async function handleDeepLink(shareCode: string, inviterShareCode?: string): Promise<void> {
+  console.log('[DeepLink] Handling deep link:', { shareCode, inviterShareCode });
 
   // Debounce: Prevent multiple rapid scans
   const now = Date.now();
@@ -138,7 +158,7 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
   // Check if scanning own profile
   let treeStore = useTreeStore.getState(); // Changed to 'let' for reassignment later
   const currentUserProfile = treeStore.userProfile;
-  if (currentUserProfile?.hid === hid.toUpperCase()) {
+  if (currentUserProfile?.share_code === shareCode.toLowerCase()) {
     Alert.alert('ملفك الشخصي', 'هذا هو ملفك الشخصي');
     console.log('[DeepLink] User scanned their own profile');
     return;
@@ -166,39 +186,41 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
     return;
   }
 
-  // Validate HID
-  if (!validateHID(hid)) {
+  // Validate share code
+  if (!validateShareCode(shareCode)) {
     Alert.alert(
       'رابط غير صالح',
-      'معرف الملف الشخصي غير صحيح. يرجى التحقق من الرابط والمحاولة مرة أخرى.'
+      'رمز المشاركة غير صحيح. يرجى التحقق من الرابط والمحاولة مرة أخرى.'
     );
     return;
   }
 
-  const normalizedHID = hid.toUpperCase();
+  const normalizedShareCode = shareCode.toLowerCase();
 
   try {
-    // Find profile in tree store by HID
+    // Find profile in tree store by share_code
     // Reassign to get fresh state before search
     treeStore = useTreeStore.getState();
-    let profile = treeStore.treeData.find((node) => node.hid === normalizedHID);
+    let profile = treeStore.treeData.find((node) => node.share_code === normalizedShareCode);
 
     if (!profile) {
-      // Profile not in current tree view - search in database
-      const { data, error } = await profilesService.searchProfiles(normalizedHID, {
-        limit: 1,
-        exact: true,
-      });
+      // Profile not in current tree view - search in database by share_code
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('share_code', normalizedShareCode)
+        .single();
 
-      if (error || !data || data.length === 0) {
+      if (error || !data) {
         Alert.alert(
           'الملف غير موجود',
           'لم يتم العثور على الملف الشخصي. قد يكون الرابط قديمًا أو غير صحيح.'
         );
+        console.error('[DeepLink] Profile not found:', error);
         return;
       }
 
-      profile = data[0];
+      profile = data;
     }
 
     // Edge case 2: Deleted profile
@@ -281,19 +303,21 @@ export async function handleDeepLink(hid: string, inviterHid?: string): Promise<
     try {
       let sharerId = null;
 
-      // Find sharer profile ID if inviterHid provided
-      if (inviterHid) {
-        const sharerProfile = treeStore.treeData.find((node) => node.hid === inviterHid.toUpperCase());
+      // Find sharer profile ID if inviterShareCode provided
+      if (inviterShareCode) {
+        const normalizedInviterCode = inviterShareCode.toLowerCase();
+        const sharerProfile = treeStore.treeData.find((node) => node.share_code === normalizedInviterCode);
         if (sharerProfile) {
           sharerId = sharerProfile.id;
         } else {
           // Search database if not in tree
-          const { data: sharerData } = await profilesService.searchProfiles(inviterHid.toUpperCase(), {
-            limit: 1,
-            exact: true,
-          });
-          if (sharerData && sharerData.length > 0) {
-            sharerId = sharerData[0].id;
+          const { data: sharerData } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('share_code', normalizedInviterCode)
+            .single();
+          if (sharerData) {
+            sharerId = sharerData.id;
           }
         }
       }

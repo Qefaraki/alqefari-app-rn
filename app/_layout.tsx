@@ -13,7 +13,7 @@ import { useNetworkStore } from "../src/stores/networkStore";
 import NetworkStatusIndicator from "../src/components/NetworkStatusIndicator";
 import subscriptionManager from "../src/services/subscriptionManager";
 import * as Linking from 'expo-linking';
-import { handleDeepLink, parseProfileLink, parseInviterHID } from '../src/utils/deepLinking';
+import { handleDeepLink, parseProfileLink, parseInviterShareCode } from '../src/utils/deepLinking';
 import { featureFlags } from '../src/config/featureFlags';
 
 // Keep the splash screen visible while we determine auth state
@@ -95,12 +95,12 @@ function RootLayoutNav() {
         const url = await Linking.getInitialURL();
         if (url && isMounted) {
           console.log('[DeepLink] Initial URL (cold start):', url);
-          const hid = parseProfileLink(url);
-          const inviterHid = parseInviterHID(url);
-          if (hid) {
+          const shareCode = parseProfileLink(url);
+          const inviterShareCode = parseInviterShareCode(url);
+          if (shareCode) {
             // Wait for auth and tree to be ready
             if (!isLoading && user) {
-              setTimeout(() => handleDeepLink(hid, inviterHid), 1000);
+              setTimeout(() => handleDeepLink(shareCode, inviterShareCode), 1000);
             }
           }
         }
@@ -113,10 +113,10 @@ function RootLayoutNav() {
     const subscription = Linking.addEventListener('url', async (event) => {
       if (!isMounted) return;
       console.log('[DeepLink] URL event (warm start):', event.url);
-      const hid = parseProfileLink(event.url);
-      const inviterHid = parseInviterHID(event.url);
-      if (hid) {
-        await handleDeepLink(hid, inviterHid);
+      const shareCode = parseProfileLink(event.url);
+      const inviterShareCode = parseInviterShareCode(event.url);
+      if (shareCode) {
+        await handleDeepLink(shareCode, inviterShareCode);
       }
     });
 

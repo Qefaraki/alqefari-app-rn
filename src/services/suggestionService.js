@@ -28,6 +28,7 @@ const ALLOWED_SUGGESTION_FIELDS = new Set([
   'notes',
   'professional_title',
   'title_abbreviation',
+  'photo_url',  // NEW: Allow photo deletion/change suggestions
 ]);
 
 // Arabic error messages

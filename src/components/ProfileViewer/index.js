@@ -295,6 +295,7 @@ const EditModeContent = React.memo(({
               onCropPress={handleCropPress}
               person={person}
               userProfile={userProfile}
+              accessMode={accessMode}
             />
           )}
           {activeTab === 'details' && (
