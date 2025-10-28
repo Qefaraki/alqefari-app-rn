@@ -30,22 +30,41 @@ export function useStructureLoader() {
   const loadStructure = useCallback(async () => {
     try {
       // Phase 1a: Try AsyncStorage cache first
-      // Cache v4: No nodeWidth property (removed in migration 20251026000001)
+      // Cache format: { version, timestamp, profiles }
       try {
         const cachedJson = await AsyncStorage.getItem('tree-structure-v4');
         if (cachedJson) {
-          const cachedStructure = JSON.parse(cachedJson);
+          const cacheData = JSON.parse(cachedJson);
 
-          // Use cache if it has >= 50 profiles (indicates valid, populated structure)
-          if (cachedStructure && cachedStructure.length >= 50) {
-            setStructure(cachedStructure);
-            useTreeStore.getState().setTreeData(cachedStructure);
-            setIsLoading(false);
-            setError(null);
-            return;
+          // Backward compatibility: Handle old format (array) and new format (object)
+          const isOldFormat = Array.isArray(cacheData);
+          const cachedVersion = isOldFormat ? null : cacheData.version;
+          const cachedStructure = isOldFormat ? cacheData : cacheData.profiles;
+
+          // Version check: Invalidate cache if version mismatch
+          if (cachedVersion && cachedVersion !== TREE_STRUCTURE_SCHEMA_VERSION) {
+            console.log(`[Cache] Version mismatch (${cachedVersion} → ${TREE_STRUCTURE_SCHEMA_VERSION}), invalidating cache`);
+            await AsyncStorage.removeItem('tree-structure-v4');
+            // Continue to network fetch
+          } else if (!cachedVersion) {
+            // Old format detected (before versioning), clear it
+            console.log('[Cache] Old cache format detected (no version), invalidating cache');
+            await AsyncStorage.removeItem('tree-structure-v4');
+            // Continue to network fetch
+          } else {
+            // Version matches, use cache if valid
+            if (cachedStructure && cachedStructure.length >= 50) {
+              console.log(`[Cache] Using cached structure (v${cachedVersion}, ${cachedStructure.length} profiles)`);
+              setStructure(cachedStructure);
+              useTreeStore.getState().setTreeData(cachedStructure);
+              setIsLoading(false);
+              setError(null);
+              return;
+            }
           }
         }
       } catch (cacheError) {
+        console.warn('[Cache] Error reading cache, will fetch from network:', cacheError);
         // Continue to network fetch
       }
 
@@ -66,10 +85,17 @@ export function useStructureLoader() {
         return;
       }
 
-      // Save to AsyncStorage cache (v4: fresh data without nodeWidth)
+      // Save to AsyncStorage cache with version metadata
       try {
-        await AsyncStorage.setItem('tree-structure-v4', JSON.stringify(data));
+        const cacheData = {
+          version: TREE_STRUCTURE_SCHEMA_VERSION,
+          timestamp: Date.now(),
+          profiles: data
+        };
+        await AsyncStorage.setItem('tree-structure-v4', JSON.stringify(cacheData));
+        console.log(`[Cache] Saved structure cache (v${TREE_STRUCTURE_SCHEMA_VERSION}, ${data.length} profiles)`);
       } catch (cacheError) {
+        console.warn('[Cache] Failed to save cache, non-critical:', cacheError);
         // Cache failure is non-critical
       }
 

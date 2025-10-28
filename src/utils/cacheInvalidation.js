@@ -80,7 +80,7 @@ export async function hasCachedStructure() {
 /**
  * Get cache metadata
  *
- * Returns: { exists, sizeKB, profileCount?, error? }
+ * Returns: { exists, sizeKB, profileCount?, version?, timestamp?, error? }
  */
 export async function getCacheMetadata() {
   try {
@@ -91,9 +91,14 @@ export async function getCacheMetadata() {
 
     const data = JSON.parse(cached);
     const sizeKB = (cached.length / 1024).toFixed(2);
-    const profileCount = Array.isArray(data) ? data.length : 0;
 
-    return { exists: true, sizeKB, profileCount };
+    // Handle both old format (array) and new format (object with metadata)
+    const isOldFormat = Array.isArray(data);
+    const profileCount = isOldFormat ? data.length : (data.profiles?.length || 0);
+    const version = isOldFormat ? 'legacy' : data.version;
+    const timestamp = isOldFormat ? null : data.timestamp;
+
+    return { exists: true, sizeKB, profileCount, version, timestamp };
   } catch (error) {
     console.error('❌ [Cache] Failed to get metadata:', error);
     return { exists: false, error };
@@ -175,6 +180,11 @@ export async function debugCacheStatus() {
     console.log(`     - Exists: Yes`);
     console.log(`     - Size: ${asyncStatus.sizeKB} KB`);
     console.log(`     - Profiles: ${asyncStatus.profileCount}`);
+    console.log(`     - Version: ${asyncStatus.version || 'unknown'}`);
+    if (asyncStatus.timestamp) {
+      const age = Math.floor((Date.now() - asyncStatus.timestamp) / 1000 / 60);
+      console.log(`     - Cached: ${age} minutes ago`);
+    }
   } else {
     console.log(`  📦 AsyncStorage: No cache found`);
   }
