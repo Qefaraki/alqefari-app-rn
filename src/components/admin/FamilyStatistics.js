@@ -32,6 +32,8 @@ import tokens from '../ui/tokens';
 import { RTLVictoryPie, RTLVictoryBar } from '../charts/RTLVictoryWrappers';
 
 const palette = tokens.colors.najdi;
+const spacing = tokens.spacing;
+const typography = tokens.typography;
 
 export default function FamilyStatistics({ onClose }) {
   // Data states (split by RPC for graceful degradation)
