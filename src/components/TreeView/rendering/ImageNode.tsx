@@ -396,19 +396,21 @@ export function renderMorphTransition(
  * ImageNode component
  *
  * Renders square avatar photo with rounded corners (10px radius matching card).
- * Features LOD-aware loading, BlurHash placeholders, and morph transitions.
+ * Features LOD-aware loading, BlurHash placeholders, and smooth fade transitions.
  *
  * Features:
- * - 3-state progressive loading with smooth crossfade: blurhash → photo
- * - Smooth transitions (blurhash appears in <10ms, 200ms crossfade to photo)
+ * - 4-state progressive loading with all smooth fade transitions
+ * - Eliminates ALL jarring "pops" in loading sequence
  * - Morph animation: smooth crossfade + scale pop at extreme zoom (scale >= 3.0)
  * - Returns null if photos hidden or tier > 1
  *
- * Rendering Progression:
- * 1. BlurHash (5-10ms) - Blurred preview appears instantly while photo loads
- * 2. Crossfade (200ms) - Smooth blurhash → photo transition
- * 3. Photo loaded (2000ms+) - Full resolution image
- * 4. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
+ * Loading Sequence (Professional Instagram/Pinterest Style):
+ * 0. Skeleton (white) - Initial state before any assets load
+ * 1. Blurhash fade-in (200ms) - Smooth fade from skeleton (0 → 0.9 opacity)
+ * 2. Blurhash visible (0-2000ms) - Blurred preview while photo loads
+ * 3. Photo crossfade (200ms) - Smooth fade blurhash → photo (0.9 → 0, 0 → 1)
+ * 4. Photo visible - Full resolution image displayed
+ * 5. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
  *
  * @param props - ImageNode props
  * @returns Group with image/blurhash/morph animation or null
@@ -540,11 +542,12 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const { lowResOpacity, highResOpacity, highResScale, isAnimating } =
       usePhotoMorphTransition(isUpgrading, scale, true);
 
-    // Blurhash → photo crossfade animation - triggers on EVERY photo load
+    // Multi-stage fade transitions: skeleton → blurhash → photo
     const {
       blurhashOpacity: blurOpacity,
       photoOpacity: photoFadeInOpacity,
-      isTransitioning: isBlurCrossfading,
+      isBlurhashFadingIn,
+      isPhotoFadingIn,
     } = useBlurToPhotoTransition(!!image, !!blurhashImageRef.current);
     
     // Clear previous image after animation completes to prevent memory leaks
@@ -581,41 +584,65 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       return null;
     }
 
-    // State 1: Blurhash or Skeleton (no image yet)
-    // Show blurred placeholder while high-res image loads
-    // Blurhash appears in 5-10ms (imperceptible delay)
-    if (!image) {
-      // Show blurhash if available
-      if (blurhashImageRef.current) {
-        // Verbose log disabled to reduce console spam
-        // if (__DEV__) {
-        //   console.log(`[BlurHash] ${nodeId}: Rendering blurhash placeholder`);
-        // }
-        // Render blurhash with 90% opacity to distinguish from final photo
-        return renderLoadedImage(
-          blurhashImageRef.current,
-          x,
-          y,
-          width,
-          height,
-          cornerRadius,
-          normalizedCrop.crop_top,
-          normalizedCrop.crop_bottom,
-          normalizedCrop.crop_left,
-          normalizedCrop.crop_right,
-          0.9
-        );
-      }
-      // Fallback to skeleton if no blurhash
+    // ========================================
+    // 4-State Progressive Loading with Smooth Fade Transitions
+    // ========================================
+
+    // State 0: Skeleton only (no blurhash or photo yet)
+    if (!image && !blurhashImageRef.current) {
       return renderImageSkeleton(x, y, width, cornerRadius);
     }
 
-    // State 2: Blurhash → Photo Crossfade (smooth 200ms transition)
-    // Render both blurhash and photo with animated opacity during crossfade
-    if (image && blurhashImageRef.current && isBlurCrossfading) {
+    // State 1: Blurhash fading in (skeleton → blurhash, 200ms)
+    // Blurhash appears with animated fade from 0 → 0.9 opacity
+    if (!image && blurhashImageRef.current && isBlurhashFadingIn) {
       // Verbose log disabled to reduce console spam
       // if (__DEV__) {
-      //   console.log(`[BlurCrossfade] ${nodeId}: 🎬 Crossfading blur → photo`);
+      //   console.log(`[ImageTransition] ${nodeId}: Stage 1 - Blurhash fading in`);
+      // }
+      return renderLoadedImage(
+        blurhashImageRef.current,
+        x,
+        y,
+        width,
+        height,
+        cornerRadius,
+        normalizedCrop.crop_top,
+        normalizedCrop.crop_bottom,
+        normalizedCrop.crop_left,
+        normalizedCrop.crop_right,
+        blurOpacity // Animated: 0 → 0.9
+      );
+    }
+
+    // State 2: Blurhash visible (waiting for photo to load)
+    // Blurhash stays at 0.9 opacity while photo is loading
+    if (!image && blurhashImageRef.current) {
+      // Verbose log disabled to reduce console spam
+      // if (__DEV__) {
+      //   console.log(`[ImageTransition] ${nodeId}: Stage 2 - Blurhash visible`);
+      // }
+      return renderLoadedImage(
+        blurhashImageRef.current,
+        x,
+        y,
+        width,
+        height,
+        cornerRadius,
+        normalizedCrop.crop_top,
+        normalizedCrop.crop_bottom,
+        normalizedCrop.crop_left,
+        normalizedCrop.crop_right,
+        blurOpacity // Should be 0.9 (settled)
+      );
+    }
+
+    // State 3: Photo crossfade (blurhash → photo, 200ms)
+    // Both images rendered with animated opacity during crossfade
+    if (image && blurhashImageRef.current && isPhotoFadingIn) {
+      // Verbose log disabled to reduce console spam
+      // if (__DEV__) {
+      //   console.log(`[ImageTransition] ${nodeId}: Stage 3 - Photo crossfading`);
       // }
       return (
         <Group>
@@ -631,7 +658,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
             normalizedCrop.crop_bottom,
             normalizedCrop.crop_left,
             normalizedCrop.crop_right,
-            blurOpacity // Animated: 1 → 0
+            blurOpacity // Animated: 0.9 → 0
           )}
           {/* Photo fading in */}
           {renderLoadedImage(
