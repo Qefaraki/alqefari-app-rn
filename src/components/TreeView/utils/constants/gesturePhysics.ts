@@ -4,29 +4,45 @@
  * iOS-calibrated physics values for native gesture feel.
  * Benchmarked against iOS Photos app (October 2025).
  *
- * Phase 1: Core momentum physics (deceleration, velocity clamping, zoom spring)
- * Phase 2: Boundary rubber-banding (deferred)
+ * Spring-Based System (v2.0):
+ * - Pan momentum: withSpring (natural deceleration, no decay bugs)
+ * - Zoom momentum: withSpring (smooth bounce at limits)
+ * - Automatic boundary handling via spring physics
+ *
+ * Replaces decay-based system that had infinite update bugs with rubberBandEffect.
  *
  * @module gesturePhysics
  * @see /docs/architecture/GESTURE_SYSTEM.md
  */
 
 /**
- * Pan deceleration rate (iOS UIScrollView default)
+ * Pan spring animation damping
  *
- * Controls momentum coast-out time:
- * - 0.995 (old): 3-5 seconds coast
- * - 0.998 (new): 1-2 seconds coast (matches iOS native)
+ * Controls how quickly pan momentum settles after release.
+ * Lower values = more oscillation/bounce
+ * Higher values = faster settling, less bounce
  *
- * Formula: velocity(t) = v₀ × λ^t where λ is deceleration rate
- * Lower values = faster stopping
+ * iOS Photos app feel calibrated to 0.7 (same as zoom spring).
+ * This gives natural deceleration without artificial decay curves.
  *
  * @constant
  * @type {number}
- * @default 0.998
- * @see https://developer.apple.com/documentation/uikit/uiscrollview/1619438-decelerationrate
+ * @default 0.7
  */
-export const PAN_DECELERATION = 0.998;
+export const PAN_SPRING_DAMPING = 0.7;
+
+/**
+ * Pan spring animation stiffness
+ *
+ * Controls how "tight" or responsive the spring feels.
+ * Higher values = faster, snappier response
+ * Lower values = slower, more elastic feel
+ *
+ * @constant
+ * @type {number}
+ * @default 100
+ */
+export const PAN_SPRING_STIFFNESS = 100;
 
 /**
  * Maximum pan velocity (points per second)
@@ -168,8 +184,9 @@ export const GESTURE_FEATURE_FLAGS = {
  * Consolidates all physics constants for easy import.
  */
 export const GESTURE_PHYSICS = {
-  // Pan momentum
-  PAN_DECELERATION,
+  // Pan momentum (spring-based)
+  PAN_SPRING_DAMPING,
+  PAN_SPRING_STIFFNESS,
   PAN_VELOCITY_MAX,
   PAN_VELOCITY_THRESHOLD,
 
@@ -238,6 +255,28 @@ export function shouldApplyMomentum(
 }
 
 /**
+ * Get spring configuration for pan animations
+ *
+ * Returns the iOS-calibrated spring config for smooth momentum after pan release.
+ * Matches the natural deceleration feel of iOS Photos/Safari pan gestures.
+ *
+ * @returns Spring configuration object for react-native-reanimated withSpring
+ *
+ * @example
+ * translateX.value = withSpring(target, getPanSpringConfig())
+ *
+ * @worklet
+ */
+export function getPanSpringConfig() {
+  'worklet';
+  return {
+    damping: PAN_SPRING_DAMPING,
+    stiffness: PAN_SPRING_STIFFNESS,
+    velocity: 0, // Will be set dynamically from gesture velocity
+  };
+}
+
+/**
  * Get spring configuration for zoom animations
  *
  * Returns the iOS-calibrated spring config for smooth zoom bounce.
@@ -266,6 +305,6 @@ export function getZoomSpringConfig() {
  * @deprecated Use GESTURE_PHYSICS instead
  */
 export const LEGACY_GESTURE_CONSTANTS = {
-  GESTURE_DECELERATION: PAN_DECELERATION,
+  GESTURE_DECELERATION: 0.998, // Old decay-based system (removed)
   GESTURE_ACTIVE_OFFSET: 5, // Not used in new implementation
 } as const;

@@ -1238,9 +1238,10 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           // Cousin wives (hid !== null) are Al-Qefari family members on the tree
                           // Munasib (hid === null) are spouses from outside families (not on tree)
                           const isCousinWife = spouse.hid !== null;
-                          const existsInTree = nodesMap.has(spouse.id);
+                          const currentProfileInTree = nodesMap.has(person.id);
+                          const spouseInTree = nodesMap.has(spouse.id);
 
-                          if (isCousinWife && existsInTree) {
+                          if (isCousinWife && currentProfileInTree && spouseInTree) {
                             // Cousin wife on tree: Set highlighting + open profile in sheet
                             Haptics.selectionAsync();
 
@@ -1322,9 +1323,10 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           // Cousin wives (hid !== null) are Al-Qefari family members on the tree
                           // Munasib (hid === null) are spouses from outside families (not on tree)
                           const isCousinWife = spouse.hid !== null;
-                          const existsInTree = nodesMap.has(spouse.id);
+                          const currentProfileInTree = nodesMap.has(person.id);
+                          const spouseInTree = nodesMap.has(spouse.id);
 
-                          if (isCousinWife && existsInTree) {
+                          if (isCousinWife && currentProfileInTree && spouseInTree) {
                             // Cousin wife on tree: Set highlighting + open profile in sheet
                             Haptics.selectionAsync();
 
