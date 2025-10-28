@@ -20,6 +20,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { generateProfileLink } from '../../utils/deepLinking';
 import { isValidSupabasePhotoUrl } from '../../utils/urlValidation';
+import { getCachedLogo, cacheLogo, getEmblemAssetReference } from '../../utils/qrLogoCache';
 import tokens from '../ui/tokens';
 
 const COLORS = {
@@ -40,6 +41,8 @@ export default function ProfileQRCode({
   const [qrError, setQrError] = useState(false);
   const [logoSource, setLogoSource] = useState(null);
   const [logoLoading, setLogoLoading] = useState(true);
+  const [cacheChecked, setCacheChecked] = useState(false);
+  const [usedCache, setUsedCache] = useState(false);
 
   // Generate the profile link
   const profileLink = generateProfileLink(hid, inviterHid);
@@ -65,8 +68,45 @@ export default function ProfileQRCode({
     return () => clearTimeout(timer);
   }, [hid, profileLink]);
 
+  // Cache check - runs first to avoid async logo loading
+  useEffect(() => {
+    async function checkCache() {
+      try {
+        const cached = await getCachedLogo(hid, photoUrl);
+        if (cached) {
+          console.log('[QRCode] Logo cache hit');
+
+          // Restore logoSource from cache
+          if (cached.logoSource === getEmblemAssetReference()) {
+            const emblemLogo = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
+            setLogoSource(emblemLogo);
+          } else if (cached.logoSource?.uri) {
+            setLogoSource(cached.logoSource);
+          } else {
+            setLogoSource(null);
+          }
+
+          setLogoLoading(false);
+          setQrReady(true);
+          setUsedCache(true);
+        }
+      } catch (error) {
+        console.warn('[QRCode] Cache check failed:', error.message);
+        // Proceed to normal loading
+      } finally {
+        setCacheChecked(true); // Always allow logo loading to proceed
+      }
+    }
+
+    checkCache();
+  }, [hid, photoUrl]);
+
   // Smart logo fallback: profile photo → emblem → none
   useEffect(() => {
+    // Guards to prevent race condition
+    if (usedCache) return; // Skip if cache was used
+    if (!cacheChecked) return; // Wait for cache check
+
     async function loadLogo() {
       setLogoLoading(true);
       setLogoSource(null);
@@ -82,6 +122,10 @@ export default function ProfileQRCode({
             setLogoSource({ uri: photoUrl });
             console.log('[QRCode] ✅ Using profile photo as logo');
             setLogoLoading(false);
+
+            // Cache the result (fire-and-forget, don't await)
+            cacheLogo(hid, photoUrl, { uri: photoUrl }, 'photo')
+              .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
             return;
           } catch (error) {
             console.log('[QRCode] ❌ Profile photo failed, trying emblem:', error);
@@ -97,16 +141,24 @@ export default function ProfileQRCode({
         const emblemLogo = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
         setLogoSource(emblemLogo);
         console.log('[QRCode] ✅ Using emblem as logo');
+
+        // Cache emblem as string reference (fire-and-forget)
+        cacheLogo(hid, photoUrl, getEmblemAssetReference(), 'emblem')
+          .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
       } catch (error) {
         console.error('[QRCode] ❌ Emblem not found, using plain QR:', error);
         setLogoSource(null);
+
+        // Cache 'none' decision (fire-and-forget)
+        cacheLogo(hid, photoUrl, null, 'none')
+          .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
       }
 
       setLogoLoading(false);
     }
 
     loadLogo();
-  }, [photoUrl]);
+  }, [photoUrl, cacheChecked, usedCache]);
 
   // Error state
   if (qrError || !hid) {

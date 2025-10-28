@@ -16,6 +16,7 @@ import { supabase } from "../services/supabase";
 import storageService from "../services/storage";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import RobustImage from "./ui/RobustImage";
+import { clearLogoCache } from "../utils/qrLogoCache";
 
 const { width: screenWidth } = Dimensions.get("window");
 const PHOTO_SIZE = (screenWidth - 48) / 3; // 3 photos per row with spacing
@@ -30,6 +31,7 @@ const PhotoGallery = ({
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [profileHid, setProfileHid] = useState(null);
   const { isAdminMode: contextAdminMode } = useAdminMode();
 
   // Use forceAdminMode if provided, otherwise use context
@@ -74,6 +76,26 @@ const PhotoGallery = ({
       loadPhotos();
     }
   }, [profileId, loadPhotos]);
+
+  // Fetch HID for QR cache invalidation
+  useEffect(() => {
+    async function fetchHid() {
+      if (!profileId) return;
+
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('hid')
+          .eq('id', profileId)
+          .single();
+        setProfileHid(data?.hid || null);
+      } catch (error) {
+        console.warn('[PhotoGallery] Failed to fetch HID:', error.message);
+      }
+    }
+
+    fetchHid();
+  }, [profileId]);
 
   // Handle photo selection
   const handleSelectPhoto = async () => {
@@ -145,6 +167,11 @@ const PhotoGallery = ({
       // Reload photos
       await loadPhotos();
 
+      // Invalidate QR logo cache (fire-and-forget)
+      if (profileHid) {
+        clearLogoCache(profileHid).catch(console.warn);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("نجح", "تم إضافة الصورة بنجاح");
     } catch (error) {
@@ -182,6 +209,12 @@ const PhotoGallery = ({
       }
 
       await loadPhotos();
+
+      // Invalidate QR logo cache (fire-and-forget)
+      if (profileHid) {
+        clearLogoCache(profileHid).catch(console.warn);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error("Error setting primary photo:", error);
@@ -232,6 +265,12 @@ const PhotoGallery = ({
             }
 
             await loadPhotos();
+
+            // Invalidate QR logo cache (fire-and-forget)
+            if (profileHid) {
+              clearLogoCache(profileHid).catch(console.warn);
+            }
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch (error) {
             console.error("Error deleting photo:", error);

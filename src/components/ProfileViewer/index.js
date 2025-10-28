@@ -69,6 +69,7 @@ import { supabase, handleSupabaseError } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import { invalidateStructureCache } from '../../utils/cacheInvalidation';
+import { clearLogoCache } from '../../utils/qrLogoCache';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import { useAuth } from '../../contexts/AuthContextSimple';
 import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
@@ -1015,6 +1016,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
       // Invalidate structure cache (force reload on next app start)
       await invalidateStructureCache();
+
+      // Invalidate QR logo cache (fire-and-forget)
+      if (person.hid) {
+        clearLogoCache(person.hid).catch(console.warn);
+      }
 
       // Success feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
