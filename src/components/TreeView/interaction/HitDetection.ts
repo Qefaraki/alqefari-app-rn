@@ -24,6 +24,11 @@ export interface TreeNode {
   father_id?: string | null;
   photo_url?: string | null;
   name?: string;
+  // Photo cropping (normalized 0.0-1.0)
+  crop_top?: number | null;
+  crop_bottom?: number | null;
+  crop_left?: number | null;
+  crop_right?: number | null;
   [key: string]: any;
 }
 
