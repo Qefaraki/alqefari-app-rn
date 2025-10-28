@@ -16,13 +16,14 @@
  *
  * Trigger Behavior:
  * - Fires BEFORE UPDATE on profiles table
- * - Checks if photo_url changed from non-NULL to NULL
- * - If yes: Set crop_top/bottom/left/right to 0.0
+ * - Detects photo_url change (deletion OR replacement)
+ * - Auto-resets crop to 0.0 (prevents wrong aspect ratio on new photos)
  * - Version field NOT incremented (cleanup, not user edit)
  *
  * Edge Cases:
- * - Photo change (old → new): Crop preserved (user might want same crop)
- * - Photo restore (NULL → new): Crop remains 0.0 (user can recrop)
+ * - Photo deletion (photo → NULL): Reset crop to 0.0
+ * - Photo replacement (old → new): Reset crop to 0.0 (new aspect ratio)
+ * - Photo restore (NULL → new): Reset crop to 0.0 (user can crop new photo)
  * - Concurrent updates: Trigger runs in same transaction (atomic)
  *
  * Created: 2025-10-28
@@ -37,26 +38,34 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Check if photo_url changed from non-NULL to NULL (deletion)
+  -- Check if photo_url changed (deletion OR replacement)
   IF OLD.photo_url IS NOT NULL AND NEW.photo_url IS NULL THEN
-    -- Reset all crop values to 0.0 (no crop)
+    -- Case 1: Photo deleted (photo_url → NULL)
     NEW.crop_top := 0.0;
     NEW.crop_bottom := 0.0;
     NEW.crop_left := 0.0;
     NEW.crop_right := 0.0;
 
-    -- Version NOT incremented - this is automatic cleanup, not user edit
-    -- Admin can see crop was reset in audit log (if photo deletion was audited)
-
     RAISE NOTICE 'Crop values reset for profile % due to photo deletion', NEW.id;
+  ELSIF OLD.photo_url IS DISTINCT FROM NEW.photo_url AND NEW.photo_url IS NOT NULL THEN
+    -- Case 2: Photo replaced (different URL, new photo might have different aspect ratio)
+    NEW.crop_top := 0.0;
+    NEW.crop_bottom := 0.0;
+    NEW.crop_left := 0.0;
+    NEW.crop_right := 0.0;
+
+    RAISE NOTICE 'Crop values reset for profile % due to photo replacement', NEW.id;
   END IF;
+
+  -- Version NOT incremented - this is automatic cleanup, not user edit
+  -- Admin can see crop was reset in audit log (if photo change was audited)
 
   RETURN NEW;
 END;
 $$;
 
 COMMENT ON FUNCTION reset_crop_on_photo_deletion() IS
-'Auto-resets crop values to 0.0 when profile photo is deleted (photo_url becomes NULL)';
+'Auto-resets crop values to 0.0 when profile photo is deleted OR replaced (prevents wrong aspect ratio crop)';
 
 -- ============================================================================
 -- Create Trigger
@@ -68,13 +77,13 @@ CREATE TRIGGER trigger_reset_crop_on_photo_deletion
   BEFORE UPDATE ON profiles
   FOR EACH ROW
   WHEN (
-    -- Only fire if photo_url changed from non-NULL to NULL
-    OLD.photo_url IS NOT NULL AND NEW.photo_url IS NULL
+    -- Fire if photo_url changed (deletion OR replacement)
+    OLD.photo_url IS DISTINCT FROM NEW.photo_url
   )
   EXECUTE FUNCTION reset_crop_on_photo_deletion();
 
 COMMENT ON TRIGGER trigger_reset_crop_on_photo_deletion ON profiles IS
-'Auto-cleanup trigger: Resets crop values when photo is deleted';
+'Auto-cleanup trigger: Resets crop values when photo is deleted or replaced';
 
 -- ============================================================================
 -- Verification Query
@@ -122,22 +131,23 @@ Manual Test Steps:
 -- ============================================================================
 
 /*
-Edge Case 1: Photo Change (old → new) - Crop Preserved
+Edge Case 1: Photo Replacement (old → new) - Crop Reset
 ---------------------------------------------------------
 UPDATE profiles
 SET photo_url = 'https://example.com/new-photo.jpg'
 WHERE hid = 88888;
 
-Expected: Crop values remain unchanged (user might want same crop on new photo)
+Expected: Crop values reset to 0.0 (new photo likely has different aspect ratio)
+Reason: Prevents wrong crop coordinates on new photo (e.g., 16:9 crop on 1:1 photo)
 
 
-Edge Case 2: Photo Restore (NULL → new) - Crop Remains 0.0
+Edge Case 2: Photo Restore (NULL → new) - Crop Reset
 -----------------------------------------------------------
 UPDATE profiles
 SET photo_url = 'https://example.com/restored-photo.jpg'
 WHERE hid = 88888;
 
-Expected: Crop values remain 0.0 (user can manually recrop if needed)
+Expected: Crop values reset to 0.0 (user can crop restored photo if needed)
 
 
 Edge Case 3: Concurrent Updates - Atomic Cleanup
@@ -164,14 +174,15 @@ Expected: Trigger does NOT fire (photo_url unchanged, only deleted_at changed)
 -- ============================================================================
 
 /*
-When admin deletes photo via admin_update_profile():
-1. admin_update_profile() sets photo_url = NULL
-2. Trigger fires BEFORE UPDATE
+When admin changes photo via admin_update_profile():
+1. admin_update_profile() updates photo_url (NULL or new URL)
+2. Trigger fires BEFORE UPDATE (detects photo_url change)
 3. Trigger resets crop values to 0.0
 4. admin_update_profile() completes
-5. Audit log records photo deletion (but not crop reset - cleanup is transparent)
+5. Audit log records photo change (but not crop reset - cleanup is transparent)
 
-Result: Single RPC call handles both photo deletion and crop cleanup
+Result: Single RPC call handles both photo changes and crop cleanup
+Note: Works for deletion (→ NULL) AND replacement (→ new URL)
 */
 
 -- ============================================================================
@@ -180,14 +191,15 @@ Result: Single RPC call handles both photo deletion and crop cleanup
 
 /*
 Trigger Performance:
-- Fires only on photo deletion (photo_url: non-NULL → NULL)
+- Fires on ANY photo_url change (deletion OR replacement)
 - Simple column updates (4 assignments)
 - No additional queries or complex logic
-- Impact: <0.1ms per photo deletion
+- Impact: <0.1ms per photo change
 
 Estimated Frequency:
 - Photo deletions: ~5-10 per day in production
-- Total overhead: ~0.5ms per day (negligible)
+- Photo replacements: ~2-3 per day in production
+- Total overhead: ~1ms per day (negligible)
 
 Conclusion: No measurable performance impact
 */
