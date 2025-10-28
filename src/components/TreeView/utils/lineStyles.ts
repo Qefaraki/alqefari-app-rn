@@ -216,8 +216,8 @@ export function generateD3CurvePaths(
   // Create D3 link generator (horizontal curves)
   // Note: App uses D3 coordinate convention (x=horizontal, y=vertical)
   const linkGen = linkHorizontal()
-    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical]
-    .target((d: any) => [d.target.y, d.target.x]);
+    .source((d: any) => [d.source.x, d.source.y])  // [horizontal, vertical]
+    .target((d: any) => [d.target.x, d.target.y]);
 
   // Calculate parent bottom edge
   const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;

@@ -197,7 +197,7 @@ export function calculateTreeLayout(familyData, showPhotos = true, nodeStyle = '
 
       // Use explicit nodeStyle check (fixes avgWidth=50 edge case)
       const spacingRatio = (safeNodeStyle === 'circular' || safeNodeStyle === 'bezier')
-        ? 0.01   // 1% for circular (nearly touching)
+        ? 0.10   // 10% for circular (moderate spacing)
         : 0.15;  // 15% for rectangular (normal spacing)
 
       // Apply spacing
