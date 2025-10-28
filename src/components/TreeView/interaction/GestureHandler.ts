@@ -111,28 +111,11 @@ export function createPanGesture(
   } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
-  // Calculate loose bounds for rubber banding (prevents premature edge stops)
-  // Uses PAN_BOUNDS_MULTIPLIER (2.5x) to expand tree bounds beyond actual content
-  // Required when rubberBandEffect: true in withDecay (Reanimated constraint)
-  const boundsX = (
-    config.viewport &&
-    config.bounds &&
-    Number.isFinite(config.bounds.minX) &&
-    Number.isFinite(config.bounds.maxX)
-  ) ? [
-    config.bounds.minX * PAN_BOUNDS_MULTIPLIER,
-    config.bounds.maxX * PAN_BOUNDS_MULTIPLIER
-  ] : undefined;
-
-  const boundsY = (
-    config.viewport &&
-    config.bounds &&
-    Number.isFinite(config.bounds.minY) &&
-    Number.isFinite(config.bounds.maxY)
-  ) ? [
-    config.bounds.minY * PAN_BOUNDS_MULTIPLIER,
-    config.bounds.maxY * PAN_BOUNDS_MULTIPLIER
-  ] : undefined;
+  // No bounds - allow free panning at any zoom level
+  // Fixed bounds (2.5x multiplier) caused rubber banding at high zoom levels
+  // iOS Photos pattern: Can pan freely past edges without restrictions
+  const boundsX = undefined;
+  const boundsY = undefined;
 
   return Gesture.Pan()
     .onStart(() => {
