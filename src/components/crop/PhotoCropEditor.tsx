@@ -38,7 +38,7 @@ import Animated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { tokens } from '../ui/tokens';
+import tokens from '../ui/tokens';
 import { isValidCrop, clampCropCoordinates } from '../../utils/cropUtils';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -175,7 +175,7 @@ export function PhotoCropEditor({
       width: (1 - cropLeft.value - cropRight.value) * containerWidth,
       height: (1 - cropTop.value - cropBottom.value) * containerHeight,
       borderWidth: 2,
-      borderColor: tokens.najdiCrimson,
+      borderColor: tokens.colors.najdi.primary,
       backgroundColor: 'transparent',
     };
   });
@@ -205,7 +205,7 @@ export function PhotoCropEditor({
 
         <View style={styles.imageContainer}>
           {!imageLoaded ? (
-            <ActivityIndicator size="large" color={tokens.najdiCrimson} />
+            <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
           ) : (
             <>
               <Image
@@ -254,7 +254,7 @@ export function PhotoCropEditor({
             disabled={saving || !imageLoaded}
           >
             {saving ? (
-              <ActivityIndicator size="small" color={tokens.alJassWhite} />
+              <ActivityIndicator size="small" color={tokens.colors.najdi.background} />
             ) : (
               <Text style={[styles.buttonText, styles.saveButtonText]}>حفظ</Text>
             )}
@@ -272,7 +272,7 @@ export function PhotoCropEditor({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.alJassWhite,
+    backgroundColor: tokens.colors.najdi.background,
   },
   header: {
     flexDirection: 'row',
@@ -281,12 +281,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: tokens.camelHairBeige,
+    borderBottomColor: tokens.colors.najdi.container,
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: tokens.saduNight,
+    color: tokens.colors.najdi.text,
   },
   headerButton: {
     paddingHorizontal: 12,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 17,
-    color: tokens.najdiCrimson,
+    color: tokens.colors.najdi.primary,
   },
   imageContainer: {
     flex: 1,
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   cropBorder: {
     ...StyleSheet.absoluteFillObject,
     borderWidth: 2,
-    borderColor: tokens.najdiCrimson,
+    borderColor: tokens.colors.najdi.primary,
   },
   gridLine: {
     position: 'absolute',
@@ -324,9 +324,9 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: tokens.najdiCrimson,
+    backgroundColor: tokens.colors.najdi.primary,
     borderWidth: 2,
-    borderColor: tokens.alJassWhite,
+    borderColor: tokens.colors.najdi.background,
   },
   handleTopLeft: {
     top: -10,
@@ -357,27 +357,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resetButton: {
-    backgroundColor: tokens.camelHairBeige,
+    backgroundColor: tokens.colors.najdi.container,
   },
   saveButton: {
-    backgroundColor: tokens.najdiCrimson,
+    backgroundColor: tokens.colors.najdi.primary,
   },
   saveButtonDisabled: {
-    backgroundColor: tokens.camelHairBeige,
+    backgroundColor: tokens.colors.najdi.container,
     opacity: 0.6,
   },
   buttonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: tokens.saduNight,
+    color: tokens.colors.najdi.text,
   },
   saveButtonText: {
-    color: tokens.alJassWhite,
+    color: tokens.colors.najdi.background,
   },
   instructions: {
     textAlign: 'center',
     fontSize: 14,
-    color: tokens.saduNight,
+    color: tokens.colors.najdi.text,
     opacity: 0.7,
     paddingHorizontal: 16,
     paddingBottom: 16,
