@@ -19,6 +19,7 @@ import {
   type LayoutNode,
   type Connection,
 } from '../spatial/PathCalculator';
+import { D3_SIMPLE_CIRCLE } from '../rendering/nodeConstants';
 
 export const LINE_STYLES = {
   STRAIGHT: 'straight',
@@ -208,10 +209,13 @@ export function generateD3CurvePaths(
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
-  // Node height constants
-  const NODE_HEIGHT_WITH_PHOTO = 75;
-  const NODE_HEIGHT_TEXT_ONLY = 35;
-  const ROOT_NODE_HEIGHT = 100;
+  // D3 curves ALWAYS use simple circle dimensions (uniform sizing for perfect connections)
+  // Ignore nodeStyle parameter - curves mode uses D3SimpleCircleRenderer
+  const isRoot = !parent.father_id;
+
+  // Calculate parent bottom edge (use circle radius)
+  const parentRadius = isRoot ? D3_SIMPLE_CIRCLE.ROOT_DIAMETER / 2 : D3_SIMPLE_CIRCLE.DIAMETER / 2;
+  const parentBottomY = parent.y + parentRadius;
 
   // Create D3 link generator (horizontal curves)
   // Note: App uses D3 coordinate convention (x=horizontal, y=vertical)
@@ -219,17 +223,13 @@ export function generateD3CurvePaths(
     .source((d: any) => [d.source.x, d.source.y])  // [horizontal, vertical]
     .target((d: any) => [d.target.x, d.target.y]);
 
-  // Calculate parent bottom edge
-  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
-  const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-  const parentBottomY = parent.y + parentHeight / 2;
-
   // Generate curve from parent to each child
   children.forEach(child => {
     const isRootChild = !child.father_id;
-    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-    const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-    const childTopY = child.y - childHeight / 2;
+
+    // Calculate child top edge (use circle radius)
+    const childRadius = isRootChild ? D3_SIMPLE_CIRCLE.ROOT_DIAMETER / 2 : D3_SIMPLE_CIRCLE.DIAMETER / 2;
+    const childTopY = child.y - childRadius;
 
     // Generate D3 SVG path data
     const svgPathData = linkGen({

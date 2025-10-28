@@ -77,6 +77,7 @@ import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './rendering/Shad
 import { TextPillRenderer } from './rendering/TextPillRenderer';
 import { T3ChipRenderer } from './rendering/T3ChipRenderer';
 import { NodeRenderer } from './rendering/NodeRenderer';
+import { D3SimpleCircleRenderer } from './rendering/D3SimpleCircleRenderer';
 
 // Phase 1 Day 4a - Import node constants from centralized source
 import {
@@ -2354,17 +2355,34 @@ const TreeViewCore = ({
     [selectedPersonId, getCachedParagraph],
   );
 
+  // Choose renderer based on layoutMode (Phase 3B: D3 Simple Circles)
+  // - D3 modes (curves, cluster, radial) use simple circles for perfect curve connections
+  // - Straight mode uses existing NodeRenderer (UNCHANGED - photo cards with text labels)
+  const NodeComponent = useMemo(() => {
+    if (layoutMode === 'curves' || layoutMode === 'cluster' || layoutMode === 'radial') {
+      // D3 modes: Simple circles with photos (no text labels)
+      return D3SimpleCircleRenderer;
+    } else {
+      // Straight mode: Existing rectangular/circular cards (UNCHANGED)
+      return NodeRenderer;
+    }
+  }, [layoutMode]);
+
   // Render node component (T1 - full detail) - Phase 2: Using extracted NodeRenderer
   const renderNode = useCallback(
     (node) => {
       // Use per-node photo toggle if available (from LOD), otherwise use global setting
       const shouldShowPhotos = node._showPhoto !== undefined ? node._showPhoto : showPhotos;
 
+      // Determine if node is selected
+      const isSelected = selectedPersonId === node.id;
+
       return (
-        <NodeRenderer
+        <NodeComponent
           node={node}
           showPhotos={shouldShowPhotos}
           selectedPersonId={selectedPersonId}
+          isSelected={isSelected}
           heroNodes={indices?.heroNodes}
           searchTiers={indices?.searchTiers}
           getCachedParagraph={getCachedParagraph}
@@ -2376,7 +2394,7 @@ const TreeViewCore = ({
         />
       );
     },
-    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph, nodeStyleValue],
+    [NodeComponent, selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImageWithMorph, nodeStyleValue],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
