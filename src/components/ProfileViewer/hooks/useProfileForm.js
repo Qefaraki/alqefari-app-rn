@@ -7,10 +7,18 @@ export const useProfileForm = (person) => {
   const [touched, setTouched] = useState(() => new Set());
 
   useEffect(() => {
+    // ⚠️ CRITICAL: Skip reset if draft has unsaved changes
+    // This prevents store updates (from photo deletion, etc.) from erasing
+    // user's uncommitted edits during an active edit session
+    if (touched.size > 0) {
+      console.warn('[useProfileForm] Skipping reset - draft has unsaved changes');
+      return;
+    }
+
     setOriginal(deepClone(person));
     setDraft(deepClone(person));
     setTouched(new Set());
-  }, [person?.id, person?.version]); // ✅ React to version changes
+  }, [person?.id, person?.version, touched.size]); // ✅ React to version changes + guard on touched
 
   const updateField = useCallback((key, value) => {
     setDraft((prev) => {

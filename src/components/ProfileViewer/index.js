@@ -1155,19 +1155,23 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         personId: person.id
       });
 
-      // Validation: Ensure version field exists (fail if missing, don't silently fallback)
-      if (!person.version || typeof person.version !== 'number') {
+      // Validation: Ensure version field exists in form.draft (most up-to-date)
+      const currentVersion = form.draft.version ?? person.version;
+      if (!currentVersion || typeof currentVersion !== 'number') {
         console.error('[ProfileViewer] ⚠️ Missing or invalid version field:', {
-          hasVersion: 'version' in person,
-          versionValue: person.version,
-          versionType: typeof person.version
+          hasVersionInDraft: 'version' in form.draft,
+          hasVersionInPerson: 'version' in person,
+          draftVersion: form.draft.version,
+          personVersion: person.version,
+          draftVersionType: typeof form.draft.version,
+          personVersionType: typeof person.version
         });
         throw new Error('البيانات قديمة أو غير كاملة. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
       }
 
       const { error, data } = await profilesService.updateProfile(
         person.id,
-        person.version,
+        currentVersion,
         payload,
       );
 

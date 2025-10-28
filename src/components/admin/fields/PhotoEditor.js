@@ -434,9 +434,10 @@ const PhotoEditor = ({
                   return;
                 }
 
-                // Success - update UI via callback
+                // Success - update UI via callback with RPC's returned version
+                const newVersion = data?.[0]?.new_version;
                 if (onPhotoDeleted) {
-                  onPhotoDeleted();
+                  onPhotoDeleted(newVersion);  // Pass RPC's returned version
                 }
 
                 // Update local preview
@@ -453,6 +454,12 @@ const PhotoEditor = ({
                   null,  // new_value is null (indicates deletion)
                   'حذف الصورة'  // reason
                 );
+
+                // Update local state even for suggestions
+                // Version doesn't change, but photo_url should clear to prevent dirty state confusion
+                if (onPhotoDeleted) {
+                  onPhotoDeleted(null);  // Pass null (version doesn't change for suggestions)
+                }
 
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 Alert.alert("تم الإرسال", "سيتم مراجعة الاقتراح من قبل مسؤول العائلة.");

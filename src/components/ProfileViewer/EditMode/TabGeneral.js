@@ -132,13 +132,13 @@ const TabGeneral = ({ form, updateField, onCropPress, person, userProfile, acces
               version={draft?.version ?? 1}
               userId={userProfile?.id}
               accessMode={accessMode}
-              onPhotoDeleted={() => {
+              onPhotoDeleted={(newVersion) => {
                 updateField('photo_url', null);
                 updateField('crop_top', 0);
                 updateField('crop_bottom', 0);
                 updateField('crop_left', 0);
                 updateField('crop_right', 0);
-                updateField('version', (draft?.version ?? 1) + 1);
+                updateField('version', newVersion ?? ((draft?.version ?? 1) + 1));
               }}
             />
           </ProfileFormCard>
