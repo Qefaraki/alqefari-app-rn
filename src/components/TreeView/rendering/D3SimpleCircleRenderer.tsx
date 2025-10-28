@@ -24,7 +24,7 @@
  */
 
 import React from 'react';
-import { Circle, Group, ClipPath } from '@shopify/react-native-skia';
+import { Circle, Group } from '@shopify/react-native-skia';
 
 // Import components
 import { ImageNode } from './ImageNode';
@@ -95,46 +95,41 @@ export function D3SimpleCircleRenderer({
       )}
 
       {hasPhoto ? (
+        /* Photo node with circular clipping */
         <>
-          {/* Photo circle with clipping */}
-          <Group>
-            {/* Circular clip path for photo */}
-            <ClipPath
-              path={`M ${centerX} ${centerY} m -${photoSize / 2}, 0 a ${photoSize / 2},${photoSize / 2} 0 1,0 ${photoSize},0 a ${photoSize / 2},${photoSize / 2} 0 1,0 -${photoSize},0`}
-            >
-              <ImageNode
-                imageUrl={node.photo_url || ''}
-                x={centerX - photoSize / 2}
-                y={centerY - photoSize / 2}
-                width={photoSize}
-                height={photoSize}
-                bucket={imageBucket}
-                priority="high"
-                useBatchedSkiaImage={useBatchedSkiaImage}
-              />
-            </ClipPath>
-          </Group>
-
-          {/* Background circle (visible behind photo) */}
+          {/* Background circle */}
           <Circle
             cx={centerX}
             cy={centerY}
             r={radius}
             color={COLORS.NODE_BACKGROUND}
-            style="fill"
+          />
+
+          {/* Photo with circular clipping via cornerRadius */}
+          <ImageNode
+            x={centerX - photoSize / 2}
+            y={centerY - photoSize / 2}
+            width={photoSize}
+            height={photoSize}
+            url={node.photo_url!}
+            blurhash={node.blurhash}
+            cornerRadius={photoSize / 2}
+            tier={node._tier || 1}
+            scale={node._scale || 1}
+            nodeId={node.id}
+            selectBucket={node._selectBucket}
+            showPhotos={showPhotos}
+            useBatchedSkiaImage={useBatchedSkiaImage}
           />
         </>
       ) : (
-        <>
-          {/* Empty circle (no photo) - solid Camel Hair Beige fill */}
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={radius}
-            color={D3_SIMPLE_CIRCLE.EMPTY_FILL}
-            style="fill"
-          />
-        </>
+        /* Empty circle (no photo) - solid Camel Hair Beige fill */
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={radius}
+          color={D3_SIMPLE_CIRCLE.EMPTY_FILL}
+        />
       )}
     </Group>
   );
