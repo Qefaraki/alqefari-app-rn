@@ -30,6 +30,7 @@ import {
   shouldApplyMomentum,
   getZoomSpringConfig,
 } from '../utils/constants/gesturePhysics';
+import { createDecayModifier } from '../../../utils/cameraConstraints';
 
 // Zoom limits
 const MIN_ZOOM = 0.1;
@@ -57,6 +58,8 @@ export interface GestureCallbacks {
   onGestureEnd?: () => void;
   onTap?: (x: number, y: number) => void;
   onLongPress?: (x: number, y: number) => void;
+  onMomentumStart?: () => void;
+  onMomentumEnd?: () => void;
 }
 
 export interface GestureConfig {
@@ -67,6 +70,15 @@ export interface GestureConfig {
   tapMaxDistance?: number;
   longPressMinDuration?: number;
   longPressMaxDistance?: number;
+  viewport?: { width: number; height: number };
+  bounds?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    width: number;
+    height: number;
+  };
 }
 
 /**
@@ -84,8 +96,19 @@ export function createPanGesture(
   callbacks: GestureCallbacks = {},
   config: GestureConfig = {}
 ) {
-  const { translateX, translateY, savedTranslateX, savedTranslateY, isPinching } = sharedValues;
+  const { translateX, translateY, savedTranslateX, savedTranslateY, isPinching, scale } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
+
+  // Create decay modifier for viewport bounds (prevents edge bouncing)
+  const modifier = config.viewport && config.bounds
+    ? createDecayModifier(
+        config.viewport,
+        config.bounds,
+        scale.value,
+        config.minZoom ?? MIN_ZOOM,
+        config.maxZoom ?? MAX_ZOOM
+      )
+    : undefined;
 
   return Gesture.Pan()
     .onStart(() => {
@@ -145,15 +168,24 @@ export function createPanGesture(
 
       console.log(`[MOMENTUM] Pan ended - applying momentum (vX: ${clampedVelocityX.toFixed(0)}, vY: ${clampedVelocityY.toFixed(0)})`);
 
-      // Apply momentum with iOS-native physics
+      // Signal momentum start (for prefetch deferral)
+      if (callbacks.onMomentumStart) {
+        runOnJS(callbacks.onMomentumStart)();
+      }
+
+      // Apply momentum with iOS-native physics + bounds modifier
       translateX.value = withDecay(
         {
           velocity: clampedVelocityX,
           deceleration: decelerationRate,
+          modifier: modifier ? (value) => modifier(value, 'x') : undefined,
         },
         () => {
           // Sync React state when decay animation completes
           console.log('[MOMENTUM] Momentum coast completed');
+          if (callbacks.onMomentumEnd) {
+            runOnJS(callbacks.onMomentumEnd)();
+          }
           if (callbacks.onGestureEnd) {
             runOnJS(callbacks.onGestureEnd)();
           }
@@ -162,6 +194,7 @@ export function createPanGesture(
       translateY.value = withDecay({
         velocity: clampedVelocityY,
         deceleration: decelerationRate,
+        modifier: modifier ? (value) => modifier(value, 'y') : undefined,
       });
 
       // Save current values (before decay animation modifies them)

@@ -1432,11 +1432,7 @@ export default function SettingsPageModern({ user }) {
 
       {/* Share Profile Sheet - Component handles visibility internally */}
       {showShareSheet && (
-        <>
-          <View style={{ position: 'absolute', top: 0, left: 0 }}>
-            <Text style={{ color: 'red', fontSize: 20 }}>DEBUG: ShareSheet should render here</Text>
-          </View>
-          <ShareProfileSheet
+        <ShareProfileSheet
             visible={showShareSheet}
             onClose={() => {
               console.log('[DEBUG QR] Closing ShareProfileSheet');
@@ -1446,7 +1442,6 @@ export default function SettingsPageModern({ user }) {
             mode="share"
             inviterProfile={null}
           />
-        </>
       )}
     </SafeAreaView>
   );

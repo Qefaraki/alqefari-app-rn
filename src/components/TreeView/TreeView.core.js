@@ -422,6 +422,7 @@ const TreeViewCore = ({
     y: 0,
   });
   const [showMarriageModal, setShowMarriageModal] = useState(false);
+  const [isMomentumActive, setIsMomentumActive] = useState(false);
   const [marriagePerson, setMarriagePerson] = useState(null);
 
   // Quick Add Overlay state
@@ -1257,9 +1258,11 @@ const TreeViewCore = ({
   );
 
   // Prefetch neighbor nodes for better performance (debounced)
+  // Skip during momentum to prevent mid-animation calculations
   useEffect(() => {
+    if (isMomentumActive) return;
     debouncedPrefetch(visibleNodes, indices);
-  }, [visibleNodes, indices, debouncedPrefetch]);
+  }, [visibleNodes, indices, isMomentumActive, debouncedPrefetch]);
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
@@ -2061,6 +2064,14 @@ const TreeViewCore = ({
         }
       }
     },
+
+    // Phase 3 - Momentum callbacks (for prefetch deferral)
+    onMomentumStart: () => {
+      setIsMomentumActive(true);
+    },
+    onMomentumEnd: () => {
+      setIsMomentumActive(false);
+    },
   }), [
     syncTransform,
     handleChipTap,
@@ -2076,6 +2087,8 @@ const TreeViewCore = ({
     decelerationRate: GESTURE_PHYSICS.PAN_DECELERATION, // iOS-native momentum (0.998)
     minZoom: minZoom,
     maxZoom: maxZoom,
+    viewport: dimensions,  // For bounds modifier (prevents edge bouncing)
+    bounds: treeBounds,    // For bounds modifier (prevents edge bouncing)
   };
 
   // Phase 2 Integration - Individual gestures now created inside createComposedGesture

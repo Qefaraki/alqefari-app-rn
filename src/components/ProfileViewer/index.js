@@ -395,6 +395,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [refreshing, setRefreshing] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showCropEditor, setShowCropEditor] = useState(false);
+  const [savingCrop, setSavingCrop] = useState(false);
   const [retryDisabled, setRetryDisabled] = useState(false);
 
   // Initialize hooks early so they're available for useCallbacks
@@ -945,6 +946,89 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setShowCropEditor(true);
   }, []);
 
+  // Save crop handler with RPC integration
+  const handleSaveCrop = useCallback(async (crop) => {
+    if (!person?.id || !userProfile?.id) {
+      Alert.alert('خطأ', 'معلومات المستخدم غير متوفرة');
+      return;
+    }
+
+    // Network check before RPC call
+    const canProceed = await checkBeforeAction();
+    if (!canProceed) return;
+
+    setSavingCrop(true);
+    try {
+      // Call admin_update_profile_crop RPC
+      const { data, error } = await supabase.rpc('admin_update_profile_crop', {
+        p_profile_id: person.id,
+        p_crop_top: crop.crop_top,
+        p_crop_bottom: crop.crop_bottom,
+        p_crop_left: crop.crop_left,
+        p_crop_right: crop.crop_right,
+        p_version: person.version ?? 1,
+        p_user_id: userProfile.id,
+      });
+
+      if (error) {
+        console.error('[PhotoCrop] RPC error:', error);
+
+        // Handle specific errors
+        if (error.message?.includes('version')) {
+          Alert.alert(
+            'تعارض في البيانات',
+            'تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة فتح الملف والمحاولة مرة أخرى.',
+            [{ text: 'حسناً', onPress: () => handleRefresh() }]
+          );
+        } else if (error.message?.includes('permission')) {
+          Alert.alert('خطأ', 'ليس لديك صلاحية لتعديل هذه الصورة');
+        } else if (error.message?.includes('منطقة المحصورة صغير')) {
+          Alert.alert('خطأ', 'حجم المنطقة المحصورة صغير جداً. يرجى تحديد منطقة أكبر.');
+        } else {
+          Alert.alert('خطأ', handleSupabaseError(error));
+        }
+        return;
+      }
+
+      // Success! Update local state and tree store
+      const newVersion = data?.[0]?.new_version ?? (person.version ?? 1) + 1;
+      const updatedPerson = {
+        ...person,
+        crop_top: crop.crop_top,
+        crop_bottom: crop.crop_bottom,
+        crop_left: crop.crop_left,
+        crop_right: crop.crop_right,
+        version: newVersion,
+      };
+
+      // Update tree store (for tree rendering)
+      useTreeStore.getState().updateNode(person.id, {
+        crop_top: crop.crop_top,
+        crop_bottom: crop.crop_bottom,
+        crop_left: crop.crop_left,
+        crop_right: crop.crop_right,
+        version: newVersion,
+      });
+
+      // Update parent component via onUpdate callback
+      onUpdate?.(updatedPerson);
+
+      // Invalidate structure cache (force reload on next app start)
+      await invalidateStructureCache();
+
+      // Success feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('تم الحفظ', 'تم حفظ التعديل على الصورة بنجاح');
+      setShowCropEditor(false);
+
+    } catch (error) {
+      console.error('[PhotoCrop] Unexpected error:', error);
+      Alert.alert('خطأ', 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setSavingCrop(false);
+    }
+  }, [person, userProfile, checkBeforeAction, handleRefresh, onUpdate]);
+
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
     const shareText = shareMode === 'invite' ? 'إرسال دعوة' : 'مشاركة الملف';
@@ -1452,12 +1536,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             crop_left: person.crop_left ?? 0,
             crop_right: person.crop_right ?? 0,
           }}
-          onSave={(crop) => {
-            // TODO: Implement RPC call to save crop (Phase 5.3)
-            console.log('[PhotoCropEditor] Crop saved:', crop);
-            setShowCropEditor(false);
-          }}
+          onSave={handleSaveCrop}
           onCancel={() => setShowCropEditor(false)}
+          saving={savingCrop}
         />
       )}
     </>

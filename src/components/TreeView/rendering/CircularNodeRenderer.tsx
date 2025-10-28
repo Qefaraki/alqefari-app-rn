@@ -112,7 +112,7 @@ export function CircularNodeRenderer({
         'bold',
         11, // Standard font size
         COLORS.TEXT,
-        diameter * 2, // PHASE 1.2: Increased from diameter to diameter * 2 for Arabic names
+        diameter, // Match node width for proper centering
         2, // Max 2 lines
       );
 
@@ -122,7 +122,7 @@ export function CircularNodeRenderer({
           nodeId: node.id,
           name: node.name,
           diameter,
-          maxWidth: diameter * 2,
+          maxWidth: diameter,
           paragraphExists: !!paragraph,
           textX,
           textY,
@@ -187,7 +187,14 @@ export function CircularNodeRenderer({
       )}
 
       {/* Name text below circle */}
-      <Paragraph x={textX} y={textY} paragraph={nameParagraph} />
+      {nameParagraph && (
+        <Paragraph
+          paragraph={nameParagraph}
+          x={textX}
+          y={textY}
+          width={diameter}
+        />
+      )}
     </Group>
   );
 }

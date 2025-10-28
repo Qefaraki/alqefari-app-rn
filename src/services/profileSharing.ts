@@ -10,9 +10,8 @@
  * @module profileSharing
  */
 
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, Linking, Platform, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import * as Sharing from 'expo-sharing';
 import { generateProfileLink } from '../utils/deepLinking';
 import { supabase } from './supabase';
 
@@ -91,23 +90,17 @@ export async function shareProfile(
       }
     }
 
-    // Fallback to native share sheet
-    const isAvailable = await Sharing.isAvailableAsync();
+    // Use native share sheet (Share.share works for both iOS and Android)
+    await Share.share({
+      message: Platform.OS === 'ios' ? message : `${message}\n\n${link}`, // Android needs URL in message
+      url: link, // iOS only
+      title: message,
+    });
 
-    if (isAvailable) {
-      await Sharing.shareAsync(link, {
-        dialogTitle: message,
-      });
-
-      // Log share event (non-blocking)
-      logShareEvent(profile.id, 'native_share', inviterProfile?.id).catch((err) =>
-        console.warn('[ProfileSharing] Failed to log share event:', err)
-      );
-    } else {
-      // Last resort: copy to clipboard
-      await copyProfileLink(profile, inviterProfile);
-      Alert.alert('تم النسخ', 'تم نسخ الرابط. يمكنك لصقه في أي تطبيق للمشاركة.');
-    }
+    // Log share event (non-blocking)
+    logShareEvent(profile.id, 'native_share', inviterProfile?.id).catch((err) =>
+      console.warn('[ProfileSharing] Failed to log share event:', err)
+    );
   } catch (error) {
     console.error('[ProfileSharing] Share failed:', error);
     Alert.alert('خطأ', 'فشلت عملية المشاركة');

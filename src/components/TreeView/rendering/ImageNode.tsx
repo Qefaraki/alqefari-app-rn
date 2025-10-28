@@ -492,7 +492,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         return getAverageColor(blurhash);
       }
       return IMAGE_NODE_CONSTANTS.SKELETON_COLOR; // Fallback to skeleton color
-    }, [blurhash, shouldLoad]);
+    }, [blurhash, shouldLoad, featureFlags.enableBlurhash]);
 
     // Convert blurhash to Skia Image (only if feature enabled and no photo loaded yet)
     React.useEffect(() => {

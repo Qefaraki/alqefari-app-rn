@@ -62,6 +62,7 @@ interface PhotoCropEditorProps {
     crop_right: number;
   }) => void;
   onCancel: () => void;
+  saving?: boolean; // Loading state during RPC call
 }
 
 /**
@@ -76,6 +77,7 @@ export function PhotoCropEditor({
   initialCrop = { crop_top: 0, crop_bottom: 0, crop_left: 0, crop_right: 0 },
   onSave,
   onCancel,
+  saving = false,
 }: PhotoCropEditorProps): JSX.Element {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
@@ -244,10 +246,14 @@ export function PhotoCropEditor({
 
           <TouchableOpacity
             onPress={handleSave}
-            style={[styles.button, styles.saveButton]}
-            disabled={!imageLoaded}
+            style={[styles.button, styles.saveButton, (saving || !imageLoaded) && styles.saveButtonDisabled]}
+            disabled={saving || !imageLoaded}
           >
-            <Text style={[styles.buttonText, styles.saveButtonText]}>حفظ</Text>
+            {saving ? (
+              <ActivityIndicator size="small" color={tokens.alJassWhite} />
+            ) : (
+              <Text style={[styles.buttonText, styles.saveButtonText]}>حفظ</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -351,6 +357,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: tokens.najdiCrimson,
+  },
+  saveButtonDisabled: {
+    backgroundColor: tokens.camelHairBeige,
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: 17,
