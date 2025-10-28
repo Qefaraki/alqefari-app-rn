@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.5.0'; // Bumped: D3 curves bug fixes (coordinate swap + spacing)
+const TREE_STRUCTURE_SCHEMA_VERSION = '1.7.0'; // Bumped: Add share_code to structure RPC for deep linking
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

@@ -163,7 +163,7 @@ export default function ProfileQRCode({
   }, [photoUrl, cacheChecked, usedCache]);
 
   // Error state
-  if (qrError || !hid) {
+  if (qrError || !shareCode) {
     return (
       <View style={[styles.container, { width: size + 32, height: size + 32 }]}>
         <View style={styles.errorContainer}>

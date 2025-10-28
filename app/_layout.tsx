@@ -95,12 +95,12 @@ function RootLayoutNav() {
         const url = await Linking.getInitialURL();
         if (url && isMounted) {
           console.log('[DeepLink] Initial URL (cold start):', url);
-          const shareCode = parseProfileLink(url);
-          const inviterShareCode = parseInviterShareCode(url);
-          if (shareCode) {
+          const profileIdentifier = parseProfileLink(url);
+          const inviterIdentifier = parseInviterShareCode(url);
+          if (profileIdentifier) {
             // Wait for auth and tree to be ready
             if (!isLoading && user) {
-              setTimeout(() => handleDeepLink(shareCode, inviterShareCode), 1000);
+              setTimeout(() => handleDeepLink(profileIdentifier, inviterIdentifier), 1000);
             }
           }
         }
@@ -113,10 +113,10 @@ function RootLayoutNav() {
     const subscription = Linking.addEventListener('url', async (event) => {
       if (!isMounted) return;
       console.log('[DeepLink] URL event (warm start):', event.url);
-      const shareCode = parseProfileLink(event.url);
-      const inviterShareCode = parseInviterShareCode(event.url);
-      if (shareCode) {
-        await handleDeepLink(shareCode, inviterShareCode);
+      const profileIdentifier = parseProfileLink(event.url);
+      const inviterIdentifier = parseInviterShareCode(event.url);
+      if (profileIdentifier) {
+        await handleDeepLink(profileIdentifier, inviterIdentifier);
       }
     });
 
