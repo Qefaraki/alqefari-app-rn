@@ -182,7 +182,7 @@ export const GESTURE_FEATURE_FLAGS = {
   USE_VELOCITY_THRESHOLD: true,
 
   /** Enable zoom spring bounce when over max/min limits */
-  USE_ZOOM_SPRING: true,
+  USE_ZOOM_SPRING: false,
 
   /** Phase 2: Enable boundary rubber-banding (not yet implemented) */
   USE_BOUNDARY_RUBBER_BAND: false,
