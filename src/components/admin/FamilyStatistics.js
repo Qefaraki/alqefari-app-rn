@@ -23,14 +23,13 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { VictoryPie } from 'victory-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../services/supabase';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import LargeTitleHeader from '../ios/LargeTitleHeader';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import tokens from '../ui/tokens';
-import { RTLVictoryBar } from '../charts/RTLVictoryWrappers';
+import { RTLVictoryPie, RTLVictoryBar } from '../charts/RTLVictoryWrappers';
 
 const palette = tokens.colors.najdi;
 
@@ -376,7 +375,7 @@ const HeroSection = ({ stats }) => {
 
       {/* Gender Donut Chart */}
       <View style={styles.chartContainer}>
-        <VictoryPie
+        <RTLVictoryPie
           data={[
             { x: `ذكور\n${malePercentage}%`, y: gender.male },
             { x: `إناث\n${femalePercentage}%`, y: gender.female },
