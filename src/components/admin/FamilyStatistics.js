@@ -235,6 +235,8 @@ export default function FamilyStatistics({ onClose }) {
             <IntroSurface />
             <HeroSection stats={coreStats} />
 
+            <SectionDivider />
+
             {/* Generations Section - Lazy Load */}
             <LazyChartSection
               chartName="generations"
@@ -243,6 +245,8 @@ export default function FamilyStatistics({ onClose }) {
             >
               <GenerationsSection stats={coreStats} />
             </LazyChartSection>
+
+            <SectionDivider />
 
             {/* Names Section - Extended Stats (Can timeout) */}
             {extendedLoading ? (
@@ -270,6 +274,8 @@ export default function FamilyStatistics({ onClose }) {
               />
             )}
 
+            <SectionDivider />
+
             {/* Munasib Section - Extended Stats */}
             {extendedStats && (
               <LazyChartSection
@@ -286,9 +292,6 @@ export default function FamilyStatistics({ onClose }) {
                 />
               </LazyChartSection>
             )}
-
-            {/* Data Completeness Section */}
-            <DataCompletenessSection stats={coreStats} />
           </>
         )}
       </ScrollView>
@@ -380,17 +383,23 @@ const HeroSection = ({ stats }) => {
             { x: `ذكور\n${malePercentage}%`, y: gender.male },
             { x: `إناث\n${femalePercentage}%`, y: gender.female },
           ]}
-          colorScale={[palette.primary, palette.secondary]}
+          colorScale={['#A13333', '#D58C4A']} // Najdi Crimson & Desert Ochre
           innerRadius={80}
-          labelRadius={100}
+          labelRadius={105}
           width={350}
           height={300}
           padding={{ top: 20, bottom: 20, left: 50, right: 50 }}
           style={{
+            data: {
+              stroke: palette.background,
+              strokeWidth: 3, // Cleaner separation
+            },
             labels: {
               fontSize: 16,
               fontFamily: 'SFArabic-Semibold',
               fill: palette.text,
+              padding: 10,
+              backgroundColor: `${palette.background}E6`, // Semi-transparent background
             },
           }}
           animate={{ duration: 800, easing: 'bounce' }}
@@ -447,15 +456,21 @@ const GenerationsSection = ({ stats }) => {
         horizontal
         height={400}
         barProps={{
+          cornerRadius: 6, // Enhanced corner radius
           style: {
-            data: { fill: ({ datum }) => datum.fill },
+            data: {
+              fill: ({ datum }) => datum.fill,
+              stroke: `${palette.text}14`, // Subtle border
+              strokeWidth: 1,
+            },
             labels: {
-              fontSize: 13,
+              fontSize: 14, // Increased from 13
               fontFamily: 'SFArabic-Semibold',
               fill: palette.text,
+              padding: 8,
             },
           },
-          animate: { duration: 500 },
+          animate: { duration: 600, easing: 'cubicOut' }, // Smoother animation
         }}
       />
 
@@ -591,70 +606,12 @@ const MunasibSection = ({ stats, expanded, onToggle }) => {
   );
 };
 
-// Data Completeness Section
-const DataCompletenessSection = ({ stats }) => {
-  if (!stats?.data_quality || stats.data_quality.total_profiles === 0) {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionHeader}>مدى اكتمال البيانات</Text>
-        <View style={styles.emptyChartContainer}>
-          <Ionicons name="checkmark-circle-outline" size={48} color={`${palette.text}66`} />
-          <Text style={styles.emptyChartText}>لا توجد بيانات الجودة</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const { data_quality } = stats;
-  const photoPercentage = (data_quality.with_photos / data_quality.total_profiles) * 100;
-  const datePercentage = (data_quality.with_birthdates / data_quality.total_profiles) * 100;
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionHeader}>مدى اكتمال البيانات</Text>
-
-      {/* Success Banner: Structural completeness */}
-      <View style={styles.successBanner}>
-        <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-        <View>
-          <Text style={styles.bannerTitle}>الهيكل الأسري مكتمل 100%</Text>
-          <Text style={styles.bannerSubtitle}>جميع الأنساب موثقة بشكل صحيح</Text>
-        </View>
-      </View>
-
-      {/* Info Banner: Optional data in progress */}
-      <View style={styles.infoBanner}>
-        <Ionicons name="information-circle-outline" size={20} color={palette.secondary} />
-        <Text style={styles.infoText}>
-          البيانات الإضافية (صور، تواريخ) قيد الإضافة من قبل أفراد العائلة
-        </Text>
-      </View>
-
-      {/* Progress Circles */}
-      <View style={styles.progressRow}>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressPercentage}>{photoPercentage.toFixed(1)}%</Text>
-          </View>
-          <Text style={styles.progressTitle}>الصور</Text>
-          <Text style={styles.progressSubtitle}>
-            {data_quality.with_photos} من {data_quality.total_profiles}
-          </Text>
-        </View>
-
-        <View style={styles.progressContainer}>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressPercentage}>{datePercentage.toFixed(1)}%</Text>
-          </View>
-          <Text style={styles.progressTitle}>التواريخ</Text>
-          <Text style={styles.progressSubtitle}>
-            {data_quality.with_birthdates} من {data_quality.total_profiles}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-};
+// Section Divider with Sadu Pattern
+const SectionDivider = () => (
+  <View style={styles.dividerContainer}>
+    <View style={styles.dividerLine} />
+  </View>
+);
 
 // Lazy Chart Section (Performance optimization)
 const LazyChartSection = ({ chartName, onVisible, isVisible, children }) => {
@@ -799,13 +756,19 @@ const styles = StyleSheet.create({
   // Section
   section: {
     marginHorizontal: 16,
-    marginBottom: 32,
+    marginBottom: 40, // Increased from 32px
+    paddingTop: 8, // Added for spacing after divider
   },
   sectionHeader: {
     fontSize: 22,
     fontFamily: 'SFArabic-Bold',
     color: palette.text,
     marginBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: palette.secondary,
+    paddingBottom: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 4,
   },
   subsectionTitle: {
     fontSize: 17,
@@ -823,7 +786,10 @@ const styles = StyleSheet.create({
   // Hero Section
   heroNumberContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32, // Increased from 24px
+    backgroundColor: `${palette.container}50`,
+    paddingVertical: 20,
+    borderRadius: tokens.radii.lg,
   },
   heroNumber: {
     fontSize: 48,
@@ -845,9 +811,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.container,
     borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: `${palette.text}14`, // Subtle border
     padding: 16,
     marginHorizontal: 4,
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
   },
   statValue: {
     fontSize: 24,
@@ -868,19 +844,35 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+      },
+    }),
   },
 
   // Insight Card
   insightCard: {
     flexDirection: 'row',
-    backgroundColor: `${palette.container}80`,
+    backgroundColor: `${palette.secondary}10`,
     borderRadius: tokens.radii.md,
-    borderWidth: 1,
-    borderColor: palette.secondary,
-    padding: 12,
-    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: `${palette.secondary}60`,
+    padding: 14,
+    marginTop: 20,
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: palette.secondary,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
   },
   insightText: {
     flex: 1,
@@ -931,8 +923,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: palette.surface,
     borderRadius: tokens.radii.md,
-    padding: 12,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: `${palette.text}10`,
+    padding: 14,
+    marginBottom: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
   },
   rank: {
     fontSize: 18,
@@ -976,79 +978,16 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 
-  // Data Completeness Banners
-  successBanner: {
-    flexDirection: 'row',
-    backgroundColor: '#E8F5E9',
-    borderRadius: tokens.radii.md,
-    padding: 16,
-    marginBottom: 12,
+  // Section Divider
+  dividerContainer: {
+    marginHorizontal: 16,
+    marginVertical: 24,
     alignItems: 'center',
   },
-  bannerTitle: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Semibold',
-    color: '#2E7D32',
-    marginBottom: 4,
-    marginLeft: 12,
-  },
-  bannerSubtitle: {
-    fontSize: 14,
-    fontFamily: 'SFArabic-Regular',
-    color: '#2E7D32',
-    marginLeft: 12,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    backgroundColor: `${palette.secondary}20`,
-    borderRadius: tokens.radii.md,
-    padding: 12,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'SFArabic-Regular',
-    color: palette.text,
-    marginLeft: 12,
-    lineHeight: 20,
-  },
-
-  // Progress Circles
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 16,
-  },
-  progressContainer: {
-    alignItems: 'center',
-  },
-  progressCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 8,
-    borderColor: `${palette.primary}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  progressPercentage: {
-    fontSize: 24,
-    fontFamily: 'SFArabic-Bold',
-    color: palette.text,
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontFamily: 'SFArabic-Semibold',
-    color: palette.text,
-    marginBottom: 4,
-  },
-  progressSubtitle: {
-    fontSize: 13,
-    fontFamily: 'SFArabic-Regular',
-    color: `${palette.text}99`,
+  dividerLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: `${palette.text}14`,
   },
 
   // Loading/Error Cards
@@ -1095,10 +1034,20 @@ const styles = StyleSheet.create({
   emptyChartContainer: {
     backgroundColor: palette.surface,
     borderRadius: tokens.radii.lg,
+    borderWidth: 1,
+    borderColor: `${palette.text}10`,
     padding: 48,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
   },
   emptyChartText: {
     fontSize: 16,
