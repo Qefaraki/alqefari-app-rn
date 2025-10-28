@@ -86,6 +86,8 @@ const PHOTO_ACTION_TYPES = [
   "delete_photo",
   "photo_delete",  // NEW: Noun_verb pattern (consistent with crop_update, profile_update)
   "crop_update",
+  "photo_change_approved",  // Photo approval system
+  "photo_change_rejected",  // Photo approval system
 ];
 
 const ADMIN_ACTION_TYPES = [
@@ -107,6 +109,8 @@ const ACTION_CONFIGS = {
   delete_photo: { label: "حذف صورة" },
   photo_delete: { label: "حذف صورة" },  // NEW: Same as delete_photo but consistent naming
   crop_update: { label: "تعديل اقتصاص" },
+  photo_change_approved: { label: "موافقة على صورة" },
+  photo_change_rejected: { label: "رفض صورة" },
   grant_admin: { label: "منح صلاحيات" },
   revoke_admin: { label: "سحب صلاحيات" },
   update_settings: { label: "تحديث إعدادات" },
@@ -126,6 +130,8 @@ const ACTION_VISUALS = {
   delete_photo: { icon: "trash.slash", fallback: "trash-bin-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
   photo_delete: { icon: "trash.slash", fallback: "trash-bin-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },  // NEW: Same visual as delete_photo
   crop_update: { icon: "crop", fallback: "crop-outline", color: `${tokens.colors.najdi.focus  }16`, accent: tokens.colors.najdi.focus },
+  photo_change_approved: { icon: "checkmark.circle", fallback: "checkmark-circle", color: `${tokens.colors.najdi.secondary  }18`, accent: tokens.colors.najdi.secondary },
+  photo_change_rejected: { icon: "xmark.circle", fallback: "close-circle-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
   grant_admin: { icon: "shield.checkerboard", fallback: "shield-checkmark-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
   revoke_admin: { icon: "shield.slash", fallback: "shield-outline", color: `${tokens.colors.najdi.primary  }18`, accent: tokens.colors.najdi.primary },
   update_settings: { icon: "gearshape", fallback: "settings-outline", color: `${tokens.colors.najdi.container  }26`, accent: tokens.colors.najdi.text },

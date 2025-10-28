@@ -18,15 +18,20 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import tokens from '../ui/tokens';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PHOTO_SIZE = (SCREEN_WIDTH - 80) / 2; // Side-by-side photos with padding
+import {
+  PHOTO_CONFIG,
+  NETWORK_CONFIG,
+  REJECTION_REASON_CONFIG,
+  ERROR_CONFIG,
+  RPC_FUNCTIONS,
+  REFRESH_CONFIG,
+  EMPTY_STATE_CONFIG,
+} from '../../config/photoApprovalConfig';
 
 /**
  * PhotoApprovalManager Component
@@ -49,6 +54,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
+  // Image error tracking (per request ID)
+  const [imageErrors, setImageErrors] = useState({});
+
   // Load data on mount
   useEffect(() => {
     if (visible) {
@@ -61,20 +69,20 @@ export default function PhotoApprovalManager({ visible, onClose }) {
     try {
       setLoading(true);
 
-      // Load pending requests (with 3-second timeout)
+      // Load pending requests (with timeout from config)
       const requestsPromise = fetchWithTimeout(
         supabase.rpc('list_photo_change_requests', {
           p_status: 'pending',
           p_limit: 50,
           p_offset: 0,
         }),
-        3000
+        NETWORK_CONFIG.requestTimeout
       );
 
       // Load rejection templates
       const templatesPromise = fetchWithTimeout(
-        supabase.rpc('list_photo_rejection_templates'),
-        3000
+        supabase.rpc(RPC_FUNCTIONS.listTemplates),
+        NETWORK_CONFIG.requestTimeout
       );
 
       const [requestsResult, templatesResult] = await Promise.all([
@@ -89,9 +97,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
       setTemplates(templatesResult.data || []);
     } catch (error) {
       if (error.message === 'NETWORK_TIMEOUT') {
-        Alert.alert('انتهت المهلة', 'فشل تحميل البيانات. تحقق من الاتصال بالإنترنت.');
+        Alert.alert(ERROR_CONFIG.networkTimeout.title, ERROR_CONFIG.networkTimeout.message);
       } else {
-        Alert.alert('خطأ', 'فشل تحميل طلبات تغيير الصور');
+        Alert.alert(ERROR_CONFIG.loadError.title, ERROR_CONFIG.loadError.message);
       }
       console.error('Load data error:', error);
     } finally {
@@ -209,6 +217,21 @@ export default function PhotoApprovalManager({ visible, onClose }) {
   const renderPhotoComparison = (request) => {
     const oldPhotoUri = request.old_photo_url || null;
     const newPhotoUri = request.new_photo_url;
+    const oldPhotoKey = `${request.id}_old`;
+    const newPhotoKey = `${request.id}_new`;
+
+    // Check if images failed to load
+    const oldPhotoFailed = imageErrors[oldPhotoKey];
+    const newPhotoFailed = imageErrors[newPhotoKey];
+
+    // Handle image load errors
+    const handleOldPhotoError = () => {
+      setImageErrors(prev => ({ ...prev, [oldPhotoKey]: true }));
+    };
+
+    const handleNewPhotoError = () => {
+      setImageErrors(prev => ({ ...prev, [newPhotoKey]: true }));
+    };
 
     return (
       <View style={styles.photoComparisonContainer}>
@@ -216,16 +239,19 @@ export default function PhotoApprovalManager({ visible, onClose }) {
         <View style={styles.photoBox}>
           <Text style={styles.photoLabel}>الصورة الحالية</Text>
           <View style={styles.photoFrame}>
-            {oldPhotoUri ? (
+            {oldPhotoUri && !oldPhotoFailed ? (
               <Image
                 source={{ uri: oldPhotoUri }}
                 style={styles.photo}
                 resizeMode="cover"
+                onError={handleOldPhotoError}
               />
             ) : (
               <View style={[styles.photo, styles.placeholderPhoto]}>
-                <Ionicons name="person-circle-outline" size={60} color="#A3A3A3" />
-                <Text style={styles.placeholderText}>لا توجد صورة</Text>
+                <Ionicons name="person-circle-outline" size={60} color={tokens.colors.neutral[400]} />
+                <Text style={styles.placeholderText}>
+                  {oldPhotoFailed ? ERROR_CONFIG.placeholders.new : ERROR_CONFIG.placeholders.old}
+                </Text>
               </View>
             )}
           </View>
@@ -233,18 +259,26 @@ export default function PhotoApprovalManager({ visible, onClose }) {
 
         {/* Arrow */}
         <View style={styles.arrowContainer}>
-          <Ionicons name="arrow-back" size={24} color="#737373" />
+          <Ionicons name="arrow-back" size={24} color={tokens.colors.neutral[500]} />
         </View>
 
         {/* New Photo */}
         <View style={styles.photoBox}>
           <Text style={styles.photoLabel}>الصورة المقترحة</Text>
           <View style={styles.photoFrame}>
-            <Image
-              source={{ uri: newPhotoUri }}
-              style={styles.photo}
-              resizeMode="cover"
-            />
+            {!newPhotoFailed ? (
+              <Image
+                source={{ uri: newPhotoUri }}
+                style={styles.photo}
+                resizeMode="cover"
+                onError={handleNewPhotoError}
+              />
+            ) : (
+              <View style={[styles.photo, styles.placeholderPhoto]}>
+                <Ionicons name="alert-circle-outline" size={60} color={tokens.colors.primary.main} />
+                <Text style={styles.placeholderText}>{ERROR_CONFIG.placeholders.new}</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -279,6 +313,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
             style={[styles.rejectButton, isProcessing && styles.buttonDisabled]}
             onPress={() => handleRejectPress(request)}
             disabled={isProcessing}
+            accessibilityLabel="رفض الصورة"
+            accessibilityHint="فتح قائمة أسباب الرفض"
+            accessibilityRole="button"
           >
             {isProcessing ? (
               <ActivityIndicator size="small" color={tokens.colors.najdi.text} />
@@ -294,6 +331,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
             style={[styles.approveButton, isProcessing && styles.buttonDisabled]}
             onPress={() => handleApprove(request.id)}
             disabled={isProcessing}
+            accessibilityLabel="موافقة على الصورة"
+            accessibilityHint="قبول طلب تغيير الصورة"
+            accessibilityRole="button"
           >
             {isProcessing ? (
               <ActivityIndicator size="small" color={tokens.colors.najdi.background} />
@@ -313,9 +353,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="checkmark-done-circle" size={80} color="#D4D4D4" />
-      <Text style={styles.emptyStateTitle}>لا توجد طلبات قيد المراجعة</Text>
+      <Text style={styles.emptyStateTitle}>{EMPTY_STATE_CONFIG.title}</Text>
       <Text style={styles.emptyStateSubtitle}>
-        ستظهر هنا طلبات تغيير الصور الجديدة
+        {EMPTY_STATE_CONFIG.subtitle}
       </Text>
     </View>
   );
@@ -326,7 +366,12 @@ export default function PhotoApprovalManager({ visible, onClose }) {
       <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityLabel="إغلاق"
+              accessibilityRole="button"
+            >
               <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>مراجعة الصور</Text>
@@ -348,7 +393,12 @@ export default function PhotoApprovalManager({ visible, onClose }) {
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityLabel="إغلاق"
+              accessibilityRole="button"
+            >
               <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>مراجعة الصور</Text>
@@ -365,7 +415,8 @@ export default function PhotoApprovalManager({ visible, onClose }) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor={tokens.colors.najdi.primary}
+                tintColor={REFRESH_CONFIG.tintColor}
+                colors={REFRESH_CONFIG.colors}
               />
             }
           >
@@ -391,6 +442,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
                   key={template.id}
                   style={styles.templateItem}
                   onPress={() => handleTemplateSelect(template)}
+                  accessibilityLabel={template.title}
+                  accessibilityHint={`اختر قالب الرفض: ${template.title}`}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.templateTitle}>{template.title}</Text>
                   <Text style={styles.templateMessage}>{template.message}</Text>
@@ -402,17 +456,24 @@ export default function PhotoApprovalManager({ visible, onClose }) {
                 <Text style={styles.customReasonLabel}>أو اكتب سبباً مخصصاً:</Text>
                 <TextInput
                   style={styles.customReasonInput}
-                  placeholder="مثال: الصورة غير واضحة، يرجى رفع صورة بجودة أعلى"
-                  placeholderTextColor="#A3A3A3"
+                  placeholder={REJECTION_REASON_CONFIG.placeholder}
+                  placeholderTextColor={REJECTION_REASON_CONFIG.placeholderTextColor}
                   value={customReason}
                   onChangeText={setCustomReason}
-                  multiline
-                  numberOfLines={3}
+                  multiline={REJECTION_REASON_CONFIG.multiline}
+                  numberOfLines={REJECTION_REASON_CONFIG.numberOfLines}
                   textAlign="right"
+                  maxLength={REJECTION_REASON_CONFIG.maxLength}
                 />
+                <Text style={styles.characterCounter}>
+                  {customReason.length} / {REJECTION_REASON_CONFIG.maxLength}
+                </Text>
                 <TouchableOpacity
                   style={styles.customReasonButton}
                   onPress={handleCustomReasonSubmit}
+                  accessibilityLabel="استخدام السبب المخصص"
+                  accessibilityHint="تأكيد استخدام سبب الرفض المخصص"
+                  accessibilityRole="button"
                 >
                   <Text style={styles.customReasonButtonText}>استخدام السبب المخصص</Text>
                 </TouchableOpacity>
@@ -422,6 +483,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
             <TouchableOpacity
               style={styles.templateModalCancel}
               onPress={() => setTemplateModalVisible(false)}
+              accessibilityLabel="إلغاء"
+              accessibilityHint="إلغاء اختيار قالب الرفض"
+              accessibilityRole="button"
             >
               <Text style={styles.templateModalCancelText}>إلغاء</Text>
             </TouchableOpacity>
@@ -450,6 +514,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
               <TouchableOpacity
                 style={styles.confirmCancelButton}
                 onPress={() => setConfirmModalVisible(false)}
+                accessibilityLabel="إلغاء"
+                accessibilityHint="إلغاء تأكيد رفض الصورة"
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmCancelText}>إلغاء</Text>
               </TouchableOpacity>
@@ -457,6 +524,9 @@ export default function PhotoApprovalManager({ visible, onClose }) {
               <TouchableOpacity
                 style={styles.confirmRejectButton}
                 onPress={handleConfirmReject}
+                accessibilityLabel="تأكيد رفض الصورة"
+                accessibilityHint="رفض الصورة وإرسال إشعار للمستخدم"
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmRejectText}>رفض الصورة</Text>
               </TouchableOpacity>
@@ -603,8 +673,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   photo: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
+    width: PHOTO_CONFIG.size,
+    height: PHOTO_CONFIG.size,
   },
   placeholderPhoto: {
     alignItems: 'center',
@@ -720,6 +790,12 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  characterCounter: {
+    fontSize: 13,
+    color: tokens.colors.neutral[500],
+    textAlign: 'left',
+    marginTop: 4,
   },
   customReasonButton: {
     backgroundColor: tokens.colors.najdi.secondary,
