@@ -223,6 +223,7 @@ const MAX_VISIBLE_EDGES = 10000; // Increased for unfiltered rendering (useMemo 
 const LOD_ENABLED = true; // Kill switch
 const AGGREGATION_ENABLED = true; // T3 chips toggle
 const BUCKET_DEBOUNCE_MS = 150; // ms
+const HIGHLIGHT_FADE_DURATION = 300; // ms - Glow fade-out animation duration
 
 // Phase 3B - Progressive Loading Feature Flag
 // Set to true to enable two-phase loading (0.45 MB structure + progressive enrichment)
@@ -1668,7 +1669,7 @@ const TreeViewCore = ({
   const clearAllHighlights = useCallback(() => {
     // Clear glow
     glowOpacity.value = withTiming(0, {
-      duration: 300,
+      duration: HIGHLIGHT_FADE_DURATION,
       easing: Easing.in(Easing.ease),
     });
 
@@ -1683,7 +1684,7 @@ const TreeViewCore = ({
       }
 
       // Note: User lineage is NOT cleared here (managed by its own useEffect)
-    }, 300); // Match glow animation duration
+    }, HIGHLIGHT_FADE_DURATION); // Match glow animation duration
   }, [glowOpacity, highlightedNodeId, store.actions]);
 
   // Handle highlight from navigation params (single profile)
@@ -1716,13 +1717,18 @@ const TreeViewCore = ({
     if (pendingCousinHighlight && nodes.length > 0) {
       const { highlightProfileId } = pendingCousinHighlight;
 
+      // Alert user that highlighting is unavailable
+      Alert.alert(
+        'تنبيه',
+        'تسليط الضوء على زواج الأقارب مؤقتاً غير متاح. سيتم الانتقال إلى الملف الشخصي.',
+        [{ text: 'حسناً', style: 'default' }]
+      );
+
       // Still navigate to the profile (navigation works), just no highlight
       const timer = setTimeout(() => {
         if (highlightProfileId) {
           navigateToNode(highlightProfileId);
         }
-
-        console.warn('[TreeView] Cousin marriage highlighting temporarily disabled. Navigation still works.');
 
         // Clear the pending highlight
         store.actions.setPendingCousinHighlight(null);

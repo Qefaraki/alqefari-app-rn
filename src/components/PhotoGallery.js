@@ -31,7 +31,6 @@ const PhotoGallery = ({
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [profileHid, setProfileHid] = useState(null);
   const { isAdminMode: contextAdminMode } = useAdminMode();
 
   // Use forceAdminMode if provided, otherwise use context
@@ -76,26 +75,6 @@ const PhotoGallery = ({
       loadPhotos();
     }
   }, [profileId, loadPhotos]);
-
-  // Fetch HID for QR cache invalidation
-  useEffect(() => {
-    async function fetchHid() {
-      if (!profileId) return;
-
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('hid')
-          .eq('id', profileId)
-          .single();
-        setProfileHid(data?.hid || null);
-      } catch (error) {
-        console.warn('[PhotoGallery] Failed to fetch HID:', error.message);
-      }
-    }
-
-    fetchHid();
-  }, [profileId]);
 
   // Handle photo selection
   const handleSelectPhoto = async () => {
@@ -168,9 +147,7 @@ const PhotoGallery = ({
       await loadPhotos();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (profileHid) {
-        clearLogoCache(profileHid).catch(console.warn);
-      }
+      clearLogoCache(profileId).catch(console.warn);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("نجح", "تم إضافة الصورة بنجاح");
@@ -211,9 +188,7 @@ const PhotoGallery = ({
       await loadPhotos();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (profileHid) {
-        clearLogoCache(profileHid).catch(console.warn);
-      }
+      clearLogoCache(profileId).catch(console.warn);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -267,9 +242,7 @@ const PhotoGallery = ({
             await loadPhotos();
 
             // Invalidate QR logo cache (fire-and-forget)
-            if (profileHid) {
-              clearLogoCache(profileHid).catch(console.warn);
-            }
+            clearLogoCache(profileId).catch(console.warn);
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch (error) {

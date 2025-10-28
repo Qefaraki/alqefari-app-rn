@@ -1018,9 +1018,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       await invalidateStructureCache();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (person.hid) {
-        clearLogoCache(person.hid).catch(console.warn);
-      }
+      clearLogoCache(person.id).catch(console.warn);
 
       // Success feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

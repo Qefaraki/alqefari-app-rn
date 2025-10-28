@@ -9,6 +9,7 @@
  * Usage:
  * <ProfileQRCode
  *   hid="H12345"
+ *   profileId="uuid-1234-5678"  // Required: For caching (unique for all profiles)
  *   inviterHid="H67890"
  *   mode="share"
  *   photoUrl="https://..."  // Optional: Profile photo for QR center
@@ -32,6 +33,7 @@ const COLORS = {
 
 export default function ProfileQRCode({
   hid,
+  profileId, // Profile ID for caching (required - unique for all profiles including Munasib)
   inviterHid,
   mode = 'share',
   size = 280, // Optimal scanning size - fits iPhone SE (375px) with proper margins
@@ -72,7 +74,7 @@ export default function ProfileQRCode({
   useEffect(() => {
     async function checkCache() {
       try {
-        const cached = await getCachedLogo(hid, photoUrl);
+        const cached = await getCachedLogo(profileId, photoUrl);
         if (cached) {
           console.log('[QRCode] Logo cache hit');
 
@@ -99,7 +101,7 @@ export default function ProfileQRCode({
     }
 
     checkCache();
-  }, [hid, photoUrl]);
+  }, [profileId, photoUrl]);
 
   // Smart logo fallback: profile photo → emblem → none
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function ProfileQRCode({
             setLogoLoading(false);
 
             // Cache the result (fire-and-forget, don't await)
-            cacheLogo(hid, photoUrl, { uri: photoUrl }, 'photo')
+            cacheLogo(profileId, photoUrl, { uri: photoUrl }, 'photo')
               .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
             return;
           } catch (error) {
@@ -143,14 +145,14 @@ export default function ProfileQRCode({
         console.log('[QRCode] ✅ Using emblem as logo');
 
         // Cache emblem as string reference (fire-and-forget)
-        cacheLogo(hid, photoUrl, getEmblemAssetReference(), 'emblem')
+        cacheLogo(profileId, photoUrl, getEmblemAssetReference(), 'emblem')
           .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
       } catch (error) {
         console.error('[QRCode] ❌ Emblem not found, using plain QR:', error);
         setLogoSource(null);
 
         // Cache 'none' decision (fire-and-forget)
-        cacheLogo(hid, photoUrl, null, 'none')
+        cacheLogo(profileId, photoUrl, null, 'none')
           .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
       }
 

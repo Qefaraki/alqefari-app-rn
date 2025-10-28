@@ -181,6 +181,45 @@ _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
 📖 Full docs: [`/docs/architecture/GESTURE_SYSTEM.md`](docs/architecture/GESTURE_SYSTEM.md)
 
+## 🎨 Highlighting System Architecture
+
+**Status**: ✅ NEW system (commit 95e444d62) | 🗑️ OLD system removed (commit 10d80ae1a)
+
+**Current Features**:
+- ✅ **User Lineage Highlighting**: Uses NEW system (`store.actions.addHighlight`)
+- ✅ **Search Result Highlighting**: Uses NEW system (`store.actions.addHighlight`)
+- ⏳ **Cousin Marriage Highlighting**: Temporarily disabled (navigation-only mode)
+
+**Architecture**:
+- **Store**: `src/stores/useTreeStore.js` (Zustand actions: addHighlight, removeHighlight)
+- **Renderer**: `src/components/TreeView/highlightRenderers.js` (UnifiedHighlightRenderer)
+- **Hooks**: `src/hooks/useEnhancedHighlighting.js` (Public API)
+- **Service**: `src/services/highlightingServiceV2.js` (Path calculation)
+
+**API Example**:
+```javascript
+// Add highlight
+const highlightId = store.actions.addHighlight({
+  type: 'USER_LINEAGE',
+  nodeIds: [userId, ancestorId],
+  pathData: calculatePathData(userId, ancestorId),
+  options: { strokeWidth: 2.5, opacity: 0.52 }
+});
+
+// Remove highlight
+store.actions.removeHighlight(highlightId);
+```
+
+**Key Constants**:
+- `HIGHLIGHT_FADE_DURATION = 300` (ms) - Glow fade-out animation timing
+
+**Migration Notes**:
+- OLD system (activeHighlights state) fully removed in commit 10d80ae1a
+- Cousin marriage can be restored using NEW system with dual-path support
+- All highlighting must use store actions (no local state)
+
+**Refs**: Commit 95e444d62 (Bezier fix + NEW system), 10d80ae1a (OLD system cleanup)
+
 ## 🔧 Progressive Loading Cache Fix (October 26, 2025)
 
 **Status**: ✅ Deployed - Migration applied, schema version bumped

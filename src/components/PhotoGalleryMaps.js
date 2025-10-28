@@ -33,7 +33,6 @@ const PhotoGalleryMaps = ({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
-  const [profileHid, setProfileHid] = useState(null);
   const [uploadProgress, setUploadProgress] = useState({
     current: 0,
     total: 0,
@@ -73,26 +72,6 @@ const PhotoGalleryMaps = ({
       loadPhotos();
     }
   }, [profileId, loadPhotos]);
-
-  // Fetch HID for QR cache invalidation
-  useEffect(() => {
-    async function fetchHid() {
-      if (!profileId) return;
-
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('hid')
-          .eq('id', profileId)
-          .single();
-        setProfileHid(data?.hid || null);
-      } catch (error) {
-        console.warn('[PhotoGalleryMaps] Failed to fetch HID:', error.message);
-      }
-    }
-
-    fetchHid();
-  }, [profileId]);
 
   // Compress image before upload
   const compressImage = async (uri) => {
@@ -245,9 +224,7 @@ const PhotoGalleryMaps = ({
       await loadPhotos();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (profileHid) {
-        clearLogoCache(profileHid).catch(console.warn);
-      }
+      clearLogoCache(profileId).catch(console.warn);
 
       // Just haptic feedback, no alert - modern UX
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -321,9 +298,7 @@ const PhotoGalleryMaps = ({
             await loadPhotos();
 
             // Invalidate QR logo cache (fire-and-forget)
-            if (profileHid) {
-              clearLogoCache(profileHid).catch(console.warn);
-            }
+            clearLogoCache(profileId).catch(console.warn);
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch (error) {
@@ -364,9 +339,7 @@ const PhotoGalleryMaps = ({
       await loadPhotos();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (profileHid) {
-        clearLogoCache(profileHid).catch(console.warn);
-      }
+      clearLogoCache(profileId).catch(console.warn);
     } catch (error) {
       console.error("Error setting primary:", error);
     }

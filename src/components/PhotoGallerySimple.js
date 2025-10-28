@@ -79,7 +79,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [profileHid, setProfileHid] = useState(null);
   const photoCount = photos.length;
 
   // Settings and network hooks
@@ -156,26 +155,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   useEffect(() => {
     loadPhotos();
   }, [loadPhotos]);
-
-  // Fetch HID for QR cache invalidation
-  useEffect(() => {
-    async function fetchHid() {
-      if (!profileId) return;
-
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('hid')
-          .eq('id', profileId)
-          .single();
-        setProfileHid(data?.hid || null);
-      } catch (error) {
-        console.warn('[PhotoGallerySimple] Failed to fetch HID:', error.message);
-      }
-    }
-
-    fetchHid();
-  }, [profileId]);
 
   // Log image errors
   const handleImageError = (photoId, error) => {
@@ -294,9 +273,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
       await loadPhotos();
 
       // Invalidate QR logo cache (fire-and-forget)
-      if (profileHid) {
-        clearLogoCache(profileHid).catch(console.warn);
-      }
+      clearLogoCache(profileId).catch(console.warn);
 
       // Show appropriate feedback
       if (limitReached) {
@@ -362,9 +339,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
             await loadPhotos();
 
             // Invalidate QR logo cache (fire-and-forget)
-            if (profileHid) {
-              clearLogoCache(profileHid).catch(console.warn);
-            }
+            clearLogoCache(profileId).catch(console.warn);
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch (error) {

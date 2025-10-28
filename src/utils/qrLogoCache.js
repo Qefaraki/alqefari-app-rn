@@ -38,13 +38,18 @@ function hashString(str) {
 
 /**
  * Get cached logo decision (with TTL enforcement)
- * @param {string} hid - Profile HID
+ * @param {string} profileId - Profile ID (not HID - ensures uniqueness for Munasib)
  * @param {string} photoUrl - Profile photo URL
  * @returns {Promise<CachedLogoData|null>}
  */
-export async function getCachedLogo(hid, photoUrl) {
+export async function getCachedLogo(profileId, photoUrl) {
+  if (!profileId) {
+    console.warn('[QRLogoCache] profileId is required');
+    return null;
+  }
+
   try {
-    const key = `${CACHE_PREFIX}${CACHE_VERSION}_${hid}_${hashString(photoUrl)}`;
+    const key = `${CACHE_PREFIX}${CACHE_VERSION}_${profileId}_${hashString(photoUrl)}`;
     const cached = await AsyncStorage.getItem(key);
 
     if (!cached) return null;
@@ -84,21 +89,26 @@ export async function getCachedLogo(hid, photoUrl) {
 
 /**
  * Cache logo decision (fire-and-forget, doesn't throw)
- * @param {string} hid - Profile HID
+ * @param {string} profileId - Profile ID (not HID - ensures uniqueness for Munasib)
  * @param {string} photoUrl - Profile photo URL
  * @param {string|Object} logoSource - 'EMBLEM_ASSET' or {uri: string}
  * @param {'photo'|'emblem'|'none'} logoType
  * @returns {Promise<void>}
  */
-export async function cacheLogo(hid, photoUrl, logoSource, logoType) {
+export async function cacheLogo(profileId, photoUrl, logoSource, logoType) {
+  if (!profileId) {
+    console.warn('[QRLogoCache] profileId is required');
+    return;
+  }
+
   try {
-    const key = `${CACHE_PREFIX}${CACHE_VERSION}_${hid}_${hashString(photoUrl)}`;
+    const key = `${CACHE_PREFIX}${CACHE_VERSION}_${profileId}_${hashString(photoUrl)}`;
     await AsyncStorage.setItem(key, JSON.stringify({
       logoSource,
       logoType,
       timestamp: Date.now(),
     }));
-    console.log(`[QRLogoCache] Cached ${logoType} for HID ${hid}`);
+    console.log(`[QRLogoCache] Cached ${logoType} for profileId ${profileId}`);
   } catch (error) {
     console.warn('[QRLogoCache] Cache write failed:', error.message);
   }
@@ -106,19 +116,24 @@ export async function cacheLogo(hid, photoUrl, logoSource, logoType) {
 
 /**
  * Clear all logo caches for a profile (non-blocking)
- * @param {string} hid - Profile HID
+ * @param {string} profileId - Profile ID (not HID - ensures uniqueness for Munasib)
  * @returns {Promise<void>}
  */
-export async function clearLogoCache(hid) {
+export async function clearLogoCache(profileId) {
+  if (!profileId) {
+    console.warn('[QRLogoCache] profileId is required');
+    return;
+  }
+
   try {
     const allKeys = await AsyncStorage.getAllKeys();
     const cacheKeys = allKeys.filter(k =>
-      k.startsWith(`${CACHE_PREFIX}${CACHE_VERSION}_${hid}_`)
+      k.startsWith(`${CACHE_PREFIX}${CACHE_VERSION}_${profileId}_`)
     );
 
     if (cacheKeys.length > 0) {
       await AsyncStorage.multiRemove(cacheKeys);
-      console.log(`[QRLogoCache] Cleared ${cacheKeys.length} entries for HID ${hid}`);
+      console.log(`[QRLogoCache] Cleared ${cacheKeys.length} entries for profileId ${profileId}`);
     }
   } catch (error) {
     console.warn('[QRLogoCache] Clear cache failed:', error.message);
