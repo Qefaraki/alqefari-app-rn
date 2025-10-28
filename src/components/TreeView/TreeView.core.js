@@ -199,9 +199,7 @@ import { supabase } from "../../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkStatusIndicator from "../NetworkStatusIndicator";
 import { useHighlighting } from "../../hooks/useHighlighting";
-import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../../services/highlightingService";
-import { createRenderer, UnifiedHighlightRenderer } from "./highlightRenderers";
-import { detectCousinMarriage } from "../../utils/cousinMarriageDetector";
+import { UnifiedHighlightRenderer } from "./highlightRenderers";
 
 // Phase 1 Day 4b: All constants now imported from ./TreeView/utils
 // Removed inline definitions:
@@ -454,22 +452,8 @@ const TreeViewCore = ({
   const highlightTimerRef = useRef(null);
   const lastNavigationRef = useRef(null); // Track navigation ID to prevent stale callbacks
 
-  // UNIFIED HIGHLIGHTING SYSTEM
-  // Centralized state for all highlight types (search, user lineage, cousin marriage)
-  const [activeHighlights, setActiveHighlights] = useState({
-    search: null,          // Search result highlight
-    userLineage: null,     // "Highlight My Line" toggle
-    cousinMarriage: null,  // Cousin marriage dual path
-  });
-  const pathOpacity = useSharedValue(0);
-
-  // Highlighting API hook
+  // Highlighting API hook (used for path calculations)
   const { calculatePathData, clearCache } = useHighlighting();
-
-  // LEGACY STATE (kept for backwards compatibility during migration)
-  // These will be removed after full migration is complete
-  const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
-  const [userLineagePathNodeIds, setUserLineagePathNodeIds] = useState(null);
 
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
@@ -1532,12 +1516,10 @@ const TreeViewCore = ({
         clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = null;
       }
-      // Cancel highlight animation on unmount
-      cancelAnimation(pathOpacity);
       // Cancel pending navigation syncs on unmount
       lastNavigationRef.current = null;
     };
-  }, [pathOpacity]);
+  }, []);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BRANCH TREE MODAL HOOKS
@@ -1690,55 +1672,19 @@ const TreeViewCore = ({
       easing: Easing.in(Easing.ease),
     });
 
-    // Clear path
-    pathOpacity.value = withTiming(0, {
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-    });
-
-    // Clear state after animation completes
+    // Clear highlighted node + search highlight AFTER animation completes (FIX 1)
     setTimeout(() => {
       highlightedNodeId.value = null;
 
-      // Use setState callback to avoid stale closure
-      setActiveHighlights(prev => {
-        const shouldRestoreLineage = highlightMyLine && prev.userLineage;
+      // Clear search highlight from NEW system (but preserve user lineage if toggle ON)
+      if (searchHighlightIdRef.current) {
+        store.actions.removeHighlight(searchHighlightIdRef.current);
+        searchHighlightIdRef.current = null;
+      }
 
-        const next = {
-          ...prev,
-          search: null,
-          cousinMarriage: null
-        };
-
-        // Restore user lineage if toggle is ON (using fresh state from prev)
-        if (shouldRestoreLineage) {
-          pathOpacity.value = withDelay(
-            100,
-            withTiming(0.52, {
-              duration: 400,
-              easing: Easing.out(Easing.ease)
-            })
-          );
-        }
-
-        return next;
-      });
-    }, 300);
-  }, [glowOpacity, pathOpacity, highlightedNodeId, highlightMyLine]);
-
-  // Clear ancestry path highlight (legacy - use clearAllHighlights instead)
-  const clearPathHighlight = useCallback(() => {
-    // Animate out
-    pathOpacity.value = withTiming(0, {
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-    });
-
-    // Clear state after animation
-    setTimeout(() => {
-      setHighlightedPathNodeIds(null);
-    }, 300);
-  }, [pathOpacity]);
+      // Note: User lineage is NOT cleared here (managed by its own useEffect)
+    }, 300); // Match glow animation duration
+  }, [glowOpacity, highlightedNodeId, store.actions]);
 
   // Handle highlight from navigation params (single profile)
   useEffect(() => {
@@ -1752,99 +1698,39 @@ const TreeViewCore = ({
     }
   }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 
-  // Handle cousin marriage dual-path highlighting from navigation params (Munasib Manager)
+  // FIX 3: Cousin marriage highlighting (Munasib Manager navigation) - temporarily disabled
+  // This was the second entry point for cousin marriage highlighting
+  // Can be restored using NEW system: store.actions.addHighlight() with dual paths
   useEffect(() => {
     if (spouse1Id && spouse2Id && focusOnProfile && nodes.length > 0) {
-      // Small delay to ensure tree is fully rendered
-      const timer = setTimeout(() => {
-        // Validate both spouses are in loaded tree
-        const nodesMap = store.state.nodesMap;
-        if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
-          console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
-          Alert.alert(
-            "العقدة غير محملة",
-            "أحد الزوجين أو كلاهما غير موجود في العرض الحالي.",
-            [{ text: "حسناً", style: "default" }]
-          );
-          return;
-        }
-
-        // Calculate dual paths
-        const dualPathData = calculatePathData('COUSIN_MARRIAGE', [spouse1Id, spouse2Id]);
-
-        if (dualPathData) {
-          setActiveHighlights(prev => ({
-            ...prev,
-            cousinMarriage: dualPathData,
-            search: null
-          }));
-
-          // Animate paths in
-          pathOpacity.value = withDelay(
-            600,
-            withTiming(0.6, {
-              duration: 600,
-              easing: Easing.out(Easing.ease)
-            })
-          );
-
-        }
-      }, 500);
-
-      return () => clearTimeout(timer);
+      console.warn('[TreeView] Cousin marriage highlighting temporarily disabled (Munasib Manager navigation)');
     }
-  }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length, calculatePathData, pathOpacity]);
+  }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length]);
 
   // Handle cousin marriage highlighting from Zustand store (set by nested components like TabFamily)
   const { pendingCousinHighlight } = store.state;
 
+  // FIX 3: Cousin marriage highlighting from Zustand - temporarily disabled
+  // TODO: Re-implement using NEW highlighting system
   useEffect(() => {
     if (pendingCousinHighlight && nodes.length > 0) {
-      const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
+      const { highlightProfileId } = pendingCousinHighlight;
 
-      // Small delay to ensure tree is fully rendered
+      // Still navigate to the profile (navigation works), just no highlight
       const timer = setTimeout(() => {
-        // Validate both spouses are in loaded tree
-        const nodesMap = store.state.nodesMap;
-        if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
-          console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
-          return;
-        }
-
-        // Navigate to highlighted profile (cousin wife)
         if (highlightProfileId) {
           navigateToNode(highlightProfileId);
         }
 
-        // Calculate dual paths
-        const dualPathData = calculatePathData('COUSIN_MARRIAGE', [spouse1Id, spouse2Id]);
+        console.warn('[TreeView] Cousin marriage highlighting temporarily disabled. Navigation still works.');
 
-        if (dualPathData) {
-          setActiveHighlights(prev => ({
-            ...prev,
-            cousinMarriage: dualPathData,
-            search: null
-          }));
-
-          // Animate paths in
-          pathOpacity.value = withDelay(
-            600,
-            withTiming(0.6, {
-              duration: 600,
-              easing: Easing.out(Easing.ease)
-            })
-          );
-
-          console.log(`[TreeView] Cousin marriage dual paths activated from Zustand`);
-        }
-
-        // Clear the pending highlight (consumed)
+        // Clear the pending highlight
         store.actions.setPendingCousinHighlight(null);
       }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [pendingCousinHighlight, nodes.length, calculatePathData, pathOpacity, navigateToNode]);
+  }, [pendingCousinHighlight, nodes.length, navigateToNode, store.actions]);
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -1859,7 +1745,6 @@ const TreeViewCore = ({
 
         // Cancel existing animations first
         cancelAnimation(glowOpacity);
-        cancelAnimation(pathOpacity);
 
         // Navigate to node (includes camera flight + glow)
         navigateToNode(result.id);
@@ -1877,66 +1762,10 @@ const TreeViewCore = ({
             marriageCount: selectedProfile.marriages?.length || 0
           });
 
-          // Check if this profile has any cousin marriages
-          const cousinMarriages = detectCousinMarriage(selectedProfile, nodesMap);
-
-          console.log('[TreeView] Cousin marriage detection result:', {
-            found: cousinMarriages.length,
-            cousinMarriages: cousinMarriages.map(cm => ({
-              spouseId: cm.spouse.id,
-              spouseName: cm.spouse.name,
-              spouseHid: cm.spouse.hid
-            }))
-          });
-
-          if (cousinMarriages.length > 0) {
-            // Cousin marriage detected - use dual-path highlighting
-            const spouse = cousinMarriages[0].spouse; // Use first cousin marriage
-            console.log(`[TreeView] Cousin marriage detected between ${result.id} and ${spouse.id}`);
-
-            const dualPathData = calculatePathData('COUSIN_MARRIAGE', [result.id, spouse.id]);
-
-            if (dualPathData) {
-              setActiveHighlights(prev => ({
-                ...prev,
-                search: null, // Clear single path
-                cousinMarriage: dualPathData
-              }));
-
-              // Animate path in (after camera settles)
-              pathOpacity.value = withDelay(
-                600,
-                withTiming(0.6, {
-                  duration: 600,
-                  easing: Easing.out(Easing.ease)
-                })
-              );
-
-              console.log(`Highlighted cousin marriage dual paths`);
-            }
-          } else {
-            // No cousin marriage - use standard single-path highlighting
-            const singlePathData = calculatePathData('SEARCH', result.id);
-
-            if (singlePathData) {
-              setActiveHighlights(prev => ({
-                ...prev,
-                search: singlePathData,
-                cousinMarriage: null // Clear dual path
-              }));
-
-              // Animate path in (after camera settles)
-              pathOpacity.value = withDelay(
-                600,
-                withTiming(0.65, {
-                  duration: 400,
-                  easing: Easing.out(Easing.ease)
-                })
-              );
-
-              console.log(`Highlighted ${singlePathData.pathNodeIds.length}-node ancestry path`);
-            }
-          }
+          // FIX 3: Cousin marriage detection disabled (OLD system removed)
+          // Search highlighting now handled by autoHighlight useEffect (lines 1547-1577)
+          // Which uses NEW system: store.actions.addHighlight()
+          // Note: Cousin marriage dual-path can be restored later using NEW system
         }
       } else {
         console.log("Node not in current tree view");
@@ -1947,7 +1776,7 @@ const TreeViewCore = ({
         );
       }
     },
-    [navigateToNode, nodes, calculatePathData, glowOpacity, pathOpacity],
+    [navigateToNode, nodes, glowOpacity],
   );
 
   // Phase 2 Integration - Gesture callbacks for extracted gesture functions
@@ -2339,56 +2168,6 @@ const TreeViewCore = ({
 
   // Render highlighted ancestry path
   // UNIFIED RENDERING: Render all active highlights using renderer factory
-  const renderAllHighlights = useCallback(() => {
-    // Explicit mapping from state keys to registry keys (safer than string replacement)
-    const TYPE_KEY_MAP = {
-      'search': 'SEARCH',
-      'userLineage': 'USER_LINEAGE',
-      'cousinMarriage': 'COUSIN_MARRIAGE',
-    };
-
-    // Collect all active highlight types sorted by priority
-    const activeTypes = Object.entries(activeHighlights)
-      .filter(([_, data]) => data !== null)
-      .map(([typeId, data]) => {
-        const typeKey = TYPE_KEY_MAP[typeId];
-        if (!typeKey) {
-          console.warn(`[TreeView] Unknown highlight type ID: ${typeId}`);
-          return { typeId, config: null, data };
-        }
-        const config = HIGHLIGHT_TYPES[typeKey];
-        return { typeId, config, data };
-      })
-      .filter(({ config }) => config !== null)
-      .sort((a, b) => a.config.priority - b.config.priority);
-
-    if (activeTypes.length === 0) {
-      return null;
-    }
-
-    // Render each highlight type using appropriate renderer
-    const allElements = activeTypes.flatMap(({ typeId, config, data }) => {
-      const renderer = createRenderer(typeId, config, data, {
-        nodes,
-        connections,
-        showPhotos,
-        pathOpacity,
-        Skia,
-        activeHighlights
-      });
-
-      if (!renderer) {
-        console.warn(`[TreeView] Failed to create renderer for ${typeId}`);
-        return [];
-      }
-
-      const elements = renderer.render();
-      return elements || [];
-    });
-
-    return allElements;
-  }, [activeHighlights, nodes, connections, showPhotos]); // pathOpacity is stable shared value, no need in deps
-
   // ============================================
   // ENHANCED HIGHLIGHTING SYSTEM (Phase 3E)
   // ============================================
