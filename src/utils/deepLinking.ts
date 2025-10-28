@@ -324,49 +324,95 @@ export async function handleDeepLink(
       return;
     }
 
-    // Edge case 3: Blocked user (permission check)
-    try {
-      const { data: permissionLevel, error: permError } = await fetchWithTimeout(
-        supabase.rpc('check_family_permission_v4', {
-          p_user_id: currentUserProfile?.id,
-          p_target_id: profile.id,
-        }),
-        3000, // 3-second timeout (matches ProfileViewer and useProfilePermissions)
-        'Check deep link permission'
-      );
+    // Edge case 3: Permission check (blocked users, family relationships)
+    // IMPORTANT: Deep links use permissive fallback for public sharing UX
+    // Trade-off: Permission check failures allow viewing during cold starts and network issues
+    // Design decision: Sharing UX takes priority over strict permission enforcement
 
-      if (permError) {
-        throw permError;
-      }
+    // Fetch user ID (from store or database)
+    let userId = currentUserProfile?.id;
 
-      if (permissionLevel === 'blocked' || permissionLevel === 'none') {
-        Alert.alert(
-          'الوصول محظور',
-          'ليس لديك صلاحية لعرض هذا الملف الشخصي.'
-        );
-        console.log('[DeepLink] User blocked or no permission:', permissionLevel);
-        return;
-      }
-    } catch (error) {
-      console.error('[DeepLink] Permission check failed:', error);
+    if (!userId) {
+      // User profile not in store - attempt to fetch from database
+      console.log('[DeepLink] User profile not in store, checking authentication');
 
-      // Distinguish network errors from permission errors
-      if (error.message === 'NETWORK_OFFLINE') {
-        Alert.alert(
-          'لا يوجد اتصال',
-          'تحقق من الاتصال بالإنترنت وحاول مرة أخرى.'
-        );
-        return;
-      } else if (error.message?.includes('NETWORK_TIMEOUT')) {
-        Alert.alert(
-          'انتهت المهلة',
-          'استغرق التحقق من الصلاحيات وقتاً طويلاً. حاول مرة أخرى.'
-        );
-        return;
-      } else {
-        // Unknown error - allow navigation (permissive fallback for deep links)
-        console.warn('[DeepLink] Permission check failed, allowing navigation as fallback');
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Authenticated - fetch profile ID
+          const { data: userProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!profileError && userProfile) {
+            userId = userProfile.id;
+            console.log('[DeepLink] User profile fetched from database');
+          } else {
+            console.warn('[DeepLink] Could not load user profile:', profileError?.message || 'Not found');
+          }
+        } else {
+          // Not authenticated - guest mode
+          console.log('[DeepLink] Unauthenticated user, allowing read-only deep link access (guest mode)');
+        }
+      } catch (authError) {
+        console.error('[DeepLink] Auth check failed:', authError);
+        console.log('[DeepLink] Allowing navigation as fallback (guest mode)');
       }
+    }
+
+    // Check permission only if we have a user ID
+    if (userId) {
+      try {
+        const { data: permissionLevel, error: permError } = await fetchWithTimeout(
+          supabase.rpc('check_family_permission_v4', {
+            p_user_id: userId,
+            p_target_id: profile.id,
+          }),
+          3000, // 3-second timeout (matches ProfileViewer and useProfilePermissions)
+          'Check deep link permission'
+        );
+
+        if (permError) {
+          throw permError;
+        }
+
+        if (permissionLevel === 'blocked' || permissionLevel === 'none') {
+          Alert.alert(
+            'الوصول محظور',
+            'ليس لديك صلاحية لعرض هذا الملف الشخصي.'
+          );
+          console.log('[DeepLink] User blocked or no permission:', permissionLevel);
+          return;
+        }
+      } catch (error) {
+        console.error('[DeepLink] Permission check failed:', error);
+
+        // Distinguish network errors from permission errors
+        if (error.message === 'NETWORK_OFFLINE') {
+          Alert.alert(
+            'لا يوجد اتصال',
+            'تحقق من الاتصال بالإنترنت وحاول مرة أخرى.'
+          );
+          return;
+        } else if (error.message?.includes('NETWORK_TIMEOUT')) {
+          Alert.alert(
+            'انتهت المهلة',
+            'استغرق التحقق من الصلاحيات وقتاً طويلاً. حاول مرة أخرى.'
+          );
+          return;
+        } else {
+          // Unknown error - allow navigation (permissive fallback for deep links)
+          // Design decision: Sharing UX takes priority over strict enforcement
+          console.warn('[DeepLink] Permission check failed, allowing navigation as fallback');
+        }
+      }
+    } else {
+      // No user ID available - guest mode access
+      // Design decision: QR codes work for logged-out users (read-only by default)
+      console.log('[DeepLink] No user profile found, allowing read-only deep link access');
     }
 
     // Check if profile needs enrichment (Progressive Loading Phase 3B)
