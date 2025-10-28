@@ -24,6 +24,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ import { shareProfile } from '../../services/profileSharing';
 import tokens from '../ui/tokens';
 import { getTitleAbbreviation } from '../../services/professionalTitleService';
 import { useTreeStore } from '../../stores/useTreeStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const COLORS = {
   alJassWhite: tokens.colors.najdi.background,      // #F9F7F3
@@ -53,6 +55,9 @@ const SPACING = {
   xxl: 24,
   xxxl: 32,
 };
+
+// Emblem for watermark
+const EMBLEM_IMAGE = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
 
 // TODO: Extract constructCommonName to shared utility (duplicated in 4 files)
 // See: EnhancedHero.js, CompactHero.js, Hero.js, ShareProfileSheet.js
@@ -149,17 +154,35 @@ export default function ShareProfileSheet({
     return abbrev ? `${abbrev} ${firstName}` : firstName;
   }, [profile]);
 
-  // Construct lineage chain
+  // Construct lineage chain (strip first name from name_chain)
   const lineage = useMemo(() => {
     try {
       if (!profile) return '';
+
+      // If common_name exists, use it
       if (profile.common_name) return `${profile.common_name} القفاري`;
+
+      // If name_chain exists, strip first name from it
+      if (profile.name_chain || profile.fullNameChain) {
+        const fullChain = profile.name_chain || profile.fullNameChain;
+        const firstName = profile.name || '';
+
+        // Remove first name from chain (e.g., "محمد بن عبدالله القفاري" → "بن عبدالله القفاري")
+        // Note: name_chain already includes "القفاري" at the end, don't add it again
+        if (fullChain.startsWith(firstName)) {
+          const chainWithoutFirstName = fullChain.substring(firstName.length).trim();
+          return chainWithoutFirstName || 'القفاري';
+        }
+
+        // If first name doesn't match, return full chain as-is
+        return fullChain;
+      }
+
+      // Fall back to constructing from nodesMap
       return constructCommonName(profile, nodesMap);
     } catch (error) {
       console.error('[ShareProfileSheet] Lineage construction failed:', error);
-      // Three-tier fallback: full lineage → name+family → family only
-      const safeName = profile?.name?.trim();
-      return safeName ? `${safeName} القفاري` : 'القفاري';
+      return 'القفاري';
     }
   }, [profile, nodesMap]);
 
@@ -188,6 +211,19 @@ export default function ShareProfileSheet({
       transparent={false}
     >
       <SafeAreaView style={styles.modalContainer}>
+        {/* Subtle Background Gradient */}
+        <LinearGradient
+          colors={['#F9F7F3', '#F5F2EA']}
+          style={styles.backgroundGradient}
+        />
+
+        {/* Emblem Watermark - Subtle branding */}
+        <Image
+          source={EMBLEM_IMAGE}
+          style={styles.emblemWatermark}
+          resizeMode="contain"
+        />
+
         {/* Close Button */}
         <View style={styles.closeButtonContainer}>
           <TouchableOpacity
@@ -195,7 +231,7 @@ export default function ShareProfileSheet({
             onPress={onClose}
             activeOpacity={0.7}
           >
-            <Ionicons name="close" size={28} color={COLORS.saduNight} />
+            <Ionicons name="chevron-back" size={28} color={COLORS.saduNight} />
           </TouchableOpacity>
         </View>
 
@@ -279,15 +315,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xxxl,
   },
 
   // Profile Header Section
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 40,
-    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.xxxl,
+    marginBottom: 48,
+    paddingHorizontal: SPACING.xl,
   },
   name: {
     fontSize: 34,
@@ -310,7 +347,7 @@ const styles = StyleSheet.create({
   metadata: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: COLORS.desertOchre,
     textAlign: 'center',
   },
 
@@ -323,6 +360,7 @@ const styles = StyleSheet.create({
   // Action Buttons
   actions: {
     gap: SPACING.lg,
+    marginTop: SPACING.lg,
   },
   shareButton: {
     flexDirection: 'row',
@@ -330,7 +368,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 56,
     backgroundColor: COLORS.najdiCrimson,
-    borderRadius: SPACING.md,
+    borderRadius: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -346,5 +384,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.surface,
     letterSpacing: -0.41,
+  },
+
+  // Background Gradient
+  backgroundGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: -1,
+  },
+
+  // Emblem Watermark
+  emblemWatermark: {
+    position: 'absolute',
+    top: 80,
+    alignSelf: 'center',
+    width: 120,
+    height: 120,
+    opacity: 0.04,
+    tintColor: COLORS.saduNight,
+    zIndex: 0,
   },
 });
