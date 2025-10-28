@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   },
   characterCounter: {
     fontSize: 13,
-    color: tokens.colors.neutral[500],
+    color: tokens.colors.textMuted,  // Neutral gray #6B7280
     textAlign: 'left',
     marginTop: 4,
   },
