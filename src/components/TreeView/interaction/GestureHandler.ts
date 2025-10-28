@@ -23,13 +23,12 @@
  */
 
 import { Gesture } from 'react-native-gesture-handler';
-import { SharedValue, cancelAnimation, withSpring, withTiming, runOnJS, useSharedValue } from 'react-native-reanimated';
+import { SharedValue, cancelAnimation, withDecay, withSpring, withTiming, runOnJS, useSharedValue } from 'react-native-reanimated';
 import {
   GESTURE_PHYSICS,
   clampVelocity,
   shouldApplyMomentum,
   getZoomSpringConfig,
-  getPanSpringConfig,
 } from '../utils/constants/gesturePhysics';
 
 // Zoom limits
@@ -52,6 +51,9 @@ export interface GestureSharedValues {
   isPinching: SharedValue<boolean>;
   initialFocalX: SharedValue<number>;
   initialFocalY: SharedValue<number>;
+  // Momentum state tracking (for pan/pinch coordination)
+  completedAxes: SharedValue<number>;
+  isInMomentum: SharedValue<boolean>;
 }
 
 export interface GestureCallbacks {
@@ -103,7 +105,10 @@ export function createPanGesture(
     savedTranslateY,
     isPinching,
     scale,
+    completedAxes,
+    isInMomentum
   } = sharedValues;
+  const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
 
   // Calculate fixed bounds at median zoom (1.0x) - acceptable trade-off
   // 90% correct behavior, slight overshoot at extreme zoom levels
@@ -136,8 +141,16 @@ export function createPanGesture(
         return;
       }
 
-      console.log('[GESTURE] Pan started');
-      // Cancel any ongoing spring animations (momentum or otherwise)
+      // CRITICAL FIX: Only reset momentum if we were actually in momentum phase
+      if (isInMomentum.value && callbacks.onMomentumEnd) {
+        runOnJS(callbacks.onMomentumEnd)();
+        isInMomentum.value = false;
+      }
+
+      // Reset completion counter for new gesture
+      completedAxes.value = 0;
+
+      console.log('[MOMENTUM] Pan started');
       cancelAnimation(translateX);
       cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
@@ -186,33 +199,27 @@ export function createPanGesture(
         return;
       }
 
-      console.log(`[MOMENTUM] Pan ended - applying spring momentum (vX: ${clampedVelocityX.toFixed(0)}, vY: ${clampedVelocityY.toFixed(0)})`);
+      console.log(`[MOMENTUM] Pan ended - applying momentum (vX: ${clampedVelocityX.toFixed(0)}, vY: ${clampedVelocityY.toFixed(0)})`);
+
+      // Mark momentum phase started
+      isInMomentum.value = true;
+      completedAxes.value = 0; // Reset counter
 
       // Signal momentum start (for prefetch deferral)
       if (callbacks.onMomentumStart) {
         runOnJS(callbacks.onMomentumStart)();
       }
 
-      // Calculate spring target based on velocity (natural momentum feel)
-      // Formula: target = current + (velocity * velocityFactor)
-      // VelocityFactor calibrated to ~0.5 for iOS Photos-like momentum distance
-      const velocityFactor = 0.5;
-      const targetX = clamp(
-        translateX.value + (clampedVelocityX * velocityFactor),
-        boundsX[0],
-        boundsX[1]
-      );
-      const targetY = clamp(
-        translateY.value + (clampedVelocityY * velocityFactor),
-        boundsY[0],
-        boundsY[1]
-      );
-
-      // Spring completion callback (fires once, not per-axis)
-      const onSpringComplete = (finished?: boolean) => {
+      // CRITICAL FIX: Shared completion callback for both axes
+      const onAxisComplete = () => {
         'worklet';
-        if (finished) {
-          console.log('[MOMENTUM] Spring momentum completed');
+        completedAxes.value++;
+        console.log(`[MOMENTUM] Axis completed (${completedAxes.value}/2)`);
+
+        if (completedAxes.value === 2) {
+          console.log('[MOMENTUM] Momentum coast completed (both axes)');
+          isInMomentum.value = false;
+          completedAxes.value = 0; // Reset for next gesture
 
           if (callbacks.onMomentumEnd) {
             runOnJS(callbacks.onMomentumEnd)();
@@ -223,21 +230,23 @@ export function createPanGesture(
         }
       };
 
-      // Apply spring momentum (iOS-native feel, no decay bugs)
-      // Both axes animate together with unified spring config
-      translateX.value = withSpring(targetX, {
-        damping: GESTURE_PHYSICS.PAN_SPRING_DAMPING,
-        stiffness: GESTURE_PHYSICS.PAN_SPRING_STIFFNESS,
+      // Apply momentum with Reanimated 4 native API (rubberBandEffect only, no hard clamp)
+      // iOS pattern: Use rubber banding for natural edge resistance, not hard clamping
+      translateX.value = withDecay({
         velocity: clampedVelocityX,
-      });
+        deceleration: decelerationRate,
+        rubberBandEffect: true,
+        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+      }, onAxisComplete);
 
-      translateY.value = withSpring(targetY, {
-        damping: GESTURE_PHYSICS.PAN_SPRING_DAMPING,
-        stiffness: GESTURE_PHYSICS.PAN_SPRING_STIFFNESS,
+      translateY.value = withDecay({
         velocity: clampedVelocityY,
-      }, onSpringComplete); // Only attach callback to Y axis (fires once)
+        deceleration: decelerationRate,
+        rubberBandEffect: true,
+        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
+      }, onAxisComplete);
 
-      // Save current values (before spring animation modifies them)
+      // Save current values (before decay animation modifies them)
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
@@ -273,6 +282,8 @@ export function createPinchGesture(
     isPinching,
     initialFocalX,
     initialFocalY,
+    completedAxes,
+    isInMomentum
   } = sharedValues;
   const minZoom = config.minZoom ?? MIN_ZOOM;
   const maxZoom = config.maxZoom ?? MAX_ZOOM;
@@ -284,7 +295,14 @@ export function createPinchGesture(
       if (e.numberOfPointers === 2) {
         isPinching.value = true;
 
-        // Cancel any running animations (momentum or otherwise)
+        // CRITICAL FIX: Reset momentum state if user pinches during pan momentum
+        if (isInMomentum.value && callbacks.onMomentumEnd) {
+          runOnJS(callbacks.onMomentumEnd)();
+          isInMomentum.value = false;
+        }
+        completedAxes.value = 0; // Reset counter
+
+        // CRITICAL: Cancel any running animations to prevent value drift
         cancelAnimation(translateX);
         cancelAnimation(translateY);
         cancelAnimation(scale);
