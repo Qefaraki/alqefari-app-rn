@@ -11,31 +11,26 @@
  * - Tier 1: Load image at appropriate bucket size
  * - Tier 2/3: Return null (photos hidden)
  *
- * Loading States (4-State Progressive Loading):
+ * Loading States (3-State Progressive Loading):
  * 1. **Hidden**: showPhotos=false or tier > 1 → returns null
- * 2. **Average Color**: Instant placeholder (<1ms) extracted from blurhash DC component
- *    - Eliminates white flash by rendering synchronously
- *    - Solid color matching image's dominant tone
- * 3. **BlurHash**: Blurred preview (5-10ms decode) while photo loads
- *    - Smooth transition from average color
+ * 2. **BlurHash**: Blurred preview (5-10ms decode) while photo loads
  *    - 32×32 decoded size, scaled to node dimensions
- * 4. **Photo**: Full-resolution image with optional morph animation
+ *    - Smooth instant appearance (<10ms is imperceptible)
+ * 3. **Photo**: Full-resolution image with optional morph animation
  *    - Crossfade + scale pop at extreme zoom (scale >= 3.0)
  *
- * White Flash Solution (October 27, 2025):
- * - Research showed industry standard: average color → blurhash → photo
- * - Average color extraction is synchronous (<1ms vs 5-10ms full decode)
- * - Result: Zero white flashes, smooth 4-state progression
+ * Smooth Loading Solution (October 28, 2025):
+ * - Blurhash appears in <10ms (imperceptible delay)
+ * - Eliminates jarring color mismatch from average color extraction
+ * - Result: Smooth 3-state progression, no color/blur discrepancy
  *
  * Performance Optimizations:
  * - Bucket selection: 40/60/80/120/256px based on screen pixels
  * - Hysteresis: Prevents bucket thrashing during zoom
  * - Batched loading: useBatchedSkiaImage with priority
  * - Rounded square mask: RoundedRect with 10px corner radius (matches card)
- * - Average color caching via useMemo (computed once per blurhash)
  *
  * Design Constraints (Najdi Sadu):
- * - Average color: Extracted from blurhash, fallback to #D1BBA3
  * - Skeleton: Camel Hair Beige with 20% opacity (#D1BBA320) - only when no blurhash
  * - Corner radius: 10px (matches card corner radius)
  * - Fit: cover (maintains aspect ratio, fills square)
@@ -52,7 +47,6 @@ import { Group, RoundedRect, rrect, rect, Image as SkiaImage, Skia } from '@shop
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
 import { blurhashToSkiaImage } from '../../../utils/blurhashToSkia';
-import { getAverageColor } from '../../../utils/blurhashAverageColor';
 import { featureFlags } from '../../../config/featureFlags';
 import { hasCrop, normalizeCropValues } from '../../../utils/cropUtils';
 
@@ -202,43 +196,6 @@ export function renderImageSkeleton(
   );
 }
 
-/**
- * Render average color placeholder
- *
- * Shows average color extracted from blurhash as instant placeholder.
- * Renders synchronously (<1ms) to eliminate white flash.
- *
- * This is the fastest possible visual feedback - extracts RGB from
- * blurhash DC component without full DCT calculation.
- *
- * @param x - Top-left X position
- * @param y - Top-left Y position
- * @param size - Square size (width and height)
- * @param cornerRadius - Corner radius for rounded square
- * @param color - RGB color string (e.g., 'rgb(184, 163, 137)')
- * @returns Group with average color rounded square
- */
-export function renderAverageColorPlaceholder(
-  x: number,
-  y: number,
-  size: number,
-  cornerRadius: number,
-  color: string
-): JSX.Element {
-  return (
-    <Group>
-      {/* Average color background (instant visual feedback) */}
-      <RoundedRect
-        x={x}
-        y={y}
-        width={size}
-        height={size}
-        r={cornerRadius}
-        color={color}
-      />
-    </Group>
-  );
-}
 
 /**
  * Apply crop to Skia image using GPU (makeImageFromRect)
@@ -436,19 +393,18 @@ export function renderMorphTransition(
  * Features LOD-aware loading, BlurHash placeholders, and morph transitions.
  *
  * Features:
- * - 4-state progressive loading: average color → blurhash → photo
- * - Zero white flashes (average color renders synchronously <1ms)
+ * - 3-state progressive loading: blurhash → photo
+ * - Smooth transitions (blurhash appears in <10ms, imperceptible)
  * - Morph animation: smooth crossfade + scale pop at extreme zoom (scale >= 3.0)
  * - Returns null if photos hidden or tier > 1
  *
  * Rendering Progression:
- * 1. Average color (0ms) - Extracted from blurhash, instant visual feedback
- * 2. BlurHash (50-100ms) - Blurred preview while photo loads
- * 3. Photo loaded (2000ms+) - Full resolution image
- * 4. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
+ * 1. BlurHash (5-10ms) - Blurred preview appears instantly while photo loads
+ * 2. Photo loaded (2000ms+) - Full resolution image
+ * 3. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
  *
  * @param props - ImageNode props
- * @returns Group with image/average color/blurhash/morph animation or null
+ * @returns Group with image/blurhash/morph animation or null
  */
 export const ImageNode: React.FC<ImageNodeProps> = React.memo(
   ({
@@ -484,15 +440,6 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Determine if image should load
     const shouldLoad = shouldLoadImage(tier, url, showPhotos);
-
-    // Calculate average color synchronously (<1ms) for instant visual feedback
-    // This eliminates white flash by rendering color immediately while blurhash decodes
-    const avgColor = React.useMemo(() => {
-      if (featureFlags.enableBlurhash && blurhash && shouldLoad) {
-        return getAverageColor(blurhash);
-      }
-      return IMAGE_NODE_CONSTANTS.SKELETON_COLOR; // Fallback to skeleton color
-    }, [blurhash, shouldLoad, featureFlags.enableBlurhash]);
 
     // Convert blurhash to Skia Image (only if feature enabled and no photo loaded yet)
     React.useEffect(() => {
@@ -620,42 +567,36 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       return null;
     }
 
-    // State 1: Average Color (no blurhash decoded, no image)
-    // Show average color extracted from blurhash (synchronous, <1ms)
-    // This eliminates white flash by rendering instantly while blurhash decodes
-    if (!image && !blurhashImageRef.current) {
-      // Use average color if blurhash available, otherwise fallback to skeleton
-      if (featureFlags.enableBlurhash && blurhash) {
-        return renderAverageColorPlaceholder(x, y, width, cornerRadius, avgColor);
+    // State 1: Blurhash or Skeleton (no image yet)
+    // Show blurred placeholder while high-res image loads
+    // Blurhash appears in 5-10ms (imperceptible delay)
+    if (!image) {
+      // Show blurhash if available
+      if (blurhashImageRef.current) {
+        // Verbose log disabled to reduce console spam
+        // if (__DEV__) {
+        //   console.log(`[BlurHash] ${nodeId}: Rendering blurhash placeholder`);
+        // }
+        // Render blurhash with 90% opacity to distinguish from final photo
+        return renderLoadedImage(
+          blurhashImageRef.current,
+          x,
+          y,
+          width,
+          height,
+          cornerRadius,
+          normalizedCrop.crop_top,
+          normalizedCrop.crop_bottom,
+          normalizedCrop.crop_left,
+          normalizedCrop.crop_right,
+          0.9
+        );
       }
       // Fallback to skeleton if no blurhash
       return renderImageSkeleton(x, y, width, cornerRadius);
     }
 
-    // State 2: Blurhash (has blurhash, no image yet)
-    // Show blurred placeholder while high-res image loads
-    if (!image && blurhashImageRef.current) {
-      // Verbose log disabled to reduce console spam
-      // if (__DEV__) {
-      //   console.log(`[BlurHash] ${nodeId}: Rendering blurhash placeholder`);
-      // }
-      // Render blurhash with 90% opacity to distinguish from final photo
-      return renderLoadedImage(
-        blurhashImageRef.current,
-        x,
-        y,
-        width,
-        height,
-        cornerRadius,
-        normalizedCrop.crop_top,
-        normalizedCrop.crop_bottom,
-        normalizedCrop.crop_left,
-        normalizedCrop.crop_right,
-        0.9
-      );
-    }
-
-    // State 3: Photo loaded
+    // State 2: Photo loaded
     // Show loaded image with optional morph animation
     // Use morph transition if we have both images and animation is active
     const previousImage = previousImageRef.current;

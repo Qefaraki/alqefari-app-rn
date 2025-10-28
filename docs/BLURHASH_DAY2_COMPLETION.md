@@ -548,3 +548,38 @@ Tree Load → Gray skeleton → Blur preview → Photo fades in smoothly
 **Report Generated**: October 27, 2025 (Updated with Phase 8 White Flash Fix)
 **Author**: Claude Code (Day 2 Implementation + White Flash Solution)
 **Status**: ✅ Frontend Integration Complete + White Flash Fix Applied, Awaiting Device Testing
+
+---
+
+## 📝 October 28, 2025 Update: Simplified 3-State Loading
+
+**Reason**: User feedback after device testing revealed that average color extraction from blurhash DC component produced colors that didn't match actual photos, creating a jarring visual experience.
+
+**Research Findings**:
+- Blurhash DC component is **mathematically accurate** but **perceptually inaccurate**
+- Different blurhash implementations have color space conversion bugs
+- Example: Photo with bright sky + dark clothing → blurhash shows bright blue, but photo "feels" dark
+
+**Solution**: Removed average color stage entirely
+- **Before** (4 states): Average color (0ms) → BlurHash (50ms) → Photo (2000ms)
+- **After** (3 states): BlurHash (5-10ms) → Photo (2000ms) OR Skeleton → Photo
+
+**Changes Made**:
+1. Removed `src/utils/blurhashAverageColor.ts` utility
+2. Removed `getAverageColor()` import from ImageNode.tsx
+3. Removed `avgColor` useMemo calculation
+4. Removed `renderAverageColorPlaceholder()` function
+5. Updated rendering logic to skip average color, show blurhash or skeleton immediately
+6. Updated all documentation comments to reflect 3-state loading
+
+**Result**:
+- Blurhash appears in <10ms (imperceptible delay)
+- Eliminates color mismatch problem entirely
+- Smoother visual progression with no discrepancy between placeholder and actual photo
+- Simpler code, easier maintenance
+
+**Files Modified**:
+- `src/components/TreeView/rendering/ImageNode.tsx` (removed 40 lines)
+- `docs/BLURHASH_DAY2_COMPLETION.md` (this update)
+
+**Status**: ✅ Complete - Ready for device testing
