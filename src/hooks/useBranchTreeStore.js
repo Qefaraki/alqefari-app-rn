@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { highlightingServiceV2 } from '../services/highlightingServiceV2';
 
 /**
  * Isolated Zustand store for branch tree functionality in modals.
- * 
+ *
  * This store is completely separate from the main useTreeStore to prevent
  * state conflicts when showing tree modals alongside the main tree view.
- * 
+ *
  * Key differences from main tree store:
  * - No admin features, edit modes, or complex UI state
  * - Simplified viewport management for modal use
@@ -48,9 +49,12 @@ const useBranchTreeStore = create(
     showPhotos: true,
     loadingState: { isLoading: false, message: null },
 
-    // Highlighted ancestry for path rendering
+    // Highlighted ancestry for path rendering (legacy - kept for compatibility)
     highlightedAncestry: [],
-    
+
+    // Highlighting system (NEW - required by TreeView.core.js autoHighlight feature)
+    highlights: {},
+
     // Actions
     setTreeData: (data) => set({ treeData: data }),
 
@@ -79,7 +83,63 @@ const useBranchTreeStore = create(
     })),
 
     setHighlightedAncestry: (ancestry) => set({ highlightedAncestry: ancestry }),
-    
+
+    // Highlighting actions (NEW - required by TreeView.core.js)
+    /**
+     * Add a highlight to the tree
+     * @param {Object} definition - Highlight definition (type, nodeId, style)
+     * @returns {string} Generated highlight ID
+     */
+    addHighlight: (definition) => {
+      const currentState = get();
+      const newHighlights = highlightingServiceV2.addHighlight(
+        currentState.highlights,
+        definition
+      );
+
+      // Get the newly added highlight ID
+      const newId = Object.keys(newHighlights).find(
+        id => !currentState.highlights[id]
+      );
+
+      set({ highlights: newHighlights });
+
+      if (__DEV__) {
+        console.log(`[BranchTreeStore] Added highlight ${newId}`, definition);
+      }
+
+      return newId;
+    },
+
+    /**
+     * Remove a highlight from the tree
+     * @param {string} id - Highlight ID
+     */
+    removeHighlight: (id) => {
+      const currentState = get();
+      const newHighlights = highlightingServiceV2.removeHighlight(
+        currentState.highlights,
+        id
+      );
+
+      set({ highlights: newHighlights });
+
+      if (__DEV__) {
+        console.log(`[BranchTreeStore] Removed highlight ${id}`);
+      }
+    },
+
+    /**
+     * Clear all highlights
+     */
+    clearHighlights: () => {
+      set({ highlights: {} });
+
+      if (__DEV__) {
+        console.log('[BranchTreeStore] Cleared all highlights');
+      }
+    },
+
     // Reset all state (for cleanup)
     reset: () => set({
       treeData: [],
@@ -100,6 +160,7 @@ const useBranchTreeStore = create(
       showPhotos: true,
       loadingState: { isLoading: false, message: null },
       highlightedAncestry: [],
+      highlights: {},  // Clear highlights on reset
     }),
     
     // Helper methods for tree navigation

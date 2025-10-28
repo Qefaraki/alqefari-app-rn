@@ -59,7 +59,8 @@ const BranchTreeView = ({
       focusOnProfile: null,    // Not used in branch tree
       loadingState: useBranchTreeStore(s => s.loadingState || { isLoading: false, message: null }),
 
-      // Highlighting (not used in branch tree - external control via autoHighlight prop)
+      // Highlighting system (NEW - required by TreeView.core.js autoHighlight)
+      highlights: useBranchTreeStore(s => s.highlights || {}),
       pendingCousinHighlight: null,
 
       // Profile sheet
@@ -85,7 +86,10 @@ const BranchTreeView = ({
       setFocusOnProfile: () => {},  // No-op
       setLoadingState: useBranchTreeStore(s => s.setLoadingState || (() => {})),
 
-      // Highlighting
+      // Highlighting actions (NEW - required by TreeView.core.js autoHighlight)
+      addHighlight: useBranchTreeStore(s => s.addHighlight),
+      removeHighlight: useBranchTreeStore(s => s.removeHighlight || (() => {})),
+      clearHighlights: useBranchTreeStore(s => s.clearHighlights || (() => {})),
       setPendingCousinHighlight: () => {}, // No-op
 
       // Profile sheet
