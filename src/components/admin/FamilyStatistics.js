@@ -19,11 +19,14 @@ import {
   StyleSheet,
   Platform,
   Image,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { VictoryPie } from 'victory-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../services/supabase';
+import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import LargeTitleHeader from '../ios/LargeTitleHeader';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import tokens from '../ui/tokens';
@@ -40,6 +43,7 @@ export default function FamilyStatistics({ onClose }) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [extendedRetrying, setExtendedRetrying] = useState(false);
 
   // Performance: Lazy load charts as user scrolls
   const [visibleCharts, setVisibleCharts] = useState(['gender']); // Start with hero only
@@ -50,25 +54,63 @@ export default function FamilyStatistics({ onClose }) {
     munasib: false,
   });
 
+  // Lifecycle management
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef(null);
+  const lastRefreshTime = useRef(0);
+
+  // Static dimensions (avoid re-render on rotation)
+  const [screenWidth] = useState(() => Dimensions.get('window').width);
+  const isSmallScreen = screenWidth < 390; // iPhone SE 2022
+
   useEffect(() => {
+    isMountedRef.current = true;
     loadStatistics();
+
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const loadStatistics = async ({ useOverlay = false } = {}) => {
+    // Abort previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     if (!initialLoading && useOverlay) {
       setIsFetching(true);
     }
 
     try {
-      // Load core stats first (fast, always works)
-      const { data: core, error: coreError } = await supabase.rpc('admin_get_core_statistics');
+      // Load core stats first (4s timeout, 1s buffer over backend 3s)
+      const { data: core, error: coreError } = await fetchWithTimeout(
+        supabase.rpc('admin_get_core_statistics'),
+        4000,
+        'Core statistics'
+      );
+
+      if (signal.aborted || !isMountedRef.current) return;
+
       if (coreError) throw coreError;
       setCoreStats(core);
       setInitialLoading(false);
 
-      // Load extended stats second (slower, can fail gracefully)
+      // Load extended stats second (4s timeout)
       setExtendedLoading(true);
-      const { data: extended, error: extendedError } = await supabase.rpc('admin_get_extended_statistics');
+      const { data: extended, error: extendedError } = await fetchWithTimeout(
+        supabase.rpc('admin_get_extended_statistics'),
+        4000,
+        'Extended statistics'
+      );
+
+      if (signal.aborted || !isMountedRef.current) return;
 
       if (extendedError) {
         console.warn('Extended stats failed:', extendedError);
@@ -79,14 +121,64 @@ export default function FamilyStatistics({ onClose }) {
         setExtendedStats(null);
       } else {
         setExtendedStats(extended);
+        // Haptic feedback on successful initial load
+        if (initialLoading) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
       }
     } catch (error) {
-      Alert.alert('خطأ', 'فشل تحميل الإحصائيات');
+      if (!isMountedRef.current) return;
+
+      if (error.message === 'NETWORK_OFFLINE') {
+        Alert.alert('خطأ', 'لا يوجد اتصال بالإنترنت');
+      } else if (error.message.includes('NETWORK_TIMEOUT')) {
+        Alert.alert('خطأ', 'انتهت المهلة. حاول مرة أخرى');
+      } else {
+        Alert.alert('خطأ', 'فشل تحميل الإحصائيات');
+      }
       console.error('Statistics load error:', error);
     } finally {
-      setExtendedLoading(false);
-      setIsFetching(false);
+      if (isMountedRef.current && !signal.aborted) {
+        setExtendedLoading(false);
+        setIsFetching(false);
+      }
     }
+  };
+
+  const handleExtendedRetry = async () => {
+    setExtendedRetrying(true);
+    setExtendedLoading(true);
+    try {
+      const { data, error } = await fetchWithTimeout(
+        supabase.rpc('admin_get_extended_statistics'),
+        4000,
+        'Extended statistics retry'
+      );
+
+      if (error || data?.error) {
+        setExtendedStats(null);
+      } else {
+        setExtendedStats(data);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      if (error.message === 'NETWORK_OFFLINE') {
+        Alert.alert('خطأ', 'لا يوجد اتصال بالإنترنت');
+      }
+    } finally {
+      setExtendedRetrying(false);
+      setExtendedLoading(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    const now = Date.now();
+    if (now - lastRefreshTime.current < 2000) {
+      return; // Don't even set isFetching
+    }
+    lastRefreshTime.current = now;
+    setIsFetching(true);
+    loadStatistics({ useOverlay: true });
   };
 
   // Lazy loading handler for performance
@@ -130,7 +222,7 @@ export default function FamilyStatistics({ onClose }) {
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
-            onRefresh={() => loadStatistics({ useOverlay: true })}
+            onRefresh={handleRefresh}
             tintColor={palette.primary}
             title="تحديث الإحصائيات"
             titleColor={palette.text}
@@ -174,7 +266,8 @@ export default function FamilyStatistics({ onClose }) {
               <ErrorSection
                 title="الأسماء الأكثر شيوعاً"
                 message="يستغرق التحميل وقتاً أطول من المتوقع"
-                onRetry={() => loadStatistics({ useOverlay: true })}
+                onRetry={handleExtendedRetry}
+                isRetrying={extendedRetrying}
               />
             )}
 
@@ -243,10 +336,18 @@ const IntroSurface = () => (
 
 // Hero Section: Total members + Gender donut chart
 const HeroSection = ({ stats }) => {
+  if (!stats?.gender || stats.gender.total === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.emptyStateText}>لا توجد بيانات متاحة</Text>
+      </View>
+    );
+  }
+
   const { gender } = stats;
   const malePercentage = ((gender.male / gender.total) * 100).toFixed(1);
   const femalePercentage = ((gender.female / gender.total) * 100).toFixed(1);
-  const generations = stats.generations.length;
+  const generations = stats.generations?.length || 0;
 
   return (
     <View style={styles.section}>
@@ -302,6 +403,18 @@ const HeroSection = ({ stats }) => {
 
 // Generations Section: Horizontal bar chart
 const GenerationsSection = ({ stats }) => {
+  if (!stats?.generations || !Array.isArray(stats.generations) || stats.generations.length === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>رحلة الأجيال</Text>
+        <View style={styles.emptyChartContainer}>
+          <Ionicons name="bar-chart-outline" size={48} color={`${palette.text}66`} />
+          <Text style={styles.emptyChartText}>لا توجد بيانات الأجيال</Text>
+        </View>
+      </View>
+    );
+  }
+
   const { generations } = stats;
   const maxCount = Math.max(...generations.map((g) => g.count));
   const largestGen = generations.reduce((max, g) => (g.count > max.count ? g : max), generations[0]);
@@ -360,6 +473,19 @@ const GenerationsSection = ({ stats }) => {
 
 // Names Section: Top male/female names
 const NamesSection = ({ stats, expanded, onToggle }) => {
+  if (!stats?.top_male_names || !stats?.top_female_names ||
+      !Array.isArray(stats.top_male_names) || !Array.isArray(stats.top_female_names)) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>الأسماء الأكثر شيوعاً</Text>
+        <View style={styles.emptyChartContainer}>
+          <Ionicons name="stats-chart-outline" size={48} color={`${palette.text}66`} />
+          <Text style={styles.emptyChartText}>لا توجد بيانات الأسماء</Text>
+        </View>
+      </View>
+    );
+  }
+
   const { top_male_names, top_female_names } = stats;
 
   const renderNamesList = (names, gender, limit) => {
@@ -411,6 +537,19 @@ const NamesSection = ({ stats, expanded, onToggle }) => {
 
 // Munasib Section: Leaderboard style
 const MunasibSection = ({ stats, expanded, onToggle }) => {
+  if (!stats?.top_munasib_families || !stats?.munasib_totals ||
+      !Array.isArray(stats.top_munasib_families)) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>أنساب القفاري</Text>
+        <View style={styles.emptyChartContainer}>
+          <Ionicons name="people-outline" size={48} color={`${palette.text}66`} />
+          <Text style={styles.emptyChartText}>لا توجد بيانات الأنساب</Text>
+        </View>
+      </View>
+    );
+  }
+
   const { top_munasib_families, munasib_totals } = stats;
   const displayFamilies = expanded ? top_munasib_families : top_munasib_families.slice(0, 5);
   const maxCount = top_munasib_families[0]?.count || 1;
@@ -455,6 +594,18 @@ const MunasibSection = ({ stats, expanded, onToggle }) => {
 
 // Data Completeness Section
 const DataCompletenessSection = ({ stats }) => {
+  if (!stats?.data_quality || stats.data_quality.total_profiles === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>مدى اكتمال البيانات</Text>
+        <View style={styles.emptyChartContainer}>
+          <Ionicons name="checkmark-circle-outline" size={48} color={`${palette.text}66`} />
+          <Text style={styles.emptyChartText}>لا توجد بيانات الجودة</Text>
+        </View>
+      </View>
+    );
+  }
+
   const { data_quality } = stats;
   const photoPercentage = (data_quality.with_photos / data_quality.total_profiles) * 100;
   const datePercentage = (data_quality.with_birthdates / data_quality.total_profiles) * 100;
@@ -547,14 +698,22 @@ const LoadingSection = ({ title }) => (
 );
 
 // Error Section for failed extended stats
-const ErrorSection = ({ title, message, onRetry }) => (
+const ErrorSection = ({ title, message, onRetry, isRetrying = false }) => (
   <View style={styles.section}>
     <Text style={styles.sectionHeader}>{title}</Text>
     <View style={styles.errorCard}>
       <Ionicons name="alert-circle-outline" size={32} color={palette.secondary} />
       <Text style={styles.errorText}>{message}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-        <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
+      <TouchableOpacity
+        style={[styles.retryButton, isRetrying && styles.retryButtonDisabled]}
+        onPress={onRetry}
+        disabled={isRetrying}
+      >
+        {isRetrying ? (
+          <ActivityIndicator size="small" color={palette.background} />
+        ) : (
+          <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
+        )}
       </TouchableOpacity>
     </View>
   </View>
@@ -926,9 +1085,34 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
   },
+  retryButtonDisabled: {
+    opacity: 0.5,
+  },
   retryButtonText: {
     fontSize: 15,
     fontFamily: 'SFArabic-Semibold',
     color: palette.background,
+  },
+  emptyChartContainer: {
+    backgroundColor: palette.surface,
+    borderRadius: tokens.radii.lg,
+    padding: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  emptyChartText: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}66`,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontFamily: 'SFArabic-Regular',
+    color: `${palette.text}66`,
+    textAlign: 'center',
+    marginTop: 24,
   },
 });
