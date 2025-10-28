@@ -90,6 +90,7 @@ const BranchTreeView = ({
       addHighlight: useBranchTreeStore(s => s.addHighlight || (() => null)),
       removeHighlight: useBranchTreeStore(s => s.removeHighlight || (() => {})),
       clearHighlights: useBranchTreeStore(s => s.clearHighlights || (() => {})),
+      getHighlightRenderData: useBranchTreeStore(s => s.getHighlightRenderData || (() => [])),
       setPendingCousinHighlight: () => {}, // No-op
 
       // Profile sheet

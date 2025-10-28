@@ -1,5 +1,5 @@
 export const featureFlags = {
   profileLinkRequests: true,
-  enableDeepLinking: __DEV__, // Start disabled in production, enabled in dev for testing
+  enableDeepLinking: true, // ✅ Enabled - QR codes and deep links work in production
   enableBlurhash: true, // Enable blurhash placeholders globally for testing
 };

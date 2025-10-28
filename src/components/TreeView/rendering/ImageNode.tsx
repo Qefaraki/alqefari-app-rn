@@ -11,18 +11,23 @@
  * - Tier 1: Load image at appropriate bucket size
  * - Tier 2/3: Return null (photos hidden)
  *
- * Loading States (3-State Progressive Loading):
+ * Loading States (3-State Progressive Loading with Crossfade):
  * 1. **Hidden**: showPhotos=false or tier > 1 → returns null
  * 2. **BlurHash**: Blurred preview (5-10ms decode) while photo loads
  *    - 32×32 decoded size, scaled to node dimensions
  *    - Smooth instant appearance (<10ms is imperceptible)
- * 3. **Photo**: Full-resolution image with optional morph animation
+ * 3. **Blurhash → Photo Crossfade**: 200ms smooth transition
+ *    - Blurhash fades out (opacity 1 → 0)
+ *    - Photo fades in (opacity 0 → 1)
+ *    - Both images rendered simultaneously during transition
+ * 4. **Photo**: Full-resolution image with optional morph animation
  *    - Crossfade + scale pop at extreme zoom (scale >= 3.0)
  *
  * Smooth Loading Solution (October 28, 2025):
  * - Blurhash appears in <10ms (imperceptible delay)
- * - Eliminates jarring color mismatch from average color extraction
- * - Result: Smooth 3-state progression, no color/blur discrepancy
+ * - 200ms crossfade eliminates jarring "pop" to sharp image
+ * - Matches iOS Photos app smooth transition feel
+ * - Result: Professional 3-state progression with smooth crossfade
  *
  * Performance Optimizations:
  * - Bucket selection: 40/60/80/120/256px based on screen pixels
@@ -46,6 +51,7 @@ import { PixelRatio } from 'react-native';
 import { Group, RoundedRect, rrect, rect, Image as SkiaImage, Skia } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
+import { useBlurToPhotoTransition } from '../../../hooks/useBlurToPhotoTransition';
 import { blurhashToSkiaImage } from '../../../utils/blurhashToSkia';
 import { featureFlags } from '../../../config/featureFlags';
 import { hasCrop, normalizeCropValues } from '../../../utils/cropUtils';
@@ -393,15 +399,16 @@ export function renderMorphTransition(
  * Features LOD-aware loading, BlurHash placeholders, and morph transitions.
  *
  * Features:
- * - 3-state progressive loading: blurhash → photo
- * - Smooth transitions (blurhash appears in <10ms, imperceptible)
+ * - 3-state progressive loading with smooth crossfade: blurhash → photo
+ * - Smooth transitions (blurhash appears in <10ms, 200ms crossfade to photo)
  * - Morph animation: smooth crossfade + scale pop at extreme zoom (scale >= 3.0)
  * - Returns null if photos hidden or tier > 1
  *
  * Rendering Progression:
  * 1. BlurHash (5-10ms) - Blurred preview appears instantly while photo loads
- * 2. Photo loaded (2000ms+) - Full resolution image
- * 3. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
+ * 2. Crossfade (200ms) - Smooth blurhash → photo transition
+ * 3. Photo loaded (2000ms+) - Full resolution image
+ * 4. Photo upgrade (optional) - Morph animation to higher quality at extreme zoom
  *
  * @param props - ImageNode props
  * @returns Group with image/blurhash/morph animation or null
@@ -532,6 +539,13 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     // Morph animation - only triggers at extreme zoom
     const { lowResOpacity, highResOpacity, highResScale, isAnimating } =
       usePhotoMorphTransition(isUpgrading, scale, true);
+
+    // Blurhash → photo crossfade animation - triggers on EVERY photo load
+    const {
+      blurhashOpacity: blurOpacity,
+      photoOpacity: photoFadeInOpacity,
+      isTransitioning: isBlurCrossfading,
+    } = useBlurToPhotoTransition(!!image, !!blurhashImageRef.current);
     
     // Clear previous image after animation completes to prevent memory leaks
     React.useEffect(() => {
@@ -596,7 +610,48 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       return renderImageSkeleton(x, y, width, cornerRadius);
     }
 
-    // State 2: Photo loaded
+    // State 2: Blurhash → Photo Crossfade (smooth 200ms transition)
+    // Render both blurhash and photo with animated opacity during crossfade
+    if (image && blurhashImageRef.current && isBlurCrossfading) {
+      // Verbose log disabled to reduce console spam
+      // if (__DEV__) {
+      //   console.log(`[BlurCrossfade] ${nodeId}: 🎬 Crossfading blur → photo`);
+      // }
+      return (
+        <Group>
+          {/* Blurhash fading out */}
+          {renderLoadedImage(
+            blurhashImageRef.current,
+            x,
+            y,
+            width,
+            height,
+            cornerRadius,
+            normalizedCrop.crop_top,
+            normalizedCrop.crop_bottom,
+            normalizedCrop.crop_left,
+            normalizedCrop.crop_right,
+            blurOpacity // Animated: 1 → 0
+          )}
+          {/* Photo fading in */}
+          {renderLoadedImage(
+            image,
+            x,
+            y,
+            width,
+            height,
+            cornerRadius,
+            normalizedCrop.crop_top,
+            normalizedCrop.crop_bottom,
+            normalizedCrop.crop_left,
+            normalizedCrop.crop_right,
+            photoFadeInOpacity // Animated: 0 → 1
+          )}
+        </Group>
+      );
+    }
+
+    // State 3: Photo Morph Animation (low-res → high-res at extreme zoom)
     // Show loaded image with optional morph animation
     // Use morph transition if we have both images and animation is active
     const previousImage = previousImageRef.current;

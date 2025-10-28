@@ -98,7 +98,7 @@ const useBranchTreeStore = create(
     // DESIGN DECISIONS:
     // - MAX_HIGHLIGHTS: 20 (vs 200 in main tree) - branch tree is smaller
     // - NO updateHighlight(): Not needed (only add/remove for autoHighlight)
-    // - NO getHighlightRenderData(): Not needed (small dataset, no viewport culling)
+    // - getHighlightRenderData(): REQUIRED by TreeView.core.js (viewport culling)
     //
     // COMPARISON WITH MAIN TREE (useTreeStore.js):
     // - Main tree: 200 limit, viewport culling, updateHighlight()
@@ -177,6 +177,21 @@ const useBranchTreeStore = create(
       if (__DEV__) {
         console.log('[BranchTreeStore] Cleared all highlights');
       }
+    },
+
+    /**
+     * Get render data for highlights (viewport-culled)
+     * @param {Object} viewport - Current viewport bounds { minX, maxX, minY, maxY }
+     * @returns {Array<SegmentData>} Visible segments with highlight info
+     */
+    getHighlightRenderData: (viewport) => {
+      const { highlights, nodesMap } = get();
+
+      if (Object.keys(highlights).length === 0) {
+        return [];
+      }
+
+      return highlightingServiceV2.getRenderData(highlights, nodesMap, viewport);
     },
 
     // Reset all state (for cleanup)
