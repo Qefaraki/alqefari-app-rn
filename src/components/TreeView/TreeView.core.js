@@ -1544,31 +1544,37 @@ const TreeViewCore = ({
   // See commit 579b4f676 for context on why this placement is critical.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  // Auto-activate highlight if provided externally (branch tree modal)
+  // Auto-activate highlight if provided externally (branch tree modal) - NEW SYSTEM
+  const searchHighlightIdRef = useRef(null);
+
   useEffect(() => {
     if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
       const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
 
-      if (pathData) {
-        setActiveHighlights(prev => ({
-          ...prev,
-          search: pathData,
-          cousinMarriage: null,
-          userLineage: null,
-        }));
+      if (pathData && pathData.pathNodeIds.length > 0) {
+        // Clear existing search highlight
+        if (searchHighlightIdRef.current) {
+          store.actions.removeHighlight(searchHighlightIdRef.current);
+        }
 
-        // Fade in opacity
-        cancelAnimation(pathOpacity);
-        pathOpacity.value = withDelay(
-          600,  // Wait for camera to settle
-          withTiming(0.65, {
-            duration: 400,
-            easing: Easing.out(Easing.ease),
-          })
-        );
+        // Add highlight using NEW system
+        const id = store.actions.addHighlight({
+          type: 'ancestry_path',
+          nodeId: autoHighlight.nodeId,
+          style: { color: '#D58C4A', opacity: 0.65, strokeWidth: 4 }  // Desert Ochre for search
+        });
+
+        searchHighlightIdRef.current = id;
       }
     }
-  }, [autoHighlight, calculatePathData, nodes.length, pathOpacity]);
+
+    // Cleanup on unmount
+    return () => {
+      if (searchHighlightIdRef.current) {
+        store.actions.removeHighlight(searchHighlightIdRef.current);
+      }
+    };
+  }, [autoHighlight, calculatePathData, nodes.length, store.actions]);
 
   // Focus on specific node after d3 layout completes (branch tree modal)
   useEffect(() => {
@@ -1624,11 +1630,12 @@ const TreeViewCore = ({
     return path;
   }, []);
 
-  // Calculate and display user lineage when toggle is ON (UNIFIED SYSTEM)
+  // Calculate and display user lineage when toggle is ON (NEW SYSTEM - Phase 3E)
+  const userLineageIdRef = useRef(null);
+
   useEffect(() => {
     // Only calculate if toggle is ON and user has profile
     if (highlightMyLine && authProfile?.id && nodes.length > 0) {
-      // Use NEW unified system
       const pathData = calculatePathData('USER_LINEAGE', authProfile.id);
 
       if (!pathData || pathData.pathNodeIds.length === 0) {
@@ -1639,44 +1646,36 @@ const TreeViewCore = ({
           [{ text: "حسناً", style: "default" }]
         );
 
-        // Clear user lineage
-        setActiveHighlights(prev => ({
-          ...prev,
-          userLineage: null
-        }));
-      } else {
-        // Set in unified state
-        setActiveHighlights(prev => ({
-          ...prev,
-          userLineage: pathData
-        }));
-
-        // Fade in if no search/cousin marriage highlight active
-        if (!activeHighlights.search && !activeHighlights.cousinMarriage) {
-          cancelAnimation(pathOpacity);
-          pathOpacity.value = withTiming(0.52, {
-            duration: 400,
-            easing: Easing.out(Easing.ease)
-          });
+        // Clear any existing highlight
+        if (userLineageIdRef.current) {
+          store.actions.removeHighlight(userLineageIdRef.current);
+          userLineageIdRef.current = null;
         }
+      } else {
+        // Add highlight using NEW system
+        const id = store.actions.addHighlight({
+          type: 'ancestry_path',
+          nodeId: authProfile.id,
+          style: { color: '#A13333', opacity: 0.7, strokeWidth: 3 }
+        });
+
+        userLineageIdRef.current = id;
       }
     } else {
       // Toggle OFF or no profile - clear user lineage
-      if (activeHighlights.userLineage) {
-        cancelAnimation(pathOpacity);
-        pathOpacity.value = withTiming(0, {
-          duration: 300,
-          easing: Easing.in(Easing.ease)
-        });
-        setTimeout(() => {
-          setActiveHighlights(prev => ({
-            ...prev,
-            userLineage: null
-          }));
-        }, 300);
+      if (userLineageIdRef.current) {
+        store.actions.removeHighlight(userLineageIdRef.current);
+        userLineageIdRef.current = null;
       }
     }
-  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData, pathOpacity]);
+
+    // Cleanup on unmount
+    return () => {
+      if (userLineageIdRef.current) {
+        store.actions.removeHighlight(userLineageIdRef.current);
+      }
+    };
+  }, [highlightMyLine, authProfile?.id, nodes.length, store.actions]);
 
   // Clear all highlights (glow + path) - called when X button clicked
   const clearAllHighlights = useCallback(() => {
@@ -2711,6 +2710,7 @@ const TreeViewCore = ({
                 {allBatchedEdgePaths.elements}
 
                 {/* Enhanced Highlighting System (Phase 3E) - UnifiedHighlightRenderer */}
+                {/* Now the ONLY highlighting renderer - OLD system removed to fix Bezier bug */}
                 {highlightRenderData.length > 0 && (
                   <UnifiedHighlightRenderer
                     renderData={highlightRenderData}
@@ -2720,9 +2720,6 @@ const TreeViewCore = ({
                     nodeStyle={nodeStyleValue}
                   />
                 )}
-
-                {/* Highlighted ancestry paths (above edges, below nodes) - LEGACY SYSTEM */}
-                {renderAllHighlights()}
 
                 {/* Render visible nodes */}
                 {culledNodes.map((node) => (
