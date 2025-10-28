@@ -73,6 +73,7 @@ import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import { useAuth } from '../../contexts/AuthContextSimple';
 import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
 import ShareProfileSheet from '../sharing/ShareProfileSheet';
+import { PhotoCropEditor } from '../crop/PhotoCropEditor';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -393,6 +394,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [marriages, setMarriages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showCropEditor, setShowCropEditor] = useState(false);
   const [retryDisabled, setRetryDisabled] = useState(false);
 
   // Initialize hooks early so they're available for useCallbacks
@@ -937,6 +939,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setShowShareSheet(true);
   }, []);
 
+  // Crop photo handler
+  const handleCropPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowCropEditor(true);
+  }, []);
+
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
     const shareText = shareMode === 'invite' ? 'إرسال دعوة' : 'مشاركة الملف';
@@ -948,6 +956,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             onPress: handleEditPress,  // Direct reference instead of arrow function
           }
         : null,
+      canEdit && person?.photo_url
+        ? {
+            text: 'تعديل الصورة',
+            onPress: handleCropPress,
+          }
+        : null,
       person?.hid
         ? {
             text: shareText,
@@ -957,7 +971,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       { text: 'إغلاق', style: 'cancel' },
     ];
     return options.filter(Boolean);
-  }, [canEdit, handleEditPress, person?.hid, shareMode, handleSharePress]);
+  }, [canEdit, handleEditPress, handleCropPress, person?.hid, person?.photo_url, shareMode, handleSharePress]);
 
   const handleMenuPress = useCallback(() => {
     Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
@@ -1424,6 +1438,26 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           profile={person}
           mode={shareMode}
           inviterProfile={userProfile}
+        />
+      )}
+
+      {/* Photo Crop Editor - Only show for profiles with photo */}
+      {showCropEditor && person?.photo_url && (
+        <PhotoCropEditor
+          visible={showCropEditor}
+          photoUrl={person.photo_url}
+          initialCrop={{
+            crop_top: person.crop_top ?? 0,
+            crop_bottom: person.crop_bottom ?? 0,
+            crop_left: person.crop_left ?? 0,
+            crop_right: person.crop_right ?? 0,
+          }}
+          onSave={(crop) => {
+            // TODO: Implement RPC call to save crop (Phase 5.3)
+            console.log('[PhotoCropEditor] Crop saved:', crop);
+            setShowCropEditor(false);
+          }}
+          onCancel={() => setShowCropEditor(false)}
         />
       )}
     </>
