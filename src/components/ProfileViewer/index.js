@@ -225,6 +225,8 @@ const EditModeContent = React.memo(({
   onNavigateToProfile,
   setMarriages,
   scrollRef,
+  handleCropPress,
+  userProfile,
 }) => {
   // Create enhanced tabs with dirty indicators
   const enhancedTabs = useMemo(
@@ -287,7 +289,13 @@ const EditModeContent = React.memo(({
           >
           {/* Lazy load tabs - only render the active one */}
           {activeTab === 'general' && (
-            <TabGeneral form={form} updateField={form.updateField} />
+            <TabGeneral
+              form={form}
+              updateField={form.updateField}
+              onCropPress={handleCropPress}
+              person={person}
+              userProfile={userProfile}
+            />
           )}
           {activeTab === 'details' && (
             <TabDetails form={form} updateField={form.updateField} />
@@ -727,15 +735,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
+  // ✅ FIX (Oct 28, 2025): Added profileSheetProgress to deps for Reanimated 4.x compatibility
+  // Reanimated 4.x requires all variables used in worklet to be in dependency array
   useAnimatedReaction(
-    () => animatedPosition.value,
+    () => (profileSheetProgress ? animatedPosition.value : null),
     (current, previous) => {
-      if (current === previous) return;
-      if (!profileSheetProgress) return;
+      'worklet';
+      if (!current || current === previous) return;
+      if (!profileSheetProgress) return; // Defensive check (now safe - var in deps)
       const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
       profileSheetProgress.value = progress;
     },
-    [screenHeight]
+    [screenHeight, profileSheetProgress]
   );
 
   const canEdit = accessMode !== 'readonly';
@@ -1033,110 +1044,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person, userProfile, checkBeforeAction, handleRefresh, onUpdate]);
 
-  // Delete photo handler with confirmation and undo support
-  const handleDeletePhoto = useCallback(async () => {
-    if (!person?.id || !userProfile?.id) {
-      Alert.alert('خطأ', 'معلومات المستخدم غير متوفرة');
-      return;
-    }
-
-    // Show confirmation dialog with undo mention
-    Alert.alert(
-      'حذف الصورة',
-      'هل أنت متأكد من حذف الصورة؟ يمكنك التراجع عن هذا الإجراء من سجل النشاط خلال 30 يوماً.',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Network check before RPC call
-              const canProceed = await checkBeforeAction();
-              if (!canProceed) return;
-
-              // Call admin_delete_profile_photo RPC with timeout
-              const { data, error } = await fetchWithTimeout(
-                supabase.rpc('admin_delete_profile_photo', {
-                  p_profile_id: person.id,
-                  p_version: person.version ?? 1,
-                  p_user_id: userProfile.id,
-                }),
-                3000 // 3 second timeout
-              );
-
-              if (error) {
-                console.error('[PhotoDelete] RPC error:', error);
-
-                // Handle specific errors
-                if (error.message?.includes('version')) {
-                  Alert.alert(
-                    'تعارض في البيانات',
-                    'تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة المحاولة.',
-                    [{ text: 'حسناً', onPress: () => handleRefresh() }]
-                  );
-                } else if (error.message?.includes('permission') || error.message?.includes('صلاحية')) {
-                  Alert.alert('خطأ', 'ليس لديك صلاحية لحذف الصورة.');
-                } else if (error.message?.includes('لا توجد صورة')) {
-                  Alert.alert('خطأ', 'الصورة محذوفة بالفعل.');
-                  await handleRefresh();
-                } else if (error.message?.includes('timeout') || error.message?.includes('NETWORK_TIMEOUT')) {
-                  Alert.alert('خطأ', 'انتهت المهلة. تحقق من الاتصال وحاول مرة أخرى.');
-                } else {
-                  Alert.alert('خطأ', handleSupabaseError(error));
-                }
-                return;
-              }
-
-              // Success! Update local state and tree store
-              const newVersion = data?.[0]?.new_version ?? (person.version ?? 1) + 1;
-              const updatedPerson = {
-                ...person,
-                photo_url: null,
-                crop_top: 0,
-                crop_bottom: 0,
-                crop_left: 0,
-                crop_right: 0,
-                version: newVersion,
-              };
-
-              // Update tree store (for tree rendering)
-              useTreeStore.getState().updateNode(person.id, {
-                photo_url: null,
-                crop_top: 0,
-                crop_bottom: 0,
-                crop_left: 0,
-                crop_right: 0,
-                version: newVersion,
-              });
-
-              // Update parent component via onUpdate callback
-              onUpdate?.(updatedPerson);
-
-              // Cache invalidation with fallback handling
-              try {
-                await invalidateStructureCache();
-                // Fire-and-forget for logo cache
-                clearLogoCache(person.id).catch(console.warn);
-              } catch (cacheError) {
-                console.warn('[PhotoDelete] Cache invalidation failed:', cacheError);
-                // Don't block user - just log warning
-              }
-
-              // Success feedback
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('تم الحذف', 'تم حذف الصورة بنجاح');
-
-            } catch (error) {
-              console.error('[PhotoDelete] Unexpected error:', error);
-              Alert.alert('خطأ', 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
-            }
-          },
-        },
-      ]
-    );
-  }, [person, userProfile, checkBeforeAction, handleRefresh, onUpdate]);
-
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
     const shareText = shareMode === 'invite' ? 'إرسال دعوة' : 'مشاركة الملف';
@@ -1154,13 +1061,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             onPress: handleCropPress,
           }
         : null,
-      canEdit && person?.photo_url
-        ? {
-            text: 'حذف الصورة',
-            onPress: handleDeletePhoto,
-            style: 'destructive',
-          }
-        : null,
       person?.hid
         ? {
             text: shareText,
@@ -1170,7 +1070,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       { text: 'إغلاق', style: 'cancel' },
     ];
     return options.filter(Boolean);
-  }, [canEdit, handleEditPress, handleCropPress, handleDeletePhoto, person?.hid, person?.photo_url, shareMode, handleSharePress]);
+  }, [canEdit, handleEditPress, handleCropPress, person?.hid, person?.photo_url, shareMode, handleSharePress]);
 
   const handleMenuPress = useCallback(() => {
     Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
@@ -1606,6 +1506,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             onNavigateToProfile={onNavigateToProfile}
             setMarriages={setMarriages}
             scrollRef={editScrollRef}
+            handleCropPress={handleCropPress}
+            userProfile={userProfile}
           />
         )}
       </BottomSheet>

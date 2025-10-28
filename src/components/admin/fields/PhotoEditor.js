@@ -55,6 +55,10 @@ const PhotoEditor = ({
   currentPhotoUrl,
   personName = "الشخص",
   profileId,
+  onCropPress,
+  version,
+  userId,
+  onPhotoDeleted,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -96,6 +100,18 @@ const PhotoEditor = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Handle long-press for crop
+  const handleLongPressCrop = () => {
+    // Only allow crop if:
+    // 1. Photo exists (previewUrl is not null)
+    // 2. Not currently loading
+    // 3. onCropPress callback is provided
+    if (previewUrl && !isLoading && onCropPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onCropPress();
+    }
+  };
+
   // Request permissions
   const requestPermissions = async () => {
     const { status: cameraStatus } =
@@ -117,29 +133,48 @@ const PhotoEditor = ({
   // Show photo picker options
   const showPhotoPicker = () => {
     if (Platform.OS === "ios") {
+      // Build options array conditionally
+      const options = ["إلغاء", "التقاط صورة", "اختيار من المعرض"];
+      if (previewUrl) {
+        options.push("حذف الصورة");
+      }
+
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["إلغاء", "التقاط صورة", "اختيار من المعرض"],
+          options,
           cancelButtonIndex: 0,
+          destructiveButtonIndex: previewUrl ? 3 : undefined,
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
             takePhoto();
           } else if (buttonIndex === 2) {
             pickImage();
+          } else if (buttonIndex === 3 && previewUrl) {
+            handleDeletePhoto();
           }
         },
       );
     } else {
       // Android
+      const buttons = [
+        { text: "إلغاء", style: "cancel" },
+        { text: "التقاط صورة", onPress: takePhoto },
+        { text: "اختيار من المعرض", onPress: pickImage },
+      ];
+
+      if (previewUrl) {
+        buttons.push({
+          text: "حذف الصورة",
+          style: "destructive",
+          onPress: handleDeletePhoto,
+        });
+      }
+
       Alert.alert(
         "اختر مصدر الصورة",
         "",
-        [
-          { text: "إلغاء", style: "cancel" },
-          { text: "التقاط صورة", onPress: takePhoto },
-          { text: "اختيار من المعرض", onPress: pickImage },
-        ],
+        buttons,
         { cancelable: true },
       );
     }
@@ -329,15 +364,83 @@ const PhotoEditor = ({
     );
   };
 
+  // Handle delete photo (with full undo support)
+  const handleDeletePhoto = async () => {
+    // Check if required props are available
+    if (!profileId || !version || !userId) {
+      Alert.alert("خطأ", "معلومات الملف غير مكتملة");
+      return;
+    }
+
+    Alert.alert(
+      "حذف الصورة",
+      `هل تريد حذف صورة ${personName}؟\n\nيمكنك التراجع عن هذا الإجراء خلال 30 يوماً من سجل النشاط.`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حذف",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+
+              const { data, error } = await supabase.rpc('admin_delete_profile_photo', {
+                p_profile_id: profileId,
+                p_version: version,
+                p_user_id: userId,
+              });
+
+              if (error) {
+                if (error.message?.includes('version')) {
+                  Alert.alert(
+                    "خطأ في النسخة",
+                    "تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة تحميل الصفحة."
+                  );
+                } else if (error.message?.includes('PERMISSION_DENIED')) {
+                  Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
+                } else if (error.message?.includes('timeout')) {
+                  Alert.alert("خطأ", "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
+                } else {
+                  Alert.alert("خطأ", "فشل حذف الصورة. يرجى المحاولة مرة أخرى.");
+                }
+                return;
+              }
+
+              // Success - update UI via callback
+              if (onPhotoDeleted) {
+                onPhotoDeleted();
+              }
+
+              // Update local preview
+              setPreviewUrl(null);
+
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert("تم الحذف", "تم حذف الصورة بنجاح");
+
+            } catch (err) {
+              console.error('Error deleting photo:', err);
+              Alert.alert("خطأ", "حدث خطأ غير متوقع");
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Photo Preview */}
       <TouchableOpacity
         onPress={showPhotoPicker}
+        onLongPress={handleLongPressCrop}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={isLoading}
         activeOpacity={0.8}
+        delayLongPress={500}
         style={styles.photoSection}
       >
         <Animated.View
@@ -411,6 +514,13 @@ const PhotoEditor = ({
                   <Ionicons name="camera" size={20} color="#FFFFFF" />
                   <Text style={styles.changeButtonText}>تغيير</Text>
                 </View>
+                {/* Crop hint - only show if photo exists and crop handler provided */}
+                {previewUrl && onCropPress && (
+                  <Text style={styles.cropHint}>
+                    <Ionicons name="crop-outline" size={11} color="rgba(255,255,255,0.7)" />
+                    {" "}اضغط مطولاً للقص
+                  </Text>
+                )}
               </View>
             )}
           </View>
@@ -489,6 +599,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "500",
+  },
+  cropHint: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 11,
+    marginTop: 6,
+    fontWeight: "400",
   },
   cameraButton: {
     width: 44,

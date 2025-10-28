@@ -86,7 +86,7 @@ ToggleGroup.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
-const TabGeneral = ({ form, updateField }) => {
+const TabGeneral = ({ form, updateField, onCropPress, person, userProfile }) => {
   const { draft, original } = form;
   const profileId = original?.id || draft?.id;
 
@@ -128,6 +128,17 @@ const TabGeneral = ({ form, updateField }) => {
               currentPhotoUrl={draft?.photo_url}
               personName={draft?.name}
               profileId={profileId}
+              onCropPress={onCropPress}
+              version={draft?.version ?? 1}
+              userId={userProfile?.id}
+              onPhotoDeleted={() => {
+                updateField('photo_url', null);
+                updateField('crop_top', 0);
+                updateField('crop_bottom', 0);
+                updateField('crop_left', 0);
+                updateField('crop_right', 0);
+                updateField('version', (draft?.version ?? 1) + 1);
+              }}
             />
           </ProfileFormCard>
         </View>
@@ -269,12 +280,16 @@ TabGeneral.propTypes = {
     original: PropTypes.object,
   }).isRequired,
   updateField: PropTypes.func.isRequired,
+  onCropPress: PropTypes.func,
+  person: PropTypes.object.isRequired,
+  userProfile: PropTypes.object.isRequired,
 };
 
 export default React.memo(TabGeneral, (prev, next) => {
   return (
     prev.form.draft === next.form.draft &&
-    prev.updateField === next.updateField
+    prev.updateField === next.updateField &&
+    prev.onCropPress === next.onCropPress
   );
 });
 
