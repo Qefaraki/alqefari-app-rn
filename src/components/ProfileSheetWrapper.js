@@ -118,22 +118,44 @@ const ProfileSheetWrapper = ({ editMode }) => {
     });
 
     // PRIORITY FIX: Use complete auth profile for self-view (45 fields vs 10 fields from tree store)
-    // BUT: Prefer tree store if it has newer version (handles post-save updates)
+    // BUT: Merge with tree store if it has newer version (preserves all fields + fresh version)
     if (userProfile?.id === selectedPersonId && userProfile) {
       const treeNode = nodesMap.get(selectedPersonId);
 
-      // If tree store has newer version, use it (prevents version conflicts after saves)
-      if (treeNode && treeNode.version > userProfile.version) {
-        console.log('[PROFILE SHEET DEBUG] ✅ Using tree store (newer version) for self-view:', {
-          id: treeNode.id,
-          name: treeNode.name,
-          treeVersion: treeNode.version,
-          authVersion: userProfile.version,
-          source: 'treeStore (newer)'
+      // Defensive: handle null/undefined versions
+      const treeVersion = treeNode?.version ?? 0;
+      const authVersion = userProfile?.version ?? 1;
+
+      // If tree store has newer version, merge to preserve all fields
+      if (treeNode && treeVersion >= authVersion) {
+        const merged = {
+          ...userProfile,           // 45 fields from auth (base layer)
+          ...treeNode,             // 10+ fields from tree store (overrides with fresh data)
+          version: treeVersion     // Use fresher version
+        };
+
+        console.log('[PROFILE SHEET DEBUG] ✅ Using merged profile (tree + auth) for self-view:', {
+          id: merged.id,
+          name: merged.name,
+          treeVersion,
+          authVersion,
+          fieldCount: Object.keys(merged).length,
+          source: 'merged'
         });
-        return treeNode;
+        return merged;
       }
 
+      // Warn if tree store has older version (data corruption scenario)
+      if (treeNode && treeVersion < authVersion && treeVersion > 0) {
+        console.warn('[PROFILE SHEET DEBUG] ⚠️ Tree store has OLDER version than auth:', {
+          treeVersion,
+          authVersion,
+          personId: selectedPersonId,
+          personName: userProfile.name
+        });
+      }
+
+      // Auth profile is same version or newer - use it directly
       console.log('[PROFILE SHEET DEBUG] ✅ Using complete auth profile for self-view:', {
         id: userProfile.id,
         name: userProfile.name,

@@ -131,7 +131,8 @@ export const useTreeStore = create((set, get) => ({
       const updatedNode = {
         ...existingNode,
         ...updatedData,
-        version: (existingNode.version || 1) + 1,
+        // Use provided version if exists (from RPC), otherwise increment locally
+        version: updatedData.version ?? ((existingNode.version || 1) + 1),
         lastUpdate: Date.now(),
       };
 
