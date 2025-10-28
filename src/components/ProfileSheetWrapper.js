@@ -126,8 +126,27 @@ const ProfileSheetWrapper = ({ editMode }) => {
       const treeVersion = treeNode?.version ?? 0;
       const authVersion = userProfile?.version ?? 1;
 
+      // Defensive warnings for missing version fields (indicates data corruption)
+      if (treeNode && !treeNode.version) {
+        console.warn('[PROFILE SHEET DEBUG] ⚠️ Tree node missing version field:', {
+          nodeId: treeNode.id,
+          nodeName: treeNode.name
+        });
+      }
+      if (!userProfile.version) {
+        console.warn('[PROFILE SHEET DEBUG] ⚠️ Auth profile missing version field:', {
+          userId: userProfile.id,
+          userName: userProfile.name
+        });
+      }
+
       // If tree store has newer version, merge to preserve all fields
-      if (treeNode && treeVersion >= authVersion) {
+      // IMPORTANT: Use > not >= to prevent merging when versions are equal
+      // (equal versions mean auth profile may have fresher data from Settings edits)
+      // PERF: This merge happens on every profile sheet open (~100ms).
+      // TODO: Add memoization in Phase 2 after auth context refresh is implemented.
+      // See CLAUDE.md "Multi-Agent Git Workflow" section for auth staleness solution.
+      if (treeNode && treeVersion > authVersion) {
         const merged = {
           ...userProfile,           // 45 fields from auth (base layer)
           ...treeNode,             // 10+ fields from tree store (overrides with fresh data)
