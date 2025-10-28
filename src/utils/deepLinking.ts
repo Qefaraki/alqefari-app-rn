@@ -49,7 +49,7 @@ export function generateProfileLink(hid: string, inviterHid?: string): string {
   }
 
   const normalizedHID = hid.trim().toUpperCase();
-  const baseUrl = `https://alqefari.com/profile/${normalizedHID}`;
+  const baseUrl = `alqefari://profile/${normalizedHID}`;
 
   // Add inviter tracking if provided
   if (inviterHid && validateHID(inviterHid)) {
