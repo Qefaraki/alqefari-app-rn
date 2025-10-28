@@ -66,6 +66,8 @@ See [`MIGRATION_GUIDE.md`](docs/MIGRATION_GUIDE.md) for detailed migration docum
 | `add_marriage` | `undo_marriage_create` | ✅ | Unlimited | ✅ |
 | `admin_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
 | `admin_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
+| `crop_update` | `undo_crop_update` | ❌ | 30 days | ❌ |
+| `photo_delete` | `undo_photo_delete` | ❌ | 30 days | ❌ |
 
 See [`UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/UNDO_SYSTEM_TEST_CHECKLIST.md) for comprehensive undo system documentation.
 

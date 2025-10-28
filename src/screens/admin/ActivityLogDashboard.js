@@ -84,6 +84,7 @@ const PHOTO_ACTION_TYPES = [
   "upload_photo",
   "update_photo",
   "delete_photo",
+  "photo_delete",  // NEW: Noun_verb pattern (consistent with crop_update, profile_update)
   "crop_update",
 ];
 
@@ -104,6 +105,7 @@ const ACTION_CONFIGS = {
   upload_photo: { label: "رفع صورة" },
   update_photo: { label: "تحديث صورة" },
   delete_photo: { label: "حذف صورة" },
+  photo_delete: { label: "حذف صورة" },  // NEW: Same as delete_photo but consistent naming
   crop_update: { label: "تعديل اقتصاص" },
   grant_admin: { label: "منح صلاحيات" },
   revoke_admin: { label: "سحب صلاحيات" },
@@ -122,6 +124,7 @@ const ACTION_VISUALS = {
   upload_photo: { icon: "photo.on.rectangle.angled", fallback: "image-outline", color: `${tokens.colors.najdi.focus  }18`, accent: tokens.colors.najdi.focus },
   update_photo: { icon: "photo.fill.on.rectangle.fill", fallback: "images-outline", color: `${tokens.colors.najdi.focus  }16`, accent: tokens.colors.najdi.focus },
   delete_photo: { icon: "trash.slash", fallback: "trash-bin-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
+  photo_delete: { icon: "trash.slash", fallback: "trash-bin-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },  // NEW: Same visual as delete_photo
   crop_update: { icon: "crop", fallback: "crop-outline", color: `${tokens.colors.najdi.focus  }16`, accent: tokens.colors.najdi.focus },
   grant_admin: { icon: "shield.checkerboard", fallback: "shield-checkmark-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
   revoke_admin: { icon: "shield.slash", fallback: "shield-outline", color: `${tokens.colors.najdi.primary  }18`, accent: tokens.colors.najdi.primary },

@@ -77,6 +77,13 @@ const ACTION_TYPE_CONFIG = {
     timeLimitDays: 30,
     dangerous: false,
   },
+  'photo_delete': {
+    rpcFunction: 'undo_photo_delete',
+    description: 'حذف الصورة',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
   'admin_update': {
     rpcFunction: 'undo_profile_update',
     description: 'تحديث من المسؤول',
