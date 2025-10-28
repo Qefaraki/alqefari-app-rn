@@ -21,7 +21,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../services/supabaseClient';
+import { supabase } from '../../services/supabase';
 import { tokens } from '../ui/tokens';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 
