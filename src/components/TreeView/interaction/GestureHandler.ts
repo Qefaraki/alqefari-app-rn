@@ -51,6 +51,9 @@ export interface GestureSharedValues {
   isPinching: SharedValue<boolean>;
   initialFocalX: SharedValue<number>;
   initialFocalY: SharedValue<number>;
+  // Momentum state tracking (for pan/pinch coordination)
+  completedAxes: SharedValue<number>;
+  isInMomentum: SharedValue<boolean>;
 }
 
 export interface GestureCallbacks {
@@ -95,12 +98,17 @@ export function createPanGesture(
   callbacks: GestureCallbacks = {},
   config: GestureConfig = {}
 ) {
-  const { translateX, translateY, savedTranslateX, savedTranslateY, isPinching, scale } = sharedValues;
+  const {
+    translateX,
+    translateY,
+    savedTranslateX,
+    savedTranslateY,
+    isPinching,
+    scale,
+    completedAxes,
+    isInMomentum
+  } = sharedValues;
   const decelerationRate = config.decelerationRate ?? GESTURE_PHYSICS.PAN_DECELERATION;
-
-  // CRITICAL FIX: Use SharedValue for atomic completion tracking and momentum state
-  const completedAxes = useSharedValue(0);
-  const isInMomentum = useSharedValue(false);
 
   // Calculate fixed bounds at median zoom (1.0x) - acceptable trade-off
   // 90% correct behavior, slight overshoot at extreme zoom levels
@@ -273,6 +281,8 @@ export function createPinchGesture(
     isPinching,
     initialFocalX,
     initialFocalY,
+    completedAxes,
+    isInMomentum
   } = sharedValues;
   const minZoom = config.minZoom ?? MIN_ZOOM;
   const maxZoom = config.maxZoom ?? MAX_ZOOM;
@@ -283,6 +293,14 @@ export function createPinchGesture(
       // Only process with two fingers
       if (e.numberOfPointers === 2) {
         isPinching.value = true;
+
+        // CRITICAL FIX: Reset momentum state if user pinches during pan momentum
+        if (isInMomentum.value && callbacks.onMomentumEnd) {
+          runOnJS(callbacks.onMomentumEnd)();
+          isInMomentum.value = false;
+        }
+        completedAxes.value = 0; // Reset counter
+
         // CRITICAL: Cancel any running animations to prevent value drift
         cancelAnimation(translateX);
         cancelAnimation(translateY);

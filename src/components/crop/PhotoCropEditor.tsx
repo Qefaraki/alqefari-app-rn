@@ -39,7 +39,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { tokens } from '../ui/tokens';
-import { isValidCrop } from '../../utils/cropUtils';
+import { isValidCrop, clampCropCoordinates } from '../../utils/cropUtils';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -127,12 +127,16 @@ export function PhotoCropEditor({
    * Save crop coordinates
    */
   const handleSave = useCallback(() => {
-    const crop = {
+    // Get raw crop values
+    const rawCrop = {
       crop_top: cropTop.value,
       crop_bottom: cropBottom.value,
       crop_left: cropLeft.value,
       crop_right: cropRight.value,
     };
+
+    // Clamp coordinates to prevent floating-point edge cases (0.9999 → 0.999)
+    const crop = clampCropCoordinates(rawCrop);
 
     // Validate crop
     if (!isValidCrop(crop)) {

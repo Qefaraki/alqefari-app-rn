@@ -819,6 +819,9 @@ const TreeViewCore = ({
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
   const initialFocalY = useSharedValue(0);
+  // Momentum state tracking (for pan/pinch coordination)
+  const completedAxes = useSharedValue(0);
+  const isInMomentum = useSharedValue(false);
 
   // Phase 1 Integration - Package shared values for gesture functions
   const gestureSharedValues = {
@@ -831,6 +834,8 @@ const TreeViewCore = ({
     isPinching,
     initialFocalX,
     initialFocalY,
+    completedAxes,
+    isInMomentum,
   };
 
   // Phase 2 Day 10a / Phase 3B: Tree data loading with progressive loading support

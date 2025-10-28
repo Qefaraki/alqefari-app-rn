@@ -108,6 +108,40 @@ export function getCropAreaPercentage(profile: PartialCropData): number {
 }
 
 /**
+ * Clamp crop coordinates to prevent floating-point edge cases
+ *
+ * Ensures all crop values are within safe bounds (0.000-0.999) to prevent
+ * validation failures from floating-point rounding (e.g., 0.9999 → 1.000).
+ *
+ * Why Needed:
+ * - JavaScript floating-point arithmetic can cause rounding issues
+ * - Values exactly equal to 1.0 fail validation (>= 1.0 check)
+ * - Clamping to 0.999 max prevents edge case validation failures
+ *
+ * Performance Note:
+ * - Called before validation in PhotoCropEditor.handleSave()
+ * - Prevents user-facing error from floating-point precision
+ *
+ * @param crop - Crop data to clamp
+ * @returns Clamped crop data with all values in 0.000-0.999 range
+ *
+ * @example
+ * const crop = { crop_top: 0.9999, crop_bottom: 1.001, crop_left: -0.01, crop_right: 0.5 };
+ * const clamped = clampCropCoordinates(crop);
+ * // Returns: { crop_top: 0.999, crop_bottom: 0.999, crop_left: 0.0, crop_right: 0.5 }
+ */
+export function clampCropCoordinates(crop: CropData): CropData {
+  const clamp = (value: number) => Math.max(0.0, Math.min(0.999, value));
+
+  return {
+    crop_top: clamp(crop.crop_top),
+    crop_bottom: clamp(crop.crop_bottom),
+    crop_left: clamp(crop.crop_left),
+    crop_right: clamp(crop.crop_right),
+  };
+}
+
+/**
  * Validate crop values are within bounds
  *
  * Checks that:
