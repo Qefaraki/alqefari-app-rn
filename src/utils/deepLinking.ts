@@ -312,7 +312,10 @@ export async function handleDeepLink(
     }
 
     // Edge case 2: Deleted profile
-    if (profile.deleted_at !== null) {
+    // Use loose equality (!= null) to handle both null and undefined
+    // Tree profiles have deleted_at: undefined (field not in structure RPC)
+    // DB profiles have deleted_at: null (for active profiles)
+    if (profile.deleted_at != null) {
       Alert.alert(
         'الملف محذوف',
         'هذا الملف الشخصي محذوف ولا يمكن عرضه.'

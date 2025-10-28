@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.8.0'; // Bumped: Add share_code to UUID overload for QR generation
+const TREE_STRUCTURE_SCHEMA_VERSION = '1.9.0'; // Bumped: Add deleted_at to both RPC overloads for validation
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);
