@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.3.0'; // Bumped: Added crop fields (crop_top/bottom/left/right) to structure RPC
+const TREE_STRUCTURE_SCHEMA_VERSION = '1.4.0'; // Bumped: Layout algorithm now supports nodeStyle parameter for circular spacing
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

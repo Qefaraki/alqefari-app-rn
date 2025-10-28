@@ -9,6 +9,7 @@
  */
 
 import { Skia, SkPath } from "@shopify/react-native-skia";
+import { linkHorizontal } from 'd3-shape';
 import {
   calculateBusY,
   calculateParentVerticalPath,
@@ -21,7 +22,8 @@ import {
 
 export const LINE_STYLES = {
   STRAIGHT: 'straight',
-  BEZIER: 'bezier'
+  BEZIER: 'bezier',      // DEPRECATED: Use CURVES instead
+  CURVES: 'curves',      // NEW: D3 linkHorizontal() curves
 } as const;
 
 export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
@@ -188,14 +190,74 @@ export function generateBezierPaths(
 }
 
 /**
+ * Generate D3 horizontal curves (Tidy Tree + Professional Curves)
+ * Replaces custom bezier with D3's linkHorizontal() for clean S-curves
+ *
+ * Uses D3's Reingold-Tilford "tidy" tree algorithm (already in calculateTreeLayout)
+ * with professional curve rendering via linkHorizontal()
+ *
+ * @param connection - Parent and children nodes
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
+ */
+export function generateD3CurvePaths(
+  connection: Connection,
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+): SkPath[] {
+  const { parent, children } = connection;
+  const paths: SkPath[] = [];
+
+  // Node height constants
+  const NODE_HEIGHT_WITH_PHOTO = 75;
+  const NODE_HEIGHT_TEXT_ONLY = 35;
+  const ROOT_NODE_HEIGHT = 100;
+
+  // Create D3 link generator (horizontal curves)
+  // Note: App uses D3 coordinate convention (x=horizontal, y=vertical)
+  const linkGen = linkHorizontal()
+    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical]
+    .target((d: any) => [d.target.y, d.target.x]);
+
+  // Calculate parent bottom edge
+  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
+  const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+  const parentBottomY = parent.y + parentHeight / 2;
+
+  // Generate curve from parent to each child
+  children.forEach(child => {
+    const isRootChild = !child.father_id;
+    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
+    const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+    const childTopY = child.y - childHeight / 2;
+
+    // Generate D3 SVG path data
+    const svgPathData = linkGen({
+      source: { x: parent.x, y: parentBottomY },
+      target: { x: child.x, y: childTopY }
+    });
+
+    // Convert SVG path to Skia path
+    if (svgPathData) {
+      const skiaPath = Skia.Path.MakeFromSVGString(svgPathData);
+      if (skiaPath) {
+        paths.push(skiaPath);
+      }
+    }
+  });
+
+  return paths;
+}
+
+/**
  * Generate line paths based on selected style
- * Unified interface for both straight and bezier curves
+ * Unified interface for straight, bezier, and D3 curves
  */
 /**
  * Generate line paths based on style
  *
  * @param connection - Parent and children nodes
- * @param lineStyle - 'straight' or 'bezier'
+ * @param lineStyle - 'straight', 'bezier', or 'curves'
  * @param showPhotos - Whether photos are visible
  * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
  */
@@ -206,8 +268,13 @@ export function generateLinePaths(
   nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): SkPath[] {
   switch (lineStyle) {
+    case LINE_STYLES.CURVES:
+      return generateD3CurvePaths(connection, showPhotos, nodeStyle);
+
     case LINE_STYLES.BEZIER:
+      // DEPRECATED: Use CURVES instead
       return generateBezierPaths(connection, showPhotos, nodeStyle);
+
     case LINE_STYLES.STRAIGHT:
     default:
       return generateStraightPaths(connection, showPhotos, nodeStyle);

@@ -57,6 +57,7 @@
     "@shopify/react-native-skia": "2.2.12",
     "@supabase/supabase-js": "^2.76.1",
     "d3-hierarchy": "^3.1.2",
+    "d3-shape": "^3.2.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
     "expo": "^54.0.10",

@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
-import { tokens } from '../ui/tokens';
+import tokens from '../ui/tokens';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -224,7 +224,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
               />
             ) : (
               <View style={[styles.photo, styles.placeholderPhoto]}>
-                <Ionicons name="person-circle-outline" size={60} color={tokens.colors.neutral[400]} />
+                <Ionicons name="person-circle-outline" size={60} color="#A3A3A3" />
                 <Text style={styles.placeholderText}>لا توجد صورة</Text>
               </View>
             )}
@@ -233,7 +233,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
 
         {/* Arrow */}
         <View style={styles.arrowContainer}>
-          <Ionicons name="arrow-back" size={24} color={tokens.colors.neutral[500]} />
+          <Ionicons name="arrow-back" size={24} color="#737373" />
         </View>
 
         {/* New Photo */}
@@ -281,10 +281,10 @@ export default function PhotoApprovalManager({ visible, onClose }) {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color={tokens.colors.text.primary} />
+              <ActivityIndicator size="small" color={tokens.colors.najdi.text} />
             ) : (
               <>
-                <Ionicons name="close-circle-outline" size={20} color={tokens.colors.text.primary} />
+                <Ionicons name="close-circle-outline" size={20} color={tokens.colors.najdi.text} />
                 <Text style={styles.rejectButtonText}>رفض</Text>
               </>
             )}
@@ -296,10 +296,10 @@ export default function PhotoApprovalManager({ visible, onClose }) {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color={tokens.colors.background.primary} />
+              <ActivityIndicator size="small" color={tokens.colors.najdi.background} />
             ) : (
               <>
-                <Ionicons name="checkmark-circle-outline" size={20} color={tokens.colors.background.primary} />
+                <Ionicons name="checkmark-circle-outline" size={20} color={tokens.colors.najdi.background} />
                 <Text style={styles.approveButtonText}>موافقة</Text>
               </>
             )}
@@ -312,7 +312,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
   // Empty state
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="checkmark-done-circle" size={80} color={tokens.colors.neutral[300]} />
+      <Ionicons name="checkmark-done-circle" size={80} color="#D4D4D4" />
       <Text style={styles.emptyStateTitle}>لا توجد طلبات قيد المراجعة</Text>
       <Text style={styles.emptyStateSubtitle}>
         ستظهر هنا طلبات تغيير الصور الجديدة
@@ -327,13 +327,13 @@ export default function PhotoApprovalManager({ visible, onClose }) {
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={tokens.colors.text.primary} />
+              <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>مراجعة الصور</Text>
             <View style={{ width: 28 }} />
           </View>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={tokens.colors.primary.main} />
+            <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
             <Text style={styles.loadingText}>جاري التحميل...</Text>
           </View>
         </View>
@@ -349,7 +349,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={tokens.colors.text.primary} />
+              <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>مراجعة الصور</Text>
             <View style={styles.badge}>
@@ -365,7 +365,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor={tokens.colors.primary.main}
+                tintColor={tokens.colors.najdi.primary}
               />
             }
           >
@@ -403,7 +403,7 @@ export default function PhotoApprovalManager({ visible, onClose }) {
                 <TextInput
                   style={styles.customReasonInput}
                   placeholder="مثال: الصورة غير واضحة، يرجى رفع صورة بجودة أعلى"
-                  placeholderTextColor={tokens.colors.neutral[400]}
+                  placeholderTextColor="#A3A3A3"
                   value={customReason}
                   onChangeText={setCustomReason}
                   multiline
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   // Container
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.background.primary,
+    backgroundColor: tokens.colors.najdi.background,
   },
 
   // Header
@@ -480,34 +480,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: tokens.spacing.lg,
+    paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: tokens.spacing.md,
-    backgroundColor: tokens.colors.background.primary,
+    paddingBottom: 16,
+    backgroundColor: tokens.colors.najdi.background,
     borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.neutral[200],
+    borderBottomColor: tokens.colors.divider,
   },
   closeButton: {
-    padding: tokens.spacing.xs,
+    padding: 8,
   },
   headerTitle: {
-    fontSize: tokens.typography.sizes.h3,
-    fontWeight: tokens.typography.weights.bold,
-    color: tokens.colors.text.primary,
+    fontSize: 20,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
   },
   badge: {
-    backgroundColor: tokens.colors.primary.main,
+    backgroundColor: tokens.colors.najdi.primary,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: tokens.spacing.xs,
+    paddingHorizontal: 8,
   },
   badgeText: {
-    color: tokens.colors.background.primary,
-    fontSize: tokens.typography.sizes.sm,
-    fontWeight: tokens.typography.weights.semibold,
+    color: tokens.colors.najdi.background,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Scroll View
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: tokens.spacing.lg,
+    padding: 24,
   },
 
   // Loading
@@ -523,40 +523,40 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: tokens.spacing.md,
+    gap: 16,
   },
   loadingText: {
-    fontSize: tokens.typography.sizes.md,
-    color: tokens.colors.text.secondary,
+    fontSize: 15,
+    color: tokens.colors.najdi.textMuted,
   },
 
   // Empty State
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: tokens.spacing.xxl * 2,
-    gap: tokens.spacing.md,
+    paddingVertical: 96,
   },
   emptyStateTitle: {
-    fontSize: tokens.typography.sizes.lg,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 17,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
-    fontSize: tokens.typography.sizes.md,
-    color: tokens.colors.text.secondary,
+    fontSize: 15,
+    color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
-    paddingHorizontal: tokens.spacing.xl,
+    paddingHorizontal: 32,
+    marginTop: 8,
   },
 
   // Request Card
   card: {
-    backgroundColor: tokens.colors.background.secondary,
-    borderRadius: tokens.borderRadius.lg,
-    padding: tokens.spacing.lg,
-    marginBottom: tokens.spacing.lg,
-    gap: tokens.spacing.md,
+    backgroundColor: tokens.colors.najdi.container,
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 24,
+    gap: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -565,42 +565,42 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
-    gap: tokens.spacing.xs,
+    gap: 8,
   },
   profileName: {
-    fontSize: tokens.typography.sizes.lg,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 17,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   profileHid: {
-    fontSize: tokens.typography.sizes.sm,
-    color: tokens.colors.text.secondary,
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
   },
   timestamp: {
-    fontSize: tokens.typography.sizes.sm,
-    color: tokens.colors.text.secondary,
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
   },
 
   // Photo Comparison
   photoComparisonContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.md,
+    gap: 16,
   },
   photoBox: {
     flex: 1,
-    gap: tokens.spacing.sm,
+    gap: 12,
   },
   photoLabel: {
-    fontSize: tokens.typography.sizes.sm,
-    fontWeight: tokens.typography.weights.medium,
-    color: tokens.colors.text.secondary,
+    fontSize: 13,
+    fontWeight: '500',
+    color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
   },
   photoFrame: {
-    borderRadius: tokens.borderRadius.md,
+    borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: tokens.colors.neutral[100],
+    backgroundColor: '#F5F5F5',
   },
   photo: {
     width: PHOTO_SIZE,
@@ -609,11 +609,11 @@ const styles = StyleSheet.create({
   placeholderPhoto: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: tokens.spacing.xs,
+    gap: 8,
   },
   placeholderText: {
-    fontSize: tokens.typography.sizes.sm,
-    color: tokens.colors.neutral[400],
+    fontSize: 13,
+    color: '#A3A3A3',
   },
   arrowContainer: {
     alignItems: 'center',
@@ -623,39 +623,39 @@ const styles = StyleSheet.create({
   // Action Buttons
   actionButtons: {
     flexDirection: 'row',
-    gap: tokens.spacing.md,
+    gap: 16,
   },
   approveButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: tokens.spacing.xs,
-    backgroundColor: tokens.colors.primary.main,
-    borderRadius: tokens.borderRadius.md,
-    paddingVertical: tokens.spacing.md,
+    gap: 8,
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: 8,
+    paddingVertical: 16,
   },
   approveButtonText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.background.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.background,
   },
   rejectButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: tokens.spacing.xs,
-    backgroundColor: tokens.colors.background.primary,
+    gap: 8,
+    backgroundColor: tokens.colors.najdi.background,
     borderWidth: 1,
-    borderColor: tokens.colors.neutral[300],
-    borderRadius: tokens.borderRadius.md,
-    paddingVertical: tokens.spacing.md,
+    borderColor: '#D4D4D4',
+    borderRadius: 8,
+    paddingVertical: 16,
   },
   rejectButtonText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -667,136 +667,136 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: tokens.spacing.lg,
+    padding: 24,
   },
   templateModal: {
-    backgroundColor: tokens.colors.background.primary,
-    borderRadius: tokens.borderRadius.lg,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: 12,
     width: '100%',
     maxHeight: '80%',
-    padding: tokens.spacing.lg,
-    gap: tokens.spacing.md,
+    padding: 24,
+    gap: 16,
   },
   templateModalTitle: {
-    fontSize: tokens.typography.sizes.lg,
-    fontWeight: tokens.typography.weights.bold,
-    color: tokens.colors.text.primary,
+    fontSize: 17,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
     textAlign: 'center',
   },
   templateList: {
     maxHeight: 400,
   },
   templateItem: {
-    backgroundColor: tokens.colors.background.secondary,
-    borderRadius: tokens.borderRadius.md,
-    padding: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    gap: tokens.spacing.xs,
+    backgroundColor: tokens.colors.najdi.container,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    gap: 8,
   },
   templateTitle: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   templateMessage: {
-    fontSize: tokens.typography.sizes.sm,
-    color: tokens.colors.text.secondary,
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
     lineHeight: 20,
   },
   customReasonContainer: {
-    marginTop: tokens.spacing.md,
-    gap: tokens.spacing.sm,
+    marginTop: 16,
+    gap: 12,
   },
   customReasonLabel: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.medium,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '500',
+    color: tokens.colors.najdi.text,
   },
   customReasonInput: {
-    backgroundColor: tokens.colors.background.secondary,
-    borderRadius: tokens.borderRadius.md,
-    padding: tokens.spacing.md,
-    fontSize: tokens.typography.sizes.md,
-    color: tokens.colors.text.primary,
+    backgroundColor: tokens.colors.najdi.container,
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 15,
+    color: tokens.colors.najdi.text,
     minHeight: 80,
     textAlignVertical: 'top',
   },
   customReasonButton: {
-    backgroundColor: tokens.colors.secondary.main,
-    borderRadius: tokens.borderRadius.md,
-    paddingVertical: tokens.spacing.md,
+    backgroundColor: tokens.colors.najdi.secondary,
+    borderRadius: 8,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   customReasonButtonText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   templateModalCancel: {
-    paddingVertical: tokens.spacing.md,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   templateModalCancelText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.medium,
-    color: tokens.colors.text.secondary,
+    fontSize: 15,
+    fontWeight: '500',
+    color: tokens.colors.najdi.textMuted,
   },
 
   // Confirmation Modal
   confirmModal: {
-    backgroundColor: tokens.colors.background.primary,
-    borderRadius: tokens.borderRadius.lg,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: 12,
     width: '100%',
-    padding: tokens.spacing.lg,
-    gap: tokens.spacing.md,
+    padding: 24,
+    gap: 16,
   },
   confirmModalTitle: {
-    fontSize: tokens.typography.sizes.lg,
-    fontWeight: tokens.typography.weights.bold,
-    color: tokens.colors.text.primary,
+    fontSize: 17,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
     textAlign: 'center',
   },
   confirmModalMessage: {
-    fontSize: tokens.typography.sizes.md,
-    color: tokens.colors.text.secondary,
+    fontSize: 15,
+    color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
   },
   confirmMessageBox: {
-    backgroundColor: tokens.colors.background.secondary,
-    borderRadius: tokens.borderRadius.md,
-    padding: tokens.spacing.md,
+    backgroundColor: tokens.colors.najdi.container,
+    borderRadius: 8,
+    padding: 16,
   },
   confirmMessageText: {
-    fontSize: tokens.typography.sizes.md,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    color: tokens.colors.najdi.text,
     lineHeight: 22,
   },
   confirmButtons: {
     flexDirection: 'row',
-    gap: tokens.spacing.md,
+    gap: 16,
   },
   confirmCancelButton: {
     flex: 1,
-    paddingVertical: tokens.spacing.md,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderRadius: tokens.borderRadius.md,
-    backgroundColor: tokens.colors.neutral[200],
+    borderRadius: 8,
+    backgroundColor: '#E5E5E5',
   },
   confirmCancelText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   confirmRejectButton: {
     flex: 1,
-    paddingVertical: tokens.spacing.md,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderRadius: tokens.borderRadius.md,
-    backgroundColor: tokens.colors.primary.main,
+    borderRadius: 8,
+    backgroundColor: tokens.colors.najdi.primary,
   },
   confirmRejectText: {
-    fontSize: tokens.typography.sizes.md,
-    fontWeight: tokens.typography.weights.semibold,
-    color: tokens.colors.background.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.background,
   },
 });

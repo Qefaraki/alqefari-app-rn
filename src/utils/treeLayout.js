@@ -1,5 +1,5 @@
 import { hierarchy, tree } from "d3-hierarchy";
-import { STANDARD_NODE, ROOT_NODE } from "../components/TreeView/rendering/nodeConstants";
+import { STANDARD_NODE, ROOT_NODE, CIRCULAR_NODE } from "../components/TreeView/rendering/nodeConstants";
 
 // Helper function to get node dimensions - uses dynamic widths from data
 function getNodeDimensions(node, showPhotos = true) {
@@ -85,7 +85,17 @@ function resolveCollisions(hierarchyData, showPhotos = true) {
   return hierarchyData;
 }
 
-export function calculateTreeLayout(familyData, showPhotos = true) {
+export function calculateTreeLayout(familyData, showPhotos = true, nodeStyle = 'rectangular') {
+  // Safety: Handle null/undefined nodeStyle
+  let safeNodeStyle = nodeStyle || 'rectangular';
+
+  // Validation: Only allow known styles
+  const validStyles = ['rectangular', 'circular', 'bezier'];
+  if (!validStyles.includes(safeNodeStyle)) {
+    console.warn(`[treeLayout] Invalid nodeStyle "${safeNodeStyle}", defaulting to rectangular`);
+    safeNodeStyle = 'rectangular';
+  }
+
   // Safety check for undefined or null input
   if (!familyData || !Array.isArray(familyData)) {
     console.warn("calculateTreeLayout received invalid data:", familyData);
@@ -155,32 +165,49 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   const treeLayout = tree()
     .nodeSize([1, 110]) // TEMP: Minimal base spacing - actual spacing controlled by separation function
     .separation((a, b) => {
-      // Calculate separation based on actual node widths with minimal gap
-      const aHasPhoto = showPhotos && !!a.data.photo_url;
-      const bHasPhoto = showPhotos && !!b.data.photo_url;
-      const aIsRoot = a.depth === 0 && !a.data.father_id;
-      const bIsRoot = b.depth === 0 && !b.data.father_id;
+      // Helper: Get node dimension based on type and style
+      const getNodeDimension = (node) => {
+        // Use explicit nodeStyle check (not avgWidth inference)
+        if (safeNodeStyle === 'circular' || safeNodeStyle === 'bezier') {
+          // Root node (Generation 1, no father)
+          if (node.depth === 0 && !node.data.father_id) {
+            return CIRCULAR_NODE.ROOT_DIAMETER;  // 100px
+          }
 
-      const aWidth = a.data.nodeWidth || (
-        aIsRoot ? ROOT_NODE.WIDTH : (aHasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
-      );
-      const bWidth = b.data.nodeWidth || (
-        bIsRoot ? ROOT_NODE.WIDTH : (bHasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
-      );
+          // G2 Parent (Generation 2 with children)
+          if (node.depth === 1 && node.children?.length > 0) {
+            return CIRCULAR_NODE.G2_DIAMETER;  // 60px
+          }
 
-      // PHASE 3: Width-ratio based gaps (detects circular vs rectangular automatically)
+          // Standard node (text-only uses same 40px diameter)
+          return CIRCULAR_NODE.DIAMETER;  // 40px
+        }
+
+        // Rectangular mode (existing logic)
+        const isRoot = node.depth === 0 && !node.data.father_id;
+        if (isRoot) return ROOT_NODE.WIDTH;  // 120px
+
+        const hasPhoto = showPhotos && !!node.data.photo_url;
+        return hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY;  // 58px
+      };
+
+      const aWidth = getNodeDimension(a);
+      const bWidth = getNodeDimension(b);
       const avgWidth = (aWidth + bWidth) / 2;
 
-      // Circular nodes (40/60/100) get MUCH tighter spacing - siblings nearly touch
-      const siblingGapRatio = avgWidth < 50 ? 0.01 : 0.15;  // 1% for circular (nearly touching), 15% for rectangular
-      const cousinGapRatio = avgWidth < 50 ? 0.05 : 0.70;   // 5% for circular (much tighter), 70% for rectangular
+      // Use explicit nodeStyle check (fixes avgWidth=50 edge case)
+      const spacingRatio = (safeNodeStyle === 'circular' || safeNodeStyle === 'bezier')
+        ? 0.01   // 1% for circular (nearly touching)
+        : 0.15;  // 15% for rectangular (normal spacing)
 
+      // Apply spacing
       if (a.parent === b.parent) {
-        // Siblings: Node widths + ratio-based gap
-        return (aWidth / 2) + (bWidth / 2) + (avgWidth * siblingGapRatio);
+        // Siblings
+        return (aWidth / 2) + (bWidth / 2) + (avgWidth * spacingRatio);
       } else {
-        // Cousins: Node widths + ratio-based gap
-        return (aWidth / 2) + (bWidth / 2) + (avgWidth * cousinGapRatio);
+        // Cousins (use wider spacing)
+        const cousinRatio = (safeNodeStyle === 'circular' || safeNodeStyle === 'bezier') ? 0.20 : 0.70;
+        return (aWidth / 2) + (bWidth / 2) + (avgWidth * cousinRatio);
       }
     });
 

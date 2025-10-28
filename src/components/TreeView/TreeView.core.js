@@ -363,7 +363,7 @@ const TreeViewCore = ({
   const { isPreloadingTree, profile: authProfile } = useAuth();
 
   // Extract tree display settings
-  const { showPhotos, highlightMyLine, lineStyle } = settings;
+  const { showPhotos, highlightMyLine, lineStyle, layoutMode } = settings;
 
   // Step 4.2: Extract nodeStyle with default fallback
   const nodeStyle = settings.nodeStyle || 'rectangular';
@@ -1771,7 +1771,7 @@ const TreeViewCore = ({
       // Small delay to ensure tree is fully rendered
       const timer = setTimeout(() => {
         // Validate component still mounted (pending highlight still set)
-        const currentPending = store.getState().pendingCousinHighlight;
+        const currentPending = store.state.pendingCousinHighlight;
         if (!currentPending) {
           console.log('[TreeView] Component unmounted, skipping cousin highlight');
           return;
@@ -2211,17 +2211,24 @@ const TreeViewCore = ({
     }
 
     // Use line styles system for unified path generation
-    const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
-    
+    // PHASE 5: Map layoutMode to LINE_STYLES (with fallback to lineStyle for compatibility)
+    const currentLineStyle = layoutMode
+      ? (layoutMode === 'curves' ? LINE_STYLES.CURVES :
+         layoutMode === 'normal' ? LINE_STYLES.STRAIGHT :
+         layoutMode === 'cluster' ? LINE_STYLES.STRAIGHT :
+         layoutMode === 'bezier' ? LINE_STYLES.BEZIER :  // Deprecated
+         LINE_STYLES.STRAIGHT)  // Default
+      : (lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT);  // Fallback to old lineStyle
+
     // Filter connections for viewport and apply edge limit
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
-    
+
     // Generate all paths using the line styles system
     // Step 4.3: Pass nodeStyleValue for circular edge calculations
     const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos, nodeStyleValue);
 
-    // Configure line styling based on line style (bezier vs straight)
-    const lineConfig = lineStyle === 'bezier'
+    // Configure line styling based on line style (curves/bezier get special styling)
+    const lineConfig = (currentLineStyle === LINE_STYLES.CURVES || currentLineStyle === LINE_STYLES.BEZIER)
       ? {
           color: hexToRgba(BEZIER_CONFIG.STROKE_COLOR, BEZIER_CONFIG.STROKE_OPACITY),
           width: BEZIER_CONFIG.STROKE_WIDTH

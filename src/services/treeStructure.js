@@ -3,6 +3,15 @@ import { filterTreeForPerson } from "../utils/treeFilter";
 import { calculateTreeLayout } from "../utils/treeLayout";
 
 /**
+ * @deprecated - Legacy skeleton loading code (UNUSED)
+ *
+ * Progressive loading (Phase 3B) replaced this functionality with a two-phase approach:
+ * - Phase 1: Load structure-only via useStructureLoader hook (0.45 MB)
+ * - Phase 2: Enrich visible nodes via useViewportEnrichment hook
+ *
+ * This file is kept for reference only and can be removed in v2.1.0.
+ * No active code calls fetchTreeStructure() - verified via grep on October 2025.
+ *
  * Quick fetch of tree structure for skeleton loading
  * Returns minimal data: just IDs, relationships, and calculated positions
  */

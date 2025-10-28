@@ -30,10 +30,11 @@ export const SettingsProvider = ({ children }) => {
     showPhotos: true, // Show profile photos in tree view (default ON)
     highlightMyLine: false, // Highlight user's direct lineage (default OFF)
 
-    // PHASE 4: Unified tree style (2 cohesive modes)
-    treeStyle: "normal", // 'normal' (rectangular + straight) or 'bezier' (circular + curves)
+    // PHASE 5: 4 tree layout modes (October 2025)
+    layoutMode: "normal", // 'normal', 'curves', 'cluster', 'radial'
 
-    // DEPRECATED: Keep for backward compatibility (will be removed in v2.1.0)
+    // DEPRECATED: Keep for backward compatibility (will be removed in v2.2.0)
+    treeStyle: "normal", // PHASE 4: 'normal' or 'bezier' (replaced by layoutMode)
     lineStyle: "straight", // Connection line style: 'straight' or 'bezier' (default straight)
     nodeStyle: "rectangular", // Node style: 'rectangular' or 'circular' (default rectangular)
   });
@@ -73,14 +74,17 @@ export const SettingsProvider = ({ children }) => {
           showPhotos: parsed.showPhotos !== false, // Default ON
           highlightMyLine: parsed.highlightMyLine === true, // Default OFF
 
-          // PHASE 4: Migrate to treeStyle (unified mode)
-          treeStyle: parsed.treeStyle || (
-            (parsed.nodeStyle === 'circular' && parsed.lineStyle === 'bezier')
-              ? 'bezier'
-              : 'normal'
+          // PHASE 5: Migrate to layoutMode (4 modes)
+          layoutMode: parsed.layoutMode || (
+            // Migration: treeStyle 'bezier' → 'curves' (D3 linkHorizontal)
+            parsed.treeStyle === 'bezier' ? 'curves' :
+            parsed.treeStyle === 'normal' ? 'normal' :
+            // Legacy: Convert old lineStyle/nodeStyle combo
+            (parsed.nodeStyle === 'circular' && parsed.lineStyle === 'bezier') ? 'curves' : 'normal'
           ),
 
-          // DEPRECATED: Keep for backward compatibility (will be removed in v2.1.0)
+          // DEPRECATED: Keep for backward compatibility (will be removed in v2.2.0)
+          treeStyle: parsed.treeStyle || 'normal',
           lineStyle: parsed.lineStyle === "bezier" ? "bezier" : "straight", // Default straight
           nodeStyle: parsed.nodeStyle === "circular" ? "circular" : "rectangular", // Default rectangular
         };
@@ -99,8 +103,9 @@ export const SettingsProvider = ({ children }) => {
             showEnglishNames: validatedSettings.showEnglishNames,
             showPhotos: validatedSettings.showPhotos,
             highlightMyLine: validatedSettings.highlightMyLine,
-            treeStyle: validatedSettings.treeStyle, // PHASE 4: New unified mode
+            layoutMode: validatedSettings.layoutMode, // PHASE 5: 4 layout modes
             // DEPRECATED: Keep for backward compatibility
+            treeStyle: validatedSettings.treeStyle,
             lineStyle: validatedSettings.lineStyle,
             nodeStyle: validatedSettings.nodeStyle,
           }),
@@ -127,9 +132,18 @@ export const SettingsProvider = ({ children }) => {
           newSettings.defaultCalendar = value; // 'hijri' or 'gregorian'
           newSettings.dateDisplay = value;
         }
+      } else if (key === "layoutMode") {
+        // PHASE 5: Handle layoutMode specially - also update derived settings
+        newSettings.layoutMode = value;
+
+        // Update deprecated fields for backward compatibility
+        newSettings.treeStyle = (value === 'curves' || value === 'bezier') ? 'bezier' : 'normal';
+        newSettings.lineStyle = (value === 'curves' || value === 'bezier') ? 'bezier' : 'straight';
+        newSettings.nodeStyle = (value === 'curves' || value === 'bezier') ? 'circular' : 'rectangular';
       } else if (key === "treeStyle") {
-        // PHASE 4: Handle treeStyle specially - also update derived settings
+        // DEPRECATED: Handle old treeStyle - convert to layoutMode
         newSettings.treeStyle = value;
+        newSettings.layoutMode = value === 'bezier' ? 'curves' : 'normal';
 
         // Derive lineStyle and nodeStyle from treeStyle
         newSettings.lineStyle = value === 'bezier' ? 'bezier' : 'straight';
@@ -157,8 +171,9 @@ export const SettingsProvider = ({ children }) => {
         showEnglishNames: newSettings.showEnglishNames,
         showPhotos: newSettings.showPhotos,
         highlightMyLine: newSettings.highlightMyLine,
-        treeStyle: newSettings.treeStyle, // PHASE 4: New unified mode
+        layoutMode: newSettings.layoutMode, // PHASE 5: 4 layout modes
         // DEPRECATED: Keep for backward compatibility
+        treeStyle: newSettings.treeStyle,
         lineStyle: newSettings.lineStyle,
         nodeStyle: newSettings.nodeStyle,
       }));
@@ -187,10 +202,11 @@ export const SettingsProvider = ({ children }) => {
         dateDisplay: "gregorian",
         showPhotos: true, // Default ON
         highlightMyLine: false, // Default OFF
-        treeStyle: "normal", // PHASE 4: Default unified mode
+        layoutMode: "normal", // PHASE 5: Default layout mode
         // DEPRECATED: Keep for backward compatibility
-        lineStyle: "straight", // Default straight lines
-        nodeStyle: "rectangular", // Default rectangular nodes
+        treeStyle: "normal",
+        lineStyle: "straight",
+        nodeStyle: "rectangular",
       };
 
       setSettings(defaultSettings);
