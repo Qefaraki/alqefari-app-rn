@@ -1772,16 +1772,85 @@ const TreeViewCore = ({
     if (pendingCousinHighlight && nodes.length > 0) {
       const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
 
-      // Validate both spouses are in loaded tree
-      const nodesMap = store.state.nodesMap;
-      if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
-        console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
-        store.actions.setPendingCousinHighlight(null);
-        return;
-      }
+      // Enrichment-first pattern: Ensure both nodes are loaded before highlighting
+      const ensureNodesEnriched = async () => {
+        const nodesMap = store.state.nodesMap;
+        const needsEnrichment = !nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id);
 
-      // Small delay to ensure tree is fully rendered
-      const timer = setTimeout(() => {
+        if (needsEnrichment) {
+          console.log(`[TreeView] Enriching nodes for cousin highlight: ${spouse1Id}, ${spouse2Id}`);
+
+          try {
+            // Force enrichment of both nodes
+            const profilesService = (await import('../../services/profiles')).default;
+            const { data, error } = await profilesService.enrichVisibleNodes([spouse1Id, spouse2Id]);
+
+            if (error || !data || data.length < 2) {
+              console.warn('[TreeView] Enrichment failed, retrying once...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
+
+              const { data: retryData, error: retryError } = await profilesService.enrichVisibleNodes([spouse1Id, spouse2Id]);
+
+              if (retryError || !retryData || retryData.length < 2) {
+                Alert.alert('خطأ', 'تعذر تحميل بيانات القرابة. تحقق من اتصالك بالإنترنت.');
+                store.actions.setPendingCousinHighlight(null);
+                return false;
+              }
+
+              // Update store with enriched data (retry success)
+              const treeStore = useTreeStore.getState();
+              const newTreeData = treeStore.treeData.map(node => {
+                const enriched = retryData.find(e => e.id === node.id);
+                return enriched ? { ...node, ...enriched } : node;
+              });
+              const newNodesMap = new Map(treeStore.nodesMap);
+              retryData.forEach(enriched => {
+                const existing = newNodesMap.get(enriched.id);
+                if (existing) {
+                  newNodesMap.set(enriched.id, { ...existing, ...enriched });
+                }
+              });
+              treeStore.setTreeData(newTreeData);
+
+            } else {
+              // Update store with enriched data (first try success)
+              const treeStore = useTreeStore.getState();
+              const newTreeData = treeStore.treeData.map(node => {
+                const enriched = data.find(e => e.id === node.id);
+                return enriched ? { ...node, ...enriched } : node;
+              });
+              const newNodesMap = new Map(treeStore.nodesMap);
+              data.forEach(enriched => {
+                const existing = newNodesMap.get(enriched.id);
+                if (existing) {
+                  newNodesMap.set(enriched.id, { ...existing, ...enriched });
+                }
+              });
+              treeStore.setTreeData(newTreeData);
+            }
+
+            // Wait for state update to propagate
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+          } catch (error) {
+            console.error('[TreeView] Enrichment error:', error);
+            Alert.alert('خطأ', 'حدث خطأ أثناء تحميل البيانات');
+            store.actions.setPendingCousinHighlight(null);
+            return false;
+          }
+        }
+
+        return true; // Nodes ready (either already present or enriched successfully)
+      };
+
+      // Execute enrichment and highlighting
+      let timer = null;
+      (async () => {
+        const ready = await ensureNodesEnriched();
+        if (!ready) return;
+
+        // Small delay to ensure tree is fully rendered
+        timer = setTimeout(() => {
         // Validate component still mounted (pending highlight still set)
         const currentPending = store.state.pendingCousinHighlight;
         if (!currentPending) {
@@ -1819,9 +1888,13 @@ const TreeViewCore = ({
         // Clear the pending highlight (consumed)
         store.actions.setPendingCousinHighlight(null);
       }, 500);
+      })();
 
+      // Cleanup function: Cancel pending timer and clear highlight
       return () => {
-        clearTimeout(timer);
+        if (timer) {
+          clearTimeout(timer);
+        }
         if (cousinMarriageRef2.current) {
           store.actions.removeHighlight(cousinMarriageRef2.current);
           cousinMarriageRef2.current = null;

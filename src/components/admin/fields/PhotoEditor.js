@@ -48,6 +48,8 @@ import CardSurface from "../../ios/CardSurface";
 import { LinearGradient } from "expo-linear-gradient";
 import storageService from "../../../services/storage";
 import imageOptimizationService from "../../../services/imageOptimization";
+import { supabase } from "../../../services/supabase";
+import suggestionService from "../../../services/suggestionService";
 
 const PhotoEditor = ({
   value,
@@ -58,6 +60,7 @@ const PhotoEditor = ({
   onCropPress,
   version,
   userId,
+  accessMode,
   onPhotoDeleted,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -364,62 +367,88 @@ const PhotoEditor = ({
     );
   };
 
-  // Handle delete photo (with full undo support)
+  // Handle delete photo (checks accessMode for direct vs suggestion)
   const handleDeletePhoto = async () => {
     // Check if required props are available
-    if (!profileId || !version || !userId) {
+    if (!profileId || !userId) {
       Alert.alert("خطأ", "معلومات الملف غير مكتملة");
       return;
     }
 
+    // Determine the message based on accessMode
+    const isDirectDelete = accessMode === 'direct';
+    const confirmMessage = isDirectDelete
+      ? `هل تريد حذف صورة ${personName}؟\n\nيمكنك التراجع عن هذا الإجراء خلال 30 يوماً من سجل النشاط.`
+      : `هل تريد اقتراح حذف صورة ${personName}؟\n\nسيتم مراجعة الاقتراح من قبل مسؤول العائلة.`;
+
     Alert.alert(
       "حذف الصورة",
-      `هل تريد حذف صورة ${personName}؟\n\nيمكنك التراجع عن هذا الإجراء خلال 30 يوماً من سجل النشاط.`,
+      confirmMessage,
       [
         { text: "إلغاء", style: "cancel" },
         {
-          text: "حذف",
+          text: isDirectDelete ? "حذف" : "إرسال اقتراح",
           style: "destructive",
           onPress: async () => {
             try {
               setIsLoading(true);
 
-              const { data, error } = await supabase.rpc('admin_delete_profile_photo', {
-                p_profile_id: profileId,
-                p_version: version,
-                p_user_id: userId,
-              });
-
-              if (error) {
-                if (error.message?.includes('version')) {
-                  Alert.alert(
-                    "خطأ في النسخة",
-                    "تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة تحميل الصفحة."
-                  );
-                } else if (error.message?.includes('PERMISSION_DENIED')) {
-                  Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
-                } else if (error.message?.includes('timeout')) {
-                  Alert.alert("خطأ", "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
-                } else {
-                  Alert.alert("خطأ", "فشل حذف الصورة. يرجى المحاولة مرة أخرى.");
+              if (isDirectDelete) {
+                // DIRECT DELETE: Call admin_delete_profile_photo RPC
+                if (!version) {
+                  Alert.alert("خطأ", "معلومات النسخة مفقودة");
+                  return;
                 }
-                return;
+
+                const { data, error } = await supabase.rpc('admin_delete_profile_photo', {
+                  p_profile_id: profileId,
+                  p_version: version,
+                  p_user_id: userId,
+                });
+
+                if (error) {
+                  if (error.message?.includes('version')) {
+                    Alert.alert(
+                      "خطأ في النسخة",
+                      "تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة تحميل الصفحة."
+                    );
+                  } else if (error.message?.includes('PERMISSION_DENIED')) {
+                    Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
+                  } else if (error.message?.includes('timeout')) {
+                    Alert.alert("خطأ", "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
+                  } else {
+                    Alert.alert("خطأ", "فشل حذف الصورة. يرجى المحاولة مرة أخرى.");
+                  }
+                  return;
+                }
+
+                // Success - update UI via callback
+                if (onPhotoDeleted) {
+                  onPhotoDeleted();
+                }
+
+                // Update local preview
+                setPreviewUrl(null);
+
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("تم الحذف", "تم حذف الصورة بنجاح");
+
+              } else if (accessMode === 'review') {
+                // SUGGESTION: Call suggestionService.submitEditSuggestion
+                const suggestionId = await suggestionService.submitEditSuggestion(
+                  profileId,
+                  'photo_url',
+                  null,  // new_value is null (indicates deletion)
+                  'حذف الصورة'  // reason
+                );
+
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("تم الإرسال", "سيتم مراجعة الاقتراح من قبل مسؤول العائلة.");
               }
-
-              // Success - update UI via callback
-              if (onPhotoDeleted) {
-                onPhotoDeleted();
-              }
-
-              // Update local preview
-              setPreviewUrl(null);
-
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("تم الحذف", "تم حذف الصورة بنجاح");
 
             } catch (err) {
               console.error('Error deleting photo:', err);
-              Alert.alert("خطأ", "حدث خطأ غير متوقع");
+              Alert.alert("خطأ", err.message || "حدث خطأ غير متوقع");
             } finally {
               setIsLoading(false);
             }
