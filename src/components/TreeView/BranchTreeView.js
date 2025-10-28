@@ -87,7 +87,7 @@ const BranchTreeView = ({
       setLoadingState: useBranchTreeStore(s => s.setLoadingState || (() => {})),
 
       // Highlighting actions (NEW - required by TreeView.core.js autoHighlight)
-      addHighlight: useBranchTreeStore(s => s.addHighlight),
+      addHighlight: useBranchTreeStore(s => s.addHighlight || (() => null)),
       removeHighlight: useBranchTreeStore(s => s.removeHighlight || (() => {})),
       clearHighlights: useBranchTreeStore(s => s.clearHighlights || (() => {})),
       setPendingCousinHighlight: () => {}, // No-op

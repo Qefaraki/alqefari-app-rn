@@ -84,14 +84,47 @@ const useBranchTreeStore = create(
 
     setHighlightedAncestry: (ancestry) => set({ highlightedAncestry: ancestry }),
 
-    // Highlighting actions (NEW - required by TreeView.core.js)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // HIGHLIGHTING SYSTEM (TreeView.core.js autoHighlight feature)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Required by TreeView.core.js when using autoHighlight prop.
+    // Branch tree typically creates 1 highlight (ancestry path).
+    //
+    // PATTERN: Pure service functions (highlightingServiceV2)
+    // - State in, new state out (no side effects)
+    // - Service validates definitions, returns unchanged state on error
+    // - Store enforces MAX_HIGHLIGHTS safety limit (20)
+    //
+    // DESIGN DECISIONS:
+    // - MAX_HIGHLIGHTS: 20 (vs 200 in main tree) - branch tree is smaller
+    // - NO updateHighlight(): Not needed (only add/remove for autoHighlight)
+    // - NO getHighlightRenderData(): Not needed (small dataset, no viewport culling)
+    //
+    // COMPARISON WITH MAIN TREE (useTreeStore.js):
+    // - Main tree: 200 limit, viewport culling, updateHighlight()
+    // - Branch tree: 20 limit, render all highlights (10-50 nodes max)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     /**
      * Add a highlight to the tree
      * @param {Object} definition - Highlight definition (type, nodeId, style)
-     * @returns {string} Generated highlight ID
+     * @returns {string|null} Generated highlight ID, or null if failed/limit reached
      */
     addHighlight: (definition) => {
       const currentState = get();
+
+      // SAFETY: Enforce 20-highlight limit (branch tree uses 1, but defensive)
+      const MAX_HIGHLIGHTS = 20;
+      const currentCount = Object.keys(currentState.highlights).length;
+
+      if (currentCount >= MAX_HIGHLIGHTS) {
+        console.warn(
+          `[BranchTreeStore] Cannot add highlight: Maximum limit (${MAX_HIGHLIGHTS}) reached. ` +
+          `This should not happen in normal branch tree usage (only 1 expected).`
+        );
+        return null;
+      }
+
       const newHighlights = highlightingServiceV2.addHighlight(
         currentState.highlights,
         definition
@@ -101,6 +134,12 @@ const useBranchTreeStore = create(
       const newId = Object.keys(newHighlights).find(
         id => !currentState.highlights[id]
       );
+
+      // CRITICAL: Check validation BEFORE state update (plan-validator correction)
+      if (!newId) {
+        console.warn('[BranchTreeStore] Failed to add highlight (service validation failed)');
+        return null;
+      }
 
       set({ highlights: newHighlights });
 
