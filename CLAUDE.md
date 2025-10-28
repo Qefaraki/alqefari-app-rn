@@ -188,7 +188,8 @@ _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 **Current Features**:
 - ✅ **User Lineage Highlighting**: Uses NEW system (`store.actions.addHighlight`)
 - ✅ **Search Result Highlighting**: Uses NEW system (`store.actions.addHighlight`)
-- ⏳ **Cousin Marriage Highlighting**: Temporarily disabled (navigation-only mode)
+- ✅ **Cousin Marriage Highlighting**: Entry Points 1 & 2 restored (Munasib Manager + Zustand)
+  - Entry Point 3 (search detection) deferred for future UI enhancement
 
 **Architecture**:
 - **Store**: `src/stores/useTreeStore.js` (Zustand actions: addHighlight, removeHighlight)

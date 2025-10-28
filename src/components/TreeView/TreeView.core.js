@@ -827,7 +827,7 @@ const TreeViewCore = ({
   // Progressive loading: Use two-phase strategy (structure + enrichment)
   // Traditional loading: Use full tree with real-time subscriptions
   const progressiveResult = USE_PROGRESSIVE_LOADING
-    ? useProgressiveTreeView(stage, dimensions)
+    ? useProgressiveTreeView(stage, dimensions, nodeStyleValue)
     : null;
 
   // TRADITIONAL LOADER - COMMENTED OUT (Progressive loading enabled via USE_PROGRESSIVE_LOADING=true)
@@ -1535,6 +1535,10 @@ const TreeViewCore = ({
   // Auto-activate highlight if provided externally (branch tree modal) - NEW SYSTEM
   const searchHighlightIdRef = useRef(null);
 
+  // Cousin marriage highlighting refs (Entry Points 1 & 2)
+  const cousinMarriageRef1 = useRef(null);  // Munasib Manager navigation
+  const cousinMarriageRef2 = useRef(null);  // Zustand pendingCousinHighlight
+
   useEffect(() => {
     if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
       const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
@@ -1699,42 +1703,118 @@ const TreeViewCore = ({
     }
   }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 
-  // FIX 3: Cousin marriage highlighting (Munasib Manager navigation) - temporarily disabled
-  // This was the second entry point for cousin marriage highlighting
-  // Can be restored using NEW system: store.actions.addHighlight() with dual paths
+  // ============================================================================
+  // ENTRY POINT 1: Cousin Marriage Highlighting (Munasib Manager Navigation)
+  // ============================================================================
+  // Triggered when user taps cousin marriage in Munasib Manager
+  // Props: spouse1Id, spouse2Id (passed from MunasibManager)
   useEffect(() => {
     if (spouse1Id && spouse2Id && focusOnProfile && nodes.length > 0) {
-      console.warn('[TreeView] Cousin marriage highlighting temporarily disabled (Munasib Manager navigation)');
+      // Validate both nodes exist in loaded tree
+      const nodesMap = store.state.nodesMap;
+      if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+        console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
+        return;
+      }
+
+      // Add highlight using NEW system (calculates dual-path internally via LCA algorithm)
+      const id = store.actions.addHighlight({
+        type: 'node_to_node',
+        from: spouse1Id,
+        to: spouse2Id,
+        style: {
+          color: '#D58C4A',  // Desert Ochre (distinguishes from search/lineage)
+          opacity: 0.7,
+          strokeWidth: 3
+        },
+        // No priority field (defaults to 0, same as other highlights)
+      });
+
+      if (!id) {
+        console.warn('[TreeView] Failed to add cousin marriage highlight (limit reached)');
+        return;
+      }
+
+      cousinMarriageRef1.current = id;
+      console.log('[TreeView] Cousin marriage dual paths activated (Munasib Manager)');
     }
-  }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length]);
+
+    // Cleanup on unmount or when props change
+    return () => {
+      if (cousinMarriageRef1.current) {
+        store.actions.removeHighlight(cousinMarriageRef1.current);
+        cousinMarriageRef1.current = null;
+      }
+    };
+  }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length, store.actions, store.state.nodesMap]);
 
   // Handle cousin marriage highlighting from Zustand store (set by nested components like TabFamily)
   const { pendingCousinHighlight } = store.state;
 
-  // FIX 3: Cousin marriage highlighting from Zustand - temporarily disabled
-  // TODO: Re-implement using NEW highlighting system
+  // ============================================================================
+  // ENTRY POINT 2: Cousin Marriage Highlighting (Zustand Store Trigger)
+  // ============================================================================
+  // Triggered by nested components (TabFamily, Munasib Manager)
+  // Store field: pendingCousinHighlight = { spouse1Id, spouse2Id, highlightProfileId }
   useEffect(() => {
     if (pendingCousinHighlight && nodes.length > 0) {
-      const { highlightProfileId } = pendingCousinHighlight;
+      const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
 
-      // Alert user that highlighting is unavailable
-      Alert.alert(
-        'تنبيه',
-        'تسليط الضوء على زواج الأقارب مؤقتاً غير متاح. سيتم الانتقال إلى الملف الشخصي.',
-        [{ text: 'حسناً', style: 'default' }]
-      );
+      // Validate both spouses are in loaded tree
+      const nodesMap = store.state.nodesMap;
+      if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+        console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
+        store.actions.setPendingCousinHighlight(null);
+        return;
+      }
 
-      // Still navigate to the profile (navigation works), just no highlight
+      // Small delay to ensure tree is fully rendered
       const timer = setTimeout(() => {
+        // Validate component still mounted (pending highlight still set)
+        const currentPending = store.getState().pendingCousinHighlight;
+        if (!currentPending) {
+          console.log('[TreeView] Component unmounted, skipping cousin highlight');
+          return;
+        }
+
+        // Add highlight using NEW system (calculates dual-path internally)
+        const id = store.actions.addHighlight({
+          type: 'node_to_node',
+          from: spouse1Id,
+          to: spouse2Id,
+          style: {
+            color: '#D58C4A',  // Desert Ochre
+            opacity: 0.7,
+            strokeWidth: 3
+          },
+          // No priority field (defaults to 0)
+        });
+
+        if (!id) {
+          console.warn('[TreeView] Failed to add cousin marriage highlight (limit reached)');
+          store.actions.setPendingCousinHighlight(null);
+          return;
+        }
+
+        cousinMarriageRef2.current = id;
+        console.log('[TreeView] Cousin marriage dual paths activated (Zustand)');
+
+        // Navigate to highlighted profile
         if (highlightProfileId) {
           navigateToNode(highlightProfileId);
         }
 
-        // Clear the pending highlight
+        // Clear the pending highlight (consumed)
         store.actions.setPendingCousinHighlight(null);
       }, 500);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        if (cousinMarriageRef2.current) {
+          store.actions.removeHighlight(cousinMarriageRef2.current);
+          cousinMarriageRef2.current = null;
+        }
+      };
     }
   }, [pendingCousinHighlight, nodes.length, navigateToNode, store.actions]);
 
