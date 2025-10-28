@@ -374,18 +374,28 @@ export default function SettingsPageModern({ user }) {
         return;
       }
 
+      // TEMPORARY DEBUG: Force profile cache clear to bypass migration flag issues
+      console.log('[DEBUG Profile] Forcing profile cache clear for share_code fix...');
+      try {
+        await profileCacheUtils.clear(user.id);
+        console.log('[DEBUG Profile] ✅ Profile cache cleared');
+      } catch (clearError) {
+        console.warn('[DEBUG Profile] Cache clear failed:', clearError);
+      }
+
       // One-time migration: Clear old profile cache (missing share_code field)
       // This runs once per device after share_code implementation
-      try {
-        const migrated = await AsyncStorage.getItem('profile-cache-migrated-v1.8.0');
-        if (!migrated) {
-          await profileCacheUtils.clear(user.id);
-          await AsyncStorage.setItem('profile-cache-migrated-v1.8.0', 'true');
-          console.log('[Profile Cache] ✅ One-time migration: cleared old cache (missing share_code)');
-        }
-      } catch (migrationError) {
-        console.warn('[Profile Cache] Migration failed, non-critical:', migrationError);
-      }
+      // COMMENTED OUT: Using force clear above instead
+      // try {
+      //   const migrated = await AsyncStorage.getItem('profile-cache-migrated-v1.8.0');
+      //   if (!migrated) {
+      //     await profileCacheUtils.clear(user.id);
+      //     await AsyncStorage.setItem('profile-cache-migrated-v1.8.0', 'true');
+      //     console.log('[Profile Cache] ✅ One-time migration: cleared old cache (missing share_code)');
+      //   }
+      // } catch (migrationError) {
+      //   console.warn('[Profile Cache] Migration failed, non-critical:', migrationError);
+      // }
 
       // Try AsyncStorage cache first (unless force refresh)
       if (!forceRefresh) {
@@ -440,6 +450,12 @@ export default function SettingsPageModern({ user }) {
         }
         throw profileError;
       }
+
+      // TEMPORARY DEBUG: Verify profile has share_code field
+      console.log('[DEBUG Profile] Loaded profile from database');
+      console.log('[DEBUG Profile] Profile fields:', Object.keys(profile || {}));
+      console.log('[DEBUG Profile] share_code value:', profile?.share_code);
+      console.log('[DEBUG Profile] HID value:', profile?.hid);
 
       // Build full name chain using RPC function
       if (profile) {
