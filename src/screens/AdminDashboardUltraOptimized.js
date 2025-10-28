@@ -24,6 +24,7 @@ import PermissionManager from "../components/admin/PermissionManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
+import PhotoApprovalManager from "../components/admin/PhotoApprovalManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { supabase } from "../services/supabase";
@@ -71,8 +72,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [showBroadcastManager, setShowBroadcastManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showPhotoApprovals, setShowPhotoApprovals] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
+  const [pendingPhotosCount, setPendingPhotosCount] = useState(0);
   const [munasibCounts, setMunasibCounts] = useState({ families: 0, members: 0 });
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
@@ -119,6 +122,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
     loadBasicStats();
     loadPendingRequestsCount();
     loadPendingSuggestionsCount();
+    loadPendingPhotosCount();
     loadMunasibStats();
 
     // Cleanup timers on unmount
@@ -132,6 +136,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
     loadBasicStats();
     loadPendingRequestsCount();
     loadPendingSuggestionsCount();
+    loadPendingPhotosCount();
     loadMunasibStats();
 
     // Load other sections with delays (NO CLEANUP - only used in refresh)
@@ -161,6 +166,28 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
       setPendingSuggestionsCount(count || 0);
     } catch (error) {
       console.log("Error loading pending suggestions:", error);
+    }
+  };
+
+  const loadPendingPhotosCount = async () => {
+    try {
+      const { fetchWithTimeout } = require('../utils/fetchWithTimeout');
+      const { count, error } = await fetchWithTimeout(
+        supabase
+          .from("photo_change_requests")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending"),
+        3000 // 3-second timeout
+      );
+
+      if (error && error.message !== 'NETWORK_TIMEOUT') {
+        console.log("Error loading pending photos:", error);
+      }
+
+      setPendingPhotosCount(count || 0);
+    } catch (error) {
+      console.log("Error loading pending photos:", error);
+      setPendingPhotosCount(0);
     }
   };
 
@@ -591,9 +618,42 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowSuggestionReview(true);
                 }}
-                showDivider={canAccess(ADMIN_FEATURES.PERMISSION_MANAGER.id)}
+                showDivider
               />
             )}
+
+            {/* Photo Approvals */}
+            <ListItem
+              leading={
+                <Ionicons
+                  name="images-outline"
+                  size={22}
+                  color={tokens.colors.najdi.primary}
+                />
+              }
+              title="مراجعة الصور"
+              trailing={
+                <View style={styles.trailingCluster}>
+                  {pendingPhotosCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {formatCount(pendingPhotosCount)}
+                      </Text>
+                    </View>
+                  )}
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                </View>
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowPhotoApprovals(true);
+              }}
+              showDivider={canAccess(ADMIN_FEATURES.PERMISSION_MANAGER.id)}
+            />
 
             {canAccess(ADMIN_FEATURES.PERMISSION_MANAGER.id) && (
               <ListItem
@@ -864,6 +924,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
         },
         SuggestionReviewManager
       )}
+
+      {/* Photo Approval Manager */}
+      <PhotoApprovalManager
+        visible={showPhotoApprovals}
+        onClose={() => {
+          setShowPhotoApprovals(false);
+          loadPendingPhotosCount(); // Reload count after closing
+        }}
+      />
 
       {/* Unified Broadcast Manager */}
       {renderIOSModal(

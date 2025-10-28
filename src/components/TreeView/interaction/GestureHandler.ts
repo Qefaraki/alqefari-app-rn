@@ -235,6 +235,7 @@ export function createPanGesture(
         velocity: clampedVelocityX,
         deceleration: decelerationRate,
         rubberBandEffect: true,
+        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
         clamp: boundsX,
       }, onAxisComplete);
 
@@ -242,6 +243,7 @@ export function createPanGesture(
         velocity: clampedVelocityY,
         deceleration: decelerationRate,
         rubberBandEffect: true,
+        rubberBandFactor: 0.55, // iOS native constant (not 0.6 default)
         clamp: boundsY,
       }, onAxisComplete);
 
