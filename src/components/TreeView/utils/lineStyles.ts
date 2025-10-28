@@ -218,10 +218,11 @@ export function generateD3CurvePaths(
   const parentBottomY = parent.y + parentRadius;
 
   // Create D3 link generator (horizontal curves)
-  // Note: App uses D3 coordinate convention (x=horizontal, y=vertical)
+  // Note: D3 tree layout swaps coordinates (x=vertical, y=horizontal)
+  // linkHorizontal expects [horizontal, vertical], so we pass [d.y, d.x]
   const linkGen = linkHorizontal()
-    .source((d: any) => [d.source.x, d.source.y])  // [horizontal, vertical]
-    .target((d: any) => [d.target.x, d.target.y]);
+    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical] = [d.y, d.x]
+    .target((d: any) => [d.target.y, d.target.x]);
 
   // Generate curve from parent to each child
   children.forEach(child => {
