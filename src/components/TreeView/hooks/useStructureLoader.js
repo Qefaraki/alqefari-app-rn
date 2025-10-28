@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.7.0'; // Bumped: Add share_code to structure RPC for deep linking
+const TREE_STRUCTURE_SCHEMA_VERSION = '1.8.0'; // Bumped: Add share_code to UUID overload for QR generation
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

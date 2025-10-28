@@ -384,9 +384,7 @@ const PhotoEditor = ({
 
     // Determine the message based on accessMode
     const isDirectDelete = accessMode === 'direct';
-    const confirmMessage = isDirectDelete
-      ? `هل تريد حذف صورة ${personName}؟\n\nيمكنك التراجع عن هذا الإجراء خلال 30 يوماً من سجل النشاط.`
-      : `هل تريد اقتراح حذف صورة ${personName}؟\n\nسيتم مراجعة الاقتراح من قبل مسؤول العائلة.`;
+    const confirmMessage = 'هل أنت متأكد من الحذف؟';
 
     Alert.alert(
       "حذف الصورة",
