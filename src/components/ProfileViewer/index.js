@@ -1148,15 +1148,24 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       // Remove normalized data - don't send to RPC (contains numeric IDs that cause UUID errors)
       delete payload.current_residence_normalized;
 
-      // DEBUG: Log version before save
-      console.log('[ProfileViewer] Saving with version:', {
-        personName: person.name,
-        currentVersion: person.version,
-        personId: person.id
-      });
+      // DEFENSE IN DEPTH: Remove metadata fields from payload
+      // These should already be excluded by diffObjects(), but we delete defensively
+      // in case version somehow enters draft state (e.g., from PhotoEditor callback)
+      delete payload.version;
+      delete payload.updated_at;
+      delete payload.updated_by;
 
       // Validation: Ensure version field exists in form.draft (most up-to-date)
       const currentVersion = form.draft.version ?? person.version;
+
+      // DEBUG: Log version before save
+      console.log('[ProfileViewer] Saving with version:', {
+        personName: person.name,
+        draftVersion: form.draft.version,
+        personVersion: person.version,
+        currentVersionUsed: currentVersion,
+        personId: person.id
+      });
       if (!currentVersion || typeof currentVersion !== 'number') {
         console.error('[ProfileViewer] ⚠️ Missing or invalid version field:', {
           hasVersionInDraft: 'version' in form.draft,

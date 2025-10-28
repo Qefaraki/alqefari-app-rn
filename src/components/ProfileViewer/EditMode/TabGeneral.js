@@ -138,7 +138,8 @@ const TabGeneral = ({ form, updateField, onCropPress, person, userProfile, acces
                 updateField('crop_bottom', 0);
                 updateField('crop_left', 0);
                 updateField('crop_right', 0);
-                updateField('version', newVersion ?? ((draft?.version ?? 1) + 1));
+                // DO NOT updateField('version') - version is metadata, not user data
+                // Version is managed separately via person prop and optimistic locking
               }}
             />
           </ProfileFormCard>
