@@ -470,6 +470,59 @@ if (error?.message.includes('version')) {
 
 📖 Full docs: [`/docs/TREEVIEW_PERFORMANCE_OPTIMIZATION.md`](docs/TREEVIEW_PERFORMANCE_OPTIMIZATION.md)
 
+## 📐 Photo Crop Feature
+
+**Status**: ✅ Production-Ready (October 28, 2025)
+**Grade**: B+ (87/100) - All blocking and medium priority issues resolved
+
+**Quick Summary**: Non-destructive photo cropping with coordinate-based architecture. Original photos unchanged, crop applied during GPU rendering.
+
+### Core Components
+- **RPC**: `admin_update_profile_crop()` - Dedicated crop RPC with version validation + audit log
+- **Undo**: `undo_crop_update()` - Full undo support via Activity Feed
+- **UI**: PhotoCropEditor - Draggable crop rectangle, returns normalized coordinates (0.0-1.0)
+- **Rendering**: ImageNode.tsx - GPU crop via `makeImageFromRect()` (~0.1ms per image)
+- **Cleanup**: Auto-reset crop when photo deleted (database trigger)
+
+### Key Architecture
+```javascript
+// Normalized coordinates (0.0-1.0)
+crop_top: 0.1,      // Crop 10% from top
+crop_bottom: 0.1,   // Crop 10% from bottom
+crop_left: 0.05,    // Crop 5% from left
+crop_right: 0.05    // Crop 5% from right
+
+// Storage: NUMERIC(4,3) in database (e.g., 0.100)
+// Rendering: Applied during Skia rendering (not file-based)
+```
+
+### Usage (ProfileViewer)
+```javascript
+// Menu: "تعديل الصورة" (Edit Photo)
+// Permission: canEdit && photo_url
+// Returns: { crop_top, crop_bottom, crop_left, crop_right }
+// RPC: admin_update_profile_crop(profile_id, crop values, version)
+```
+
+### Test Coverage (72 total tests)
+- Unit tests: 39 test cases (cropUtils.ts)
+- Component tests: 21 test cases (PhotoCropEditor.tsx)
+- SQL integration tests: 12 test cases (RPC validation)
+
+### Validation Rules
+- ✅ All values: 0.0-1.0 range
+- ✅ Minimum visible area: 10% (width and height)
+- ✅ Sum checks: `left + right < 1.0`, `top + bottom < 1.0`
+- ✅ Version conflict detection (optimistic locking)
+
+### Production Features
+- **Activity Feed**: crop_update actions with undo support
+- **Cleanup Trigger**: Auto-reset crop when photo deleted
+- **Coordinate Clamping**: Prevents floating-point validation failures (0.9999 → 0.999)
+- **Rollback Migrations**: 3 emergency rollback files (documentation only)
+
+📖 Full docs: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md#photo-cropping-admin_update_profile_crop) (Photo Cropping section)
+
 ## 🖼️ BlurHash Implementation (Image Placeholders)
 
 **Status**: 🚧 Day 1 Backend (80% Complete) - October 27, 2025

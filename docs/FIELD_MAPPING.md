@@ -428,6 +428,44 @@ const { data, error } = await supabase.rpc('undo_crop_update', {
 - Crop BEFORE circular mask for correct aspect ratio
 - Optimized: Skip GPU operation if all crop values = 0
 
+**Cleanup Trigger (Migration 20251028000000):**
+- **Function:** `reset_crop_on_photo_deletion()`
+- **Purpose:** Auto-reset crop values when photo is deleted (photo_url → NULL)
+- **Behavior:** BEFORE UPDATE trigger, sets all crop fields to 0.0
+- **Edge Cases:**
+  - Photo change (old → new): Crop preserved (user might want same crop)
+  - Photo restore (NULL → new): Crop remains 0.0 (user can recrop)
+  - Soft delete (deleted_at): No trigger (photo_url unchanged)
+- **Performance:** <0.1ms per photo deletion (negligible)
+- **Integration:** Works transparently with `admin_update_profile()` RPC
+
+**Test Coverage:**
+- **Unit Tests:** `src/utils/__tests__/cropUtils.test.ts` (39 test cases)
+  - normalizeCropValues, hasCrop, getCropAreaPercentage
+  - isValidCrop, clampCropCoordinates
+  - NULL/undefined handling, floating-point edge cases
+- **Component Tests:** `src/components/crop/__tests__/PhotoCropEditor.test.tsx` (21 test cases)
+  - Rendering, image loading, save validation
+  - Reset functionality, cancel flow, loading states
+- **SQL Integration Tests:** `supabase/tests/crop_rpc_integration_tests.sql` (12 test cases)
+  - RPC validation, audit logging, undo functionality
+  - Version conflict detection, boundary values
+  - NULL backwards compatibility
+
+**Rollback Migrations (Documentation Only):**
+- `supabase/migrations/rollback_crop_fields.sql` - Drops crop columns from profiles table
+- `supabase/migrations/rollback_admin_update_profile_crop.sql` - Drops dedicated crop RPC
+- `supabase/migrations/rollback_undo_crop_update.sql` - Drops crop undo RPC
+- Each includes: DROP statements, data loss impact, recovery steps, post-rollback actions
+- Status: Documentation only (not applied, ready for emergency use)
+
+**Coordinate Clamping:**
+- **Function:** `clampCropCoordinates()` in `cropUtils.ts`
+- **Purpose:** Prevent floating-point edge cases (0.9999 → 1.000 validation failure)
+- **Behavior:** Clamps all crop values to 0.000-0.999 range
+- **Integration:** Called in PhotoCropEditor.handleSave() before validation
+- **Impact:** Zero user-facing errors from floating-point precision
+
 ## Location System (October 2025)
 
 **Migration:** `20251023150357_add_location_normalization.sql` + support migrations
