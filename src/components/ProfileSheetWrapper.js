@@ -118,12 +118,28 @@ const ProfileSheetWrapper = ({ editMode }) => {
     });
 
     // PRIORITY FIX: Use complete auth profile for self-view (45 fields vs 10 fields from tree store)
+    // BUT: Prefer tree store if it has newer version (handles post-save updates)
     if (userProfile?.id === selectedPersonId && userProfile) {
+      const treeNode = nodesMap.get(selectedPersonId);
+
+      // If tree store has newer version, use it (prevents version conflicts after saves)
+      if (treeNode && treeNode.version > userProfile.version) {
+        console.log('[PROFILE SHEET DEBUG] ✅ Using tree store (newer version) for self-view:', {
+          id: treeNode.id,
+          name: treeNode.name,
+          treeVersion: treeNode.version,
+          authVersion: userProfile.version,
+          source: 'treeStore (newer)'
+        });
+        return treeNode;
+      }
+
       console.log('[PROFILE SHEET DEBUG] ✅ Using complete auth profile for self-view:', {
         id: userProfile.id,
         name: userProfile.name,
         fieldCount: Object.keys(userProfile).length,
         hasVersion: !!userProfile.version,
+        version: userProfile.version,
         source: 'authProfile'
       });
       return userProfile;
