@@ -50,6 +50,7 @@ import storageService from "../../../services/storage";
 import imageOptimizationService from "../../../services/imageOptimization";
 import { supabase } from "../../../services/supabase";
 import suggestionService from "../../../services/suggestionService";
+import { fetchWithTimeout } from "../../../utils/fetchWithTimeout";
 
 const PhotoEditor = ({
   value,
@@ -375,6 +376,12 @@ const PhotoEditor = ({
       return;
     }
 
+    // CRITICAL: Validate permission before proceeding
+    if (!accessMode || accessMode === 'none' || accessMode === 'blocked' || accessMode === 'readonly') {
+      Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
+      return;
+    }
+
     // Determine the message based on accessMode
     const isDirectDelete = accessMode === 'direct';
     const confirmMessage = isDirectDelete
@@ -397,14 +404,19 @@ const PhotoEditor = ({
                 // DIRECT DELETE: Call admin_delete_profile_photo RPC
                 if (!version) {
                   Alert.alert("خطأ", "معلومات النسخة مفقودة");
+                  setIsLoading(false);
                   return;
                 }
 
-                const { data, error } = await supabase.rpc('admin_delete_profile_photo', {
-                  p_profile_id: profileId,
-                  p_version: version,
-                  p_user_id: userId,
-                });
+                const { data, error } = await fetchWithTimeout(
+                  supabase.rpc('admin_delete_profile_photo', {
+                    p_profile_id: profileId,
+                    p_version: version,
+                    p_user_id: userId,
+                  }),
+                  3000,  // 3-second timeout (matches permission checks)
+                  'Delete photo operation'
+                );
 
                 if (error) {
                   if (error.message?.includes('version')) {
@@ -414,7 +426,9 @@ const PhotoEditor = ({
                     );
                   } else if (error.message?.includes('PERMISSION_DENIED')) {
                     Alert.alert("خطأ", "ليس لديك صلاحية لحذف هذه الصورة");
-                  } else if (error.message?.includes('timeout')) {
+                  } else if (error.message === 'NETWORK_OFFLINE') {
+                    Alert.alert("خطأ", "لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.");
+                  } else if (error.message?.includes('NETWORK_TIMEOUT')) {
                     Alert.alert("خطأ", "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.");
                   } else {
                     Alert.alert("خطأ", "فشل حذف الصورة. يرجى المحاولة مرة أخرى.");
@@ -546,7 +560,7 @@ const PhotoEditor = ({
                 {/* Crop hint - only show if photo exists and crop handler provided */}
                 {previewUrl && onCropPress && (
                   <Text style={styles.cropHint}>
-                    <Ionicons name="crop-outline" size={11} color="rgba(255,255,255,0.7)" />
+                    <Ionicons name="crop-outline" size={13} color="rgba(255,255,255,0.9)" />
                     {" "}اضغط مطولاً للقص
                   </Text>
                 )}
@@ -630,10 +644,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   cropHint: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.95)",
+    fontSize: 13,
     marginTop: 6,
-    fontWeight: "400",
+    fontWeight: "500",
   },
   cameraButton: {
     width: 44,
