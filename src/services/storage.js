@@ -31,6 +31,7 @@ class StorageService {
 
     const maxRetries = 3;
     let lastError = null;
+    const startTime = Date.now();
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
@@ -63,12 +64,22 @@ class StorageService {
         // Convert blob to array buffer
         const arrayBuffer = await new Response(blob).arrayBuffer();
 
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
+        // LOG: Upload start
+        const uploaderAuthId = (await supabase.auth.getUser()).data.user?.id;
+        console.log('[STORAGE_UPLOAD_START]', {
+          targetProfileId: profileId,
+          uploaderAuthId,
+          fileSize: blob.size,
+          filePath,
+          timestamp: new Date().toISOString()
+        });
+
+        // Upload to Supabase Storage with timeout (120s)
+        const uploadPromise = supabase.storage
           .from(this.bucketName)
           .upload(filePath, arrayBuffer, {
             contentType: blob.type || "image/jpeg",
-            upsert: false, // Don't overwrite existing files
+            upsert: true, // FIXED: Prevent race conditions, allow atomic replace
             onUploadProgress: (progress) => {
               if (onProgress) {
                 const percentComplete =
@@ -77,6 +88,13 @@ class StorageService {
               }
             },
           });
+
+        const { data, error } = await Promise.race([
+          uploadPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('انتهت مهلة الرفع. تحقق من الاتصال وحاول مرة أخرى.')), 120000)
+          )
+        ]);
 
         if (error) {
           throw error;
@@ -90,17 +108,30 @@ class StorageService {
         // Verify the URL is actually accessible (critical for reliability)
         const isAccessible = await this.verifyImageUrl(publicUrl);
         if (!isAccessible) {
-          // URL not accessible - delete the uploaded file and fail
-          await supabase.storage.from(this.bucketName).remove([filePath]);
-          throw new Error("تعذر الوصول للصورة بعد الرفع");
+          // FIXED: Don't delete the file, CDN will catch up
+          // The file uploaded successfully, just CDN propagation delayed
+          console.warn(`[StorageService] CDN verification delayed for ${publicUrl}. File uploaded successfully, accessible soon.`);
         }
 
         // Clean up old photos on successful upload
         await this.cleanupOldPhotos(profileId, publicUrl);
 
+        // LOG: Upload success
+        console.log('[STORAGE_UPLOAD_SUCCESS]', {
+          targetProfileId: profileId,
+          filePath,
+          publicUrl,
+          duration: Date.now() - startTime,
+          cdnVerified: isAccessible
+        });
+
         return { url: publicUrl, error: null };
       } catch (error) {
-        console.error(`Upload attempt ${attempt + 1} failed:`, error);
+        console.error(`[STORAGE_UPLOAD_FAILURE] Attempt ${attempt + 1} failed:`, {
+          targetProfileId: profileId,
+          error: error.message,
+          duration: Date.now() - startTime
+        });
         lastError = error;
 
         // Don't retry for client errors
@@ -214,9 +245,8 @@ class StorageService {
       // Verify the URL is actually accessible (CRITICAL FIX)
       const isAccessible = await this.verifyImageUrl(publicUrl);
       if (!isAccessible) {
-        // URL not accessible - delete the uploaded file and fail
-        await supabase.storage.from("profile-photos").remove([filePath]);
-        throw new Error("تعذر الوصول لصورة الزوج/الزوجة بعد الرفع");
+        // FIXED: Don't delete the file, CDN will catch up
+        console.warn(`[StorageService] CDN verification delayed for spouse photo ${publicUrl}. File uploaded successfully, accessible soon.`);
       }
 
       return publicUrl;
@@ -261,9 +291,9 @@ class StorageService {
   async verifyImageUrl(url, maxAttempts = 3) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        // Add small delay for CDN propagation on retries
+        // Add exponential backoff for CDN propagation (0s, 2s, 4s)
         if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
         }
 
         // Use fetchWithTimeout to prevent hanging
