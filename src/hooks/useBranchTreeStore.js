@@ -21,8 +21,8 @@ const useBranchTreeStore = create(
     isLoading: false,
     error: null,
 
-    // Tree stage
-    stage: 'idle',
+    // Tree stage (viewport coordinates - matches main tree structure)
+    stage: { x: 0, y: 0, scale: 1 },
 
     // Selection and linking
     selectedPersonId: null,
@@ -62,7 +62,15 @@ const useBranchTreeStore = create(
 
     setError: (error) => set({ error }),
 
-    setStage: (stage) => set({ stage }),
+    setStage: (newStage) => {
+      // Defensive validation - prevents future string assignments that would cause crashes
+      if (typeof newStage !== 'object' || !newStage.hasOwnProperty('x')) {
+        console.warn('[BranchTreeStore] Invalid stage format, using default');
+        set({ stage: { x: 0, y: 0, scale: 1 } });
+        return;
+      }
+      set({ stage: newStage });
+    },
 
     setSelectedPersonId: (id) => set({ selectedPersonId: id }),
 
@@ -199,7 +207,7 @@ const useBranchTreeStore = create(
       treeData: [],
       isLoading: false,
       error: null,
-      stage: 'idle',
+      stage: { x: 0, y: 0, scale: 1 },  // ← CRITICAL: Must match object structure to prevent crash reintroduction
       selectedPersonId: null,
       linkedProfileId: null,
       focusPersonId: null,

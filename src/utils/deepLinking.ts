@@ -213,6 +213,7 @@ export async function handleDeepLink(
     ? { type: 'share_code' as const, value: inviterIdentifier }
     : inviterIdentifier;
 
+  const deepLinkStartTime = Date.now();
   console.log('[DeepLink] Handling deep link:', {
     targetType: targetId.type,
     targetValue: targetId.value,
@@ -473,6 +474,8 @@ export async function handleDeepLink(
     }
 
     // Open ProfileViewer and navigate tree to center on profile
+    const deepLinkTotalTime = Date.now() - deepLinkStartTime;
+    console.log(`[DeepLink Performance] Total: ${deepLinkTotalTime}ms`);
     console.log('[DeepLink] Opening profile:', profile.id, profile.name);
     treeStore.setSelectedPersonId(profile.id);
     treeStore.setNavigationTarget(profile.id);  // Trigger tree camera animation

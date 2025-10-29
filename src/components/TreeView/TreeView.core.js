@@ -1433,7 +1433,7 @@ const TreeViewCore = ({
 
       // Calculate the target scale (zoom level)
       // Use current scale if reasonable, otherwise zoom to readable level
-      const currentScale = scale.value;
+      const currentScale = scale.value ?? 1.0;  // ← Defensive fallback for undefined
       const targetScale =
         currentScale < 0.8 || currentScale > 3 ? 1.5 : currentScale;
 

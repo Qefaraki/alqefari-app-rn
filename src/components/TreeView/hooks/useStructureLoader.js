@@ -54,7 +54,8 @@ export function useStructureLoader() {
           } else {
             // Version matches, use cache if valid
             if (cachedStructure && cachedStructure.length >= 50) {
-              console.log(`[Cache] Using cached structure (v${cachedVersion}, ${cachedStructure.length} profiles)`);
+              const cacheAge = Math.floor((Date.now() - cacheData.timestamp) / 1000 / 60);
+              console.log(`[Cache Hit] v${cachedVersion}, ${cachedStructure.length} profiles, ${cacheAge}min old`);
               setStructure(cachedStructure);
               useTreeStore.getState().setTreeData(cachedStructure);
               setIsLoading(false);
@@ -77,6 +78,7 @@ export function useStructureLoader() {
       }
 
       // Load structure from backend
+      const fetchStartTime = Date.now();
       const { data, error: fetchError } = await profilesService.getStructureOnly();
 
       if (fetchError || !data) {
@@ -93,7 +95,8 @@ export function useStructureLoader() {
           profiles: data
         };
         await AsyncStorage.setItem('tree-structure-v4', JSON.stringify(cacheData));
-        console.log(`[Cache] Saved structure cache (v${TREE_STRUCTURE_SCHEMA_VERSION}, ${data.length} profiles)`);
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(`[Cache Miss] Fetched ${data.length} profiles in ${fetchDuration}ms, saved as v${TREE_STRUCTURE_SCHEMA_VERSION}`);
       } catch (cacheError) {
         console.warn('[Cache] Failed to save cache, non-critical:', cacheError);
         // Cache failure is non-critical
