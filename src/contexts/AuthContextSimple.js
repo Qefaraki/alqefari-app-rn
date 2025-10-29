@@ -30,6 +30,7 @@ export function AuthProvider({ children }) {
   const isInitializedRef = useRef(false);
   const isProcessingAuthEventRef = useRef(false);
   const lastAuthEventRef = useRef(null);
+  const lastEventTime = useRef(0); // Throttle rapid auth events (defense against infinite loops)
 
   // Initialize auth state
   useEffect(() => {
@@ -69,6 +70,16 @@ export function AuthProvider({ children }) {
       // Listen for auth changes
       const { data: authListener } = supabase.auth.onAuthStateChange(
         async (event, session) => {
+          // Throttle rapid auth events (500ms minimum between events)
+          // Defense against auth event storms causing infinite render loops
+          const now = Date.now();
+          const EVENT_THROTTLE_MS = 500;
+          if (now - lastEventTime.current < EVENT_THROTTLE_MS) {
+            console.warn('[AuthContext] Auth event throttled (too fast):', event);
+            return;
+          }
+          lastEventTime.current = now;
+
           // Prevent duplicate event processing
           const eventKey = `${event}-${session?.user?.id || 'no-user'}`;
           if (isProcessingAuthEventRef.current && lastAuthEventRef.current === eventKey) {

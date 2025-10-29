@@ -211,7 +211,9 @@ function RootLayoutNav() {
         clearTimeout(navigationTimeoutRef.current);
       }
     };
-  }, [user, profile, hasCompletedOnboarding, isGuestMode, isPendingApproval, isReady, segments]);
+  }, [user, profile, hasCompletedOnboarding, isGuestMode, isPendingApproval, isReady]);
+  // NOTE: segments deliberately NOT in deps - we read it synchronously but don't react to route changes
+  // Adding segments here creates circular dependency: effect changes route → segments update → effect runs again
 
   // Return slot which will render the appropriate route group
   // NetworkStatusIndicator banner shows globally when offline
