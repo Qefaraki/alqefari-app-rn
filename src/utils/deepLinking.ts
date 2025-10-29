@@ -432,9 +432,10 @@ export async function handleDeepLink(
       }
     }
 
-    // Open ProfileViewer
+    // Open ProfileViewer and navigate tree to center on profile
     console.log('[DeepLink] Opening profile:', profile.id, profile.name);
     treeStore.setSelectedPersonId(profile.id);
+    treeStore.setNavigationTarget(profile.id);  // Trigger tree camera animation
 
     // Log QR scan analytics (non-blocking)
     try {

@@ -358,8 +358,8 @@ const TreeViewCore = ({
   autoHighlight = null,
 }) => {
   // Extract state and actions from store prop
-  const { stage, minZoom, maxZoom, selectedPersonId, treeData } = store.state;
-  const { setStage, setSelectedPersonId, setTreeData } = store.actions;
+  const { stage, minZoom, maxZoom, selectedPersonId, treeData, navigationTarget: storeNavigationTarget } = store.state;
+  const { setStage, setSelectedPersonId, setTreeData, setNavigationTarget } = store.actions;
   const { settings } = useSettings();
   const { isPreloadingTree, profile: authProfile } = useAuth();
 
@@ -1524,6 +1524,20 @@ const TreeViewCore = ({
       lastNavigationRef.current = null;
     };
   }, []);
+
+  // Auto-navigate when navigationTarget is set (deep linking, external triggers)
+  useEffect(() => {
+    const targetId = storeNavigationTarget || navigationTarget;
+    if (targetId) {
+      console.log('[TreeView] Auto-navigation triggered for profile:', targetId);
+      navigateToNode(targetId);
+
+      // Clear the navigation target after triggering
+      if (storeNavigationTarget && setNavigationTarget) {
+        setNavigationTarget(null);
+      }
+    }
+  }, [storeNavigationTarget, navigationTarget, navigateToNode, setNavigationTarget]);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BRANCH TREE MODAL HOOKS

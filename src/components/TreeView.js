@@ -24,6 +24,9 @@ const TreeView = (props) => {
       selectedPersonId: useTreeStore(s => s.selectedPersonId),
       linkedProfileId: useTreeStore(s => s.linkedProfileId),
 
+      // Navigation target for automatic camera movement
+      navigationTarget: useTreeStore(s => s.navigationTarget),
+
       // Zoom constraints
       minZoom: useTreeStore(s => s.minZoom),
       maxZoom: useTreeStore(s => s.maxZoom),
@@ -60,6 +63,9 @@ const TreeView = (props) => {
       // Selection and linking
       setSelectedPersonId: useTreeStore(s => s.setSelectedPersonId),
       setLinkedProfileId: useTreeStore(s => s.setLinkedProfileId),
+
+      // Navigation
+      setNavigationTarget: useTreeStore(s => s.setNavigationTarget),
 
       // UI toggles
       setShowPhotos: useTreeStore(s => s.setShowPhotos),

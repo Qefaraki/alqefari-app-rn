@@ -37,6 +37,10 @@ export const useTreeStore = create((set, get) => ({
   // Selection state
   selectedPersonId: null,
 
+  // Navigation target for triggering automatic tree camera movement
+  // Used by deep linking and other external triggers to center tree on a profile
+  navigationTarget: null,
+
   // Cousin marriage highlighting trigger (set from nested components like TabFamily)
   // When set, TreeView will activate dual-path highlighting for these spouse IDs
   pendingCousinHighlight: null, // { spouse1Id, spouse2Id, highlightProfileId }
@@ -75,6 +79,10 @@ export const useTreeStore = create((set, get) => ({
   setIsAnimating: (animating) => set({ isAnimating: animating }),
 
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
+
+  // Trigger automatic tree navigation to center on a profile
+  // Used by deep linking, search results, and external navigation triggers
+  setNavigationTarget: (profileId) => set({ navigationTarget: profileId }),
 
   setTreeData: (data) => {
     // Validate cache quality - check if data is valid and ready for display
