@@ -83,7 +83,8 @@ export function useHighlighting() {
         const [spouse1Id, spouse2Id] = nodeIds;
 
         // Validate both nodes exist in the tree
-        if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+        // Use pathService.nodesMap instead of direct nodesMap access to avoid unstable deps
+        if (!pathService.nodesMap.has(spouse1Id) || !pathService.nodesMap.has(spouse2Id)) {
           console.warn(`[useHighlighting] One or both spouses not in tree: ${spouse1Id}, ${spouse2Id}`);
           return null;
         }
@@ -105,7 +106,9 @@ export function useHighlighting() {
         console.warn(`[useHighlighting] Unsupported highlight type: ${typeKey}`);
         return null;
     }
-  }, [nodesMap]);
+  }, []);
+  // NOTE: nodesMap intentionally REMOVED from deps - pathServiceRef.current.nodesMap provides stable access
+  // Adding nodesMap to deps causes calculatePathData to get new reference → triggers useEffect in TreeView.core → potential instability
 
   /**
    * Clear path calculation cache

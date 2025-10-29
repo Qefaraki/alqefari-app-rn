@@ -127,7 +127,8 @@ const BranchTreeView = ({
     indices,
     showPhotos,
     loadingState,
-    highlights,
+    // highlights REMOVED - not needed, accessed via store.state at render time
+    // Including it causes infinite loop: addHighlight() → highlights changes → useMemo re-runs → new store.actions → useEffect triggers again
     // Action dependencies
     setTreeData,
     setStage,

@@ -1583,7 +1583,9 @@ const TreeViewCore = ({
         store.actions.removeHighlight(searchHighlightIdRef.current);
       }
     };
-  }, [autoHighlight, calculatePathData, nodes.length, store.actions]);
+  }, [autoHighlight, calculatePathData, nodes.length]);
+  // NOTE: store.actions intentionally REMOVED from deps to prevent circular dependency
+  // Circular loop: addHighlight() → highlights state changes → BranchTreeView useMemo re-runs → new store.actions → useEffect triggers → infinite loop
 
   // Focus on specific node after d3 layout completes (branch tree modal)
   useEffect(() => {
