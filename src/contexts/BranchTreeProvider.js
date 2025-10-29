@@ -42,11 +42,11 @@ export const BranchTreeProvider = ({ children, focusPersonId }) => {
       store.setLoading(true);
       store.setError(null);
       
-      console.log('[BranchTreeProvider] Loading branch tree for person:', targetPersonId);
-      
+      console.log('[BranchTreeProvider] Loading branch tree for HID:', targetPersonId);
+
       // Load branch data using correct RPC parameters (fixed from V1)
       const { data, error } = await supabase.rpc('get_branch_data', {
-        p_hid: targetPersonId,     // Correct parameter name
+        p_hid: targetPersonId,     // HID string (e.g., "R1", "H12345"), NOT UUID
         p_max_depth: 3,           // Limit depth for modal viewing
         p_limit: 20               // Reasonable limit for modal performance
       });

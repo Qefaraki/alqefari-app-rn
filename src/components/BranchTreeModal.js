@@ -31,8 +31,10 @@ const BranchTreeModal = ({
   
   // Get all profiles from branch tree for full name chain building
   const { treeData } = useBranchTreeStore();
-  
-  if (!profile) return null;
+
+  // Defensive checks: profile must exist and have valid HID
+  // Munasib profiles (hid = NULL) cannot load branch trees
+  if (!profile || !profile.hid) return null;
 
   return (
     <Modal
@@ -94,7 +96,7 @@ const BranchTreeModal = ({
 
         {/* Branch Tree View - Read-only with ANCESTRY_COLORS highlighting */}
         <View style={styles.treeContainer}>
-          <BranchTreeProvider focusPersonId={profile.id}>
+          <BranchTreeProvider focusPersonId={profile.hid}>
             <BranchTreeView
               focusPersonId={profile.id}
               user={user}
