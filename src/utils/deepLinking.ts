@@ -163,6 +163,33 @@ export function parseInviterHID(url: string): string | null {
 }
 
 /**
+ * Wait for tree to load before processing deep link
+ * Polls tree store every 100ms until loaded or timeout
+ * @param timeoutMs - Maximum wait time in milliseconds
+ * @returns true if tree loaded, false if timeout
+ */
+async function waitForTreeToLoad(timeoutMs = 10000): Promise<boolean> {
+  const startTime = Date.now();
+
+  while (true) {
+    const treeStore = useTreeStore.getState();
+
+    // Check if tree is loaded (either flag or has enough data)
+    if (treeStore.isTreeLoaded || (treeStore.treeData && treeStore.treeData.length > 50)) {
+      return true;
+    }
+
+    // Check timeout
+    if (Date.now() - startTime > timeoutMs) {
+      return false;
+    }
+
+    // Wait 100ms before checking again
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+/**
  * Main deep link handler - finds profile, enriches if needed, opens ProfileViewer
  * Supports both share codes (new) and HIDs (legacy backward compatibility)
  * @param identifier - Target profile's share code or HID object
@@ -225,16 +252,28 @@ export async function handleDeepLink(
     return;
   }
 
-  // Edge case 1: Tree not loaded yet
+  // Edge case 1: Tree not loaded yet - WAIT instead of showing annoying alert
   // Reassign to get fresh state after network check
   treeStore = useTreeStore.getState();
   if (!treeStore.treeData || treeStore.treeData.length === 0) {
-    Alert.alert(
-      'يتم تحميل الشجرة',
-      'يرجى الانتظار حتى يتم تحميل شجرة العائلة ثم المحاولة مرة أخرى.'
-    );
-    console.log('[DeepLink] Tree not loaded yet');
-    return;
+    console.log('[DeepLink] Tree not loaded, waiting up to 10 seconds...');
+
+    // Wait for tree to load (polls every 100ms, 10 second timeout)
+    const loaded = await waitForTreeToLoad(10000);
+
+    if (!loaded) {
+      // Only show alert if tree doesn't load after 10 seconds (rare failure case)
+      Alert.alert(
+        'فشل التحميل',
+        'لم يتم تحميل الشجرة. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'
+      );
+      console.log('[DeepLink] Tree load timeout after 10 seconds');
+      return;
+    }
+
+    // Refresh tree store after waiting
+    treeStore = useTreeStore.getState();
+    console.log('[DeepLink] Tree loaded successfully, continuing with deep link');
   }
 
   // Validate identifier format
