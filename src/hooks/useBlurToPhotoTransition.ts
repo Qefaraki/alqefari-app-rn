@@ -32,6 +32,9 @@ export function useBlurToPhotoTransition(
   const hasLoadedBlurhashRef = useRef(false);
   const hasLoadedPhotoRef = useRef(false);
 
+  // Track mount state to prevent setState on unmounted component
+  const isMountedRef = useRef(false);
+
   // Time-based cache detection: track mount time and asset load times
   // Use performance.now() for monotonic clock (never goes backward, microsecond precision)
   const mountTime = useRef(performance.now());
@@ -77,12 +80,16 @@ export function useBlurToPhotoTransition(
   useEffect(() => {
     // Initialize mount time (already done in useRef above, but explicit for clarity)
     mountTime.current = performance.now();
+    isMountedRef.current = true;
 
     // Cleanup: Only runs on UNMOUNT (not on dependency changes)
     return () => {
       if (__DEV__ && false) {
         console.log(`[ImageTransition] Unmounting - resetting all state`);
       }
+
+      // Mark as unmounted FIRST to prevent animation callbacks from setting state
+      isMountedRef.current = false;
 
       // Reset animation state flags
       setIsBlurhashFadingIn(false);
@@ -162,7 +169,7 @@ export function useBlurToPhotoTransition(
           duration: 200,
         },
         (finished) => {
-          if (finished) {
+          if (finished && isMountedRef.current) {
             runOnJS(setIsBlurhashFadingIn)(false);
             if (__DEV__ && false) {
               console.log(`[ImageTransition] ✅ Stage 1: Blurhash fade-in complete`);
@@ -201,7 +208,7 @@ export function useBlurToPhotoTransition(
           duration: 200,
         },
         (finished) => {
-          if (finished) {
+          if (finished && isMountedRef.current) {
             runOnJS(setIsPhotoFadingIn)(false);
             if (__DEV__ && false) {
               console.log(`[ImageTransition] ✅ Stage 2: Photo crossfade complete`);
