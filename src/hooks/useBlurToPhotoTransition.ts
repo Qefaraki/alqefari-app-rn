@@ -33,7 +33,8 @@ export function useBlurToPhotoTransition(
   const hasLoadedPhotoRef = useRef(false);
 
   // Time-based cache detection: track mount time and asset load times
-  const mountTime = useRef(Date.now());
+  // Use performance.now() for monotonic clock (never goes backward, microsecond precision)
+  const mountTime = useRef(performance.now());
   const assetTimestamps = useRef<{
     blurhash: number | null;
     photo: number | null;
@@ -71,13 +72,44 @@ export function useBlurToPhotoTransition(
     }
   }, [hasPhoto, hasBlurhash]);
 
+  // Effect 1: Mount/unmount only - Initialize and cleanup
+  // Empty deps [] = only runs on mount and unmount (not on prop changes)
+  useEffect(() => {
+    // Initialize mount time (already done in useRef above, but explicit for clarity)
+    mountTime.current = performance.now();
+
+    // Cleanup: Only runs on UNMOUNT (not on dependency changes)
+    return () => {
+      if (__DEV__ && false) {
+        console.log(`[ImageTransition] Unmounting - resetting all state`);
+      }
+
+      // Reset animation state flags
+      setIsBlurhashFadingIn(false);
+      setIsPhotoFadingIn(false);
+
+      // Reset refs to prevent stale state on remount (CRITICAL for scroll behavior)
+      hasLoadedBlurhashRef.current = false;
+      hasLoadedPhotoRef.current = false;
+
+      // Reset SharedValues to prevent visual corruption
+      blurhashOpacity.value = 0;
+      photoOpacity.value = 0;
+
+      // Reset timestamps for fresh cache detection on remount
+      assetTimestamps.current = { blurhash: null, photo: null };
+    };
+  }, []); // Empty deps = mount/unmount only
+
+  // Effect 2: Asset state changes - Handle animations
+  // Runs when assets become available, NO cleanup function
   useEffect(() => {
     // Time-based cache detection: Track when each asset becomes available
     if (hasBlurhash && assetTimestamps.current.blurhash === null) {
-      assetTimestamps.current.blurhash = Date.now();
+      assetTimestamps.current.blurhash = performance.now();
     }
     if (hasPhoto && assetTimestamps.current.photo === null) {
-      assetTimestamps.current.photo = Date.now();
+      assetTimestamps.current.photo = performance.now();
     }
 
     // Detect fast cache hits: both assets loaded in < 50ms = cached
@@ -87,9 +119,15 @@ export function useBlurToPhotoTransition(
       assetTimestamps.current.photo !== null &&
       !hasLoadedPhotoRef.current
     ) {
-      const blurhashLoadTime =
-        assetTimestamps.current.blurhash - mountTime.current;
-      const photoLoadTime = assetTimestamps.current.photo - mountTime.current;
+      // Bounds checking: Prevent negative deltas if clock changes or race conditions
+      const blurhashLoadTime = Math.max(
+        0,
+        assetTimestamps.current.blurhash - mountTime.current
+      );
+      const photoLoadTime = Math.max(
+        0,
+        assetTimestamps.current.photo - mountTime.current
+      );
 
       if (blurhashLoadTime < 50 && photoLoadTime < 50) {
         // Both loaded fast = cached, skip all animations
@@ -195,24 +233,8 @@ export function useBlurToPhotoTransition(
       setIsPhotoFadingIn(false);
     }
 
-    // Cleanup: Reset all state on unmount to prevent stale state and visual corruption
-    return () => {
-      // Reset animation state flags
-      setIsBlurhashFadingIn(false);
-      setIsPhotoFadingIn(false);
-
-      // Reset refs to prevent stale state on remount (CRITICAL for scroll behavior)
-      hasLoadedBlurhashRef.current = false;
-      hasLoadedPhotoRef.current = false;
-
-      // Reset SharedValues to prevent visual corruption
-      blurhashOpacity.value = 0;
-      photoOpacity.value = 0;
-
-      // Reset timestamps for fresh cache detection on remount
-      assetTimestamps.current = { blurhash: null, photo: null };
-    };
-  }, [hasPhoto, hasBlurhash]);
+    // No cleanup here - Effect 1 handles all cleanup on unmount only
+  }, [hasPhoto, hasBlurhash, isBlurhashFadingIn]); // Added isBlurhashFadingIn for race condition protection
 
   return {
     blurhashOpacity,
