@@ -862,6 +862,181 @@ ORDER BY permission, p.name;
 
 ---
 
+## ⏱️ Permission Check Timeout Protection (October 28, 2025)
+
+**Status**: ✅ Deployed - Network timeout protection across all permission checks
+
+### Problem
+
+Permission checks hung indefinitely on slow/flaky networks, blocking users from:
+- Editing profiles (ProfileViewer edit button)
+- Scanning QR codes (deep link handler)
+- Submitting edit suggestions (suggestion service)
+
+**User Impact**: App appeared frozen, no error message, no retry option.
+
+---
+
+### Solution
+
+Dual-layer timeout protection (frontend + backend) with graceful degradation:
+
+#### 1. Frontend Timeout (3 seconds)
+
+**File**: `src/utils/fetchWithTimeout.js`
+
+**Implementation**:
+```javascript
+export async function fetchWithTimeout(promise, timeoutMs = 3000) {
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('NETWORK_TIMEOUT')), timeoutMs)
+  );
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } catch (error) {
+    if (error.message === 'NETWORK_TIMEOUT') {
+      throw { code: 'NETWORK_TIMEOUT', message: 'انتهت المهلة' };
+    }
+    throw error;
+  }
+}
+```
+
+**Usage**:
+```javascript
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
+
+const { data, error } = await fetchWithTimeout(
+  supabase.rpc('check_family_permission_v4', { p_user_id, p_target_id })
+);
+
+if (error) {
+  if (error.code === 'NETWORK_TIMEOUT') {
+    // Show retry button
+  } else if (error.message?.includes('offline')) {
+    // Show "لا يوجد اتصال بالإنترنت"
+  }
+}
+```
+
+**Why 3 seconds?** Matches `useProfilePermissions` hook cache TTL, provides responsive UX.
+
+---
+
+#### 2. Backend Timeout (3 seconds)
+
+**Migration**: `supabase/migrations/20251028000003_add_permission_check_timeout.sql`
+
+**Implementation**:
+```sql
+CREATE OR REPLACE FUNCTION check_family_permission_v4(
+  p_user_id UUID,
+  p_target_id UUID
+) RETURNS TEXT AS $$
+BEGIN
+  -- Enforce 3-second timeout at database level
+  SET LOCAL statement_timeout = '3000';
+
+  -- Permission check logic...
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**Purpose**: Prevents long-running queries from blocking connections, ensures consistency with frontend timeout.
+
+---
+
+### Protected Locations
+
+1. **ProfileViewer** (`src/components/ProfileViewer/index.js:845-892`)
+   - Edit button permission check
+   - Shows "انتهت المهلة" + retry button on timeout
+
+2. **Deep Linking** (`src/utils/deepLinking.ts:215-257`)
+   - QR code scan permission check
+   - Shows alert with retry option
+
+3. **Suggestion Service** (`src/services/suggestionService.js:49-82`)
+   - Suggestion submission permission check
+   - Returns error object for UI handling
+
+---
+
+### Error Messages (Arabic)
+
+| Error Code | Message | Action |
+|------------|---------|--------|
+| `NETWORK_OFFLINE` | لا يوجد اتصال بالإنترنت | Prompt to check connection |
+| `NETWORK_TIMEOUT` | انتهت المهلة | Show retry button (1-second debounce) |
+| Other | فشل التحقق من الصلاحيات | Generic error message |
+
+---
+
+### Security Notes (per plan-validator)
+
+**Q**: Is permission check redundant if user has cached permission?
+**A**: No. Cache TTL is 5 minutes. Permission check catches:
+- Role changes during cache window (admin → user)
+- Blocking status changes (user → blocked)
+- Branch moderator reassignments
+
+**Q**: Why not bypass permission check for self-view?
+**A**: Security hole. Must validate user still has edit rights (not blocked, not demoted).
+
+**Q**: Does timeout protection bypass optimistic locking?
+**A**: No. Version check happens after permission check passes. Timeout only affects permission validation, not the edit flow.
+
+**Q**: Can timeout be exploited for unauthorized edits?
+**A**: No. Timeout causes operation to fail (error state). No edit attempt is made without permission validation success.
+
+---
+
+### Monitoring & Debugging
+
+**Check timeout frequency**:
+```sql
+-- View permission check timeouts (if logged)
+SELECT COUNT(*) FROM logs
+WHERE message LIKE '%permission check timeout%'
+AND created_at > NOW() - INTERVAL '24 hours';
+```
+
+**Test timeout locally**:
+```javascript
+// Simulate slow network
+const { data, error } = await fetchWithTimeout(
+  new Promise(resolve => setTimeout(resolve, 5000)),  // 5 sec delay
+  3000  // 3 sec timeout
+);
+// Should throw NETWORK_TIMEOUT error
+```
+
+**Manual test checklist**:
+- [ ] Turn on airplane mode → Check offline error
+- [ ] Throttle to 2G → Check timeout + retry button
+- [ ] Normal network → Check permission loads normally
+
+---
+
+### Rollback Plan (if needed)
+
+**Frontend**: Remove `fetchWithTimeout()` wrapper, use direct Supabase call
+**Backend**: Remove `SET LOCAL statement_timeout = '3000'` from RPC function
+
+**Emergency hotfix**:
+```sql
+-- Increase timeout to 10 seconds (temporary)
+CREATE OR REPLACE FUNCTION check_family_permission_v4(...) AS $$
+BEGIN
+  SET LOCAL statement_timeout = '10000';  -- 10 seconds
+  -- ... rest of function
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
 ## 🎯 Best Practices
 
 1. **Always use profiles.id, never auth.users.id** for permission checks
@@ -872,6 +1047,8 @@ ORDER BY permission, p.name;
 6. **Review pending suggestions regularly** - All suggestions require manual approval in v4.3
 7. **Test with real family data** - Permission logic complex, needs real scenarios
 8. **Communicate approval workflow** - Set expectations that suggestions need admin review
+9. **Handle network errors gracefully** - Use fetchWithTimeout for all permission checks
+10. **Provide retry options** - Don't leave users stuck on timeout errors
 
 ---
 

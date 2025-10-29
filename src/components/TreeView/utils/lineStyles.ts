@@ -19,7 +19,13 @@ import {
   type LayoutNode,
   type Connection,
 } from '../spatial/PathCalculator';
-import { D3_SIMPLE_CIRCLE } from '../rendering/nodeConstants';
+import {
+  D3_SIMPLE_CIRCLE,
+  STANDARD_NODE,
+  ROOT_NODE,
+  G2_NODE,
+  CIRCULAR_NODE,
+} from '../rendering/nodeConstants';
 
 export const LINE_STYLES = {
   STRAIGHT: 'straight',
@@ -83,6 +89,38 @@ export function generateStraightPaths(
 }
 
 /**
+ * Calculate actual rendered node height based on node type and style
+ *
+ * This ensures curves connect to the actual edge position of rendered nodes,
+ * not hardcoded dimensions that may not match the renderer.
+ *
+ * @param node - Node with generation, father_id, photo_url, _hasChildren
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' rendering mode
+ * @returns Actual height in pixels of the rendered node
+ */
+function calculateActualNodeHeight(
+  node: { father_id: string | null; photo_url?: string; generation?: number; _hasChildren?: boolean },
+  showPhotos: boolean,
+  nodeStyle: 'rectangular' | 'circular',
+): number {
+  const isRoot = !node.father_id;
+  const hasPhoto = showPhotos && !!node.photo_url;
+  const isG2Parent = node.generation === 2 && node._hasChildren;
+
+  if (nodeStyle === 'circular') {
+    if (isRoot) return CIRCULAR_NODE.ROOT_DIAMETER;
+    if (isG2Parent) return CIRCULAR_NODE.G2_DIAMETER;
+    return CIRCULAR_NODE.DIAMETER;
+  } else {
+    // Rectangular mode
+    if (isRoot) return ROOT_NODE.HEIGHT;
+    if (isG2Parent) return hasPhoto ? G2_NODE.HEIGHT_PHOTO : G2_NODE.HEIGHT_TEXT;
+    return hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+  }
+}
+
+/**
  * Generate bezier curve paths for smooth connections
  * Creates beautiful curved lines from parent to each child
  * Uses optimized control points for family tree aesthetics
@@ -98,24 +136,16 @@ export function generateBezierPaths(
 ): SkPath[] {
   const { parent, children } = connection;
   const paths: SkPath[] = [];
-  
-  // Import node height constants
-  const NODE_HEIGHT_WITH_PHOTO = 75;
-  const NODE_HEIGHT_TEXT_ONLY = 35;
-  const ROOT_NODE_HEIGHT = 100;
-  
-  // Get parent position and dimensions
-  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
-  const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+
+  // Calculate actual rendered dimensions (respects rectangular vs circular mode)
+  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
   const parentBottomY = parent.y + parentHeight / 2;
   
   // For multiple children, create a unified bezier approach
   if (children.length === 1) {
     // Single child - simple direct curve
     const child = children[0];
-    const isRootChild = !child.father_id;
-    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-    const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
     const childTopY = child.y - childHeight / 2;
     
     const pathBuilder = Skia.Path.Make();
@@ -136,9 +166,7 @@ export function generateBezierPaths(
     // Multiple children - fan-out curves with horizontal spread (PHASE 2: Fix overlapping)
     // Calculate child positions once
     const childPositions = children.map(child => {
-      const isRootChild = !child.father_id;
-      const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-      const childHeight = isRootChild ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+      const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
       return {
         ...child,
         topY: child.y - childHeight / 2,
@@ -209,34 +237,28 @@ export function generateD3CurvePaths(
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
-  // CRITICAL: Must match D3_SIMPLE_CIRCLE dimensions from nodeConstants.ts!
-  // If these don't match, curves will connect to wrong position on photo nodes
-  const NODE_HEIGHT_WITH_PHOTO = 30;  // = D3_SIMPLE_CIRCLE.DIAMETER
-  const NODE_HEIGHT_TEXT_ONLY = 30;   // Same size for consistency
-  const ROOT_NODE_HEIGHT = 50;        // = D3_SIMPLE_CIRCLE.ROOT_DIAMETER
-
-  // Calculate parent right edge (horizontal tree grows left-to-right)
-  const isParentRoot = !parent.father_id;
-  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
-  const parentHeight = isParentRoot ? ROOT_NODE_HEIGHT : (parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+  // Calculate actual rendered dimensions (respects rectangular vs circular mode)
+  // This ensures curves connect to the ACTUAL edge position of rendered nodes
+  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
   const parentRightY = parent.y + parentHeight / 2;  // Right edge in horizontal tree
 
-  // D3 linkHorizontal for Observable Plot-style horizontal curves
+  // D3 linkHorizontal with coordinate swap for proper horizontal tree curves
+  // Observable Plot pattern: swap x/y to convert vertical tree coords to horizontal display
+  // This creates horizontal tangent curves with automatic "elbow" vertical approach to nodes
   const linkGen = linkHorizontal()
-    .source((d: any) => [d.source.x, d.source.y])
-    .target((d: any) => [d.target.x, d.target.y]);
+    .x(d => d.y)  // Use Y coordinate for horizontal position (depth → left-to-right)
+    .y(d => d.x); // Use X coordinate for vertical position (breadth → up-down)
 
   // Generate curve from parent right edge to each child left edge
   children.forEach((child) => {
-    const isChildRoot = !child.father_id;
-    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-    const childHeight = isChildRoot ? ROOT_NODE_HEIGHT : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
     const childLeftY = child.y - childHeight / 2;  // Left edge in horizontal tree
 
-    // Connect edges (not centers) for clean convergence
+    // Connect edges (not centers) for clean convergence with elbow-style approach
+    // linkGen will access coordinates via .x() and .y() accessors (which swap x/y)
     const svgPathData = linkGen({
-      source: { x: parent.x, y: parentRightY },  // Parent right edge
-      target: { x: child.x, y: childLeftY }      // Child left edge
+      source: { x: parent.x, y: parentRightY },  // D3 reads as [parentRightY, parent.x]
+      target: { x: child.x, y: childLeftY }      // D3 reads as [childLeftY, child.x]
     });
 
     // Convert SVG path to Skia path

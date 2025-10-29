@@ -2230,7 +2230,8 @@ const TreeViewCore = ({
     }
 
     // Use line styles system for unified path generation
-    const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+    // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+    const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
     
     // Filter connections for viewport and apply edge limit
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit

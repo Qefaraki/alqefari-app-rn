@@ -511,6 +511,137 @@ ORDER BY error_count DESC;
 
 ---
 
+## Security Fixes (October 28, 2025)
+
+**Status**: ✅ Complete - All 3 critical security issues resolved
+**Implementation Grade**: Complete - 3 migrations + 3 code updates
+
+### Issue #1: Secure RLS Policy ✅
+
+**Problem**: Permissive `WITH CHECK (true)` policy allowed User A to insert analytics as User B.
+
+**Fix**: Migration `20251028000002_fix_share_events_rls.sql`
+
+**Implementation**:
+- Replaced permissive policy with secure authentication
+- Ties `scanner_id` to `auth.uid()` (prevents impersonation)
+- Validates `profile_id` exists, `sharer_id` exists (if provided)
+- Rejects deleted profiles
+- Atomic migration (CREATE new policy before DROP old, zero downtime)
+
+**Monitoring**:
+- Added `check_share_events_rls_health()` diagnostic function
+- Returns policy details and validation status
+
+**Security Impact**: Prevents analytics spoofing, ensures audit trail integrity
+
+---
+
+### Issue #2: Server-Side Rate Limiting ✅
+
+**Problem**: Client-side Map-based rate limiting could be bypassed (memory leaks, multi-device).
+
+**Fix**: Migration `20251028000000_add_qr_rate_limiting.sql`
+
+**Implementation**:
+- Database trigger enforces 20 scans per 5 minutes per user
+- New table: `user_rate_limits` (tracks per-user scan counts + window start time)
+- Trigger: `enforce_qr_scan_rate_limit()` BEFORE INSERT on `profile_share_events`
+- Error handling: Arabic alert shown when rate limit exceeded (`deepLinking.ts` lines 283-291)
+
+**Benefits**:
+- ✅ Persists across devices
+- ✅ Survives app restarts
+- ✅ No memory leaks
+- ✅ Multi-device safe
+
+**Monitoring**:
+- View: `qr_scan_rate_limits` for admin dashboard
+- Shows current counts and window reset times
+
+**Security Impact**: Prevents QR scan spam and abuse, protects against automated scraping
+
+---
+
+### Issue #3: URL Validation & Whitelisting ✅
+
+**Problem**: No validation before `Image.prefetch()` allowed SSRF attacks (file://, javascript:, path traversal).
+
+**Fix**: New file `src/utils/urlValidation.ts` + updated `src/components/sharing/ProfileQRCode.js` (lines 75-92)
+
+**Implementation - 6 Security Checks**:
+1. **HTTPS Only**: Blocks `file://`, `data:`, `javascript:` schemes
+2. **Domain Whitelist**: Only allows `https://<project>.supabase.co/storage/v1/object/(public|authenticated)/`
+3. **Path Traversal**: Rejects `..` in URL path
+4. **Encoded Traversal**: Blocks `%2e%2e` (URL-encoded `..`)
+5. **Redirect Parameters**: Rejects `redirect`, `url`, `return`, `next`, `goto` params
+6. **Null Bytes**: Blocks `\0` and `%00`
+
+**Validation Function**:
+```javascript
+import { validateSupabaseImageUrl } from './utils/urlValidation';
+
+const isValid = validateSupabaseImageUrl(photoUrl, 'ezkioroyh zpavmbfavyn');
+if (isValid) {
+  await Image.prefetch(photoUrl);  // Safe to prefetch
+} else {
+  // Fallback to emblem logo (graceful degradation)
+}
+```
+
+**Security Impact**: Prevents SSRF attacks, path traversal, and malicious URL injection
+
+---
+
+### Additional Enhancement: Scanner ID Column
+
+**Migration**: `20251028000001_add_scanner_id_to_share_events.sql`
+
+**Changes**:
+- Added `scanner_id UUID` column to `profile_share_events` table
+- Separates "who scanned" from "who shared" for accurate analytics
+- Enables RLS policy to tie analytics to authenticated user
+- Created 2 admin views: `top_qr_scanners`, `most_scanned_profiles`
+- Indexes: `idx_share_events_scanner_id`, `idx_share_events_scanner_shared_at`
+
+**Purpose**: Fixes plan-validator issue #1 (RLS policy needs user identification)
+
+---
+
+### Deployment Status
+
+**Migrations Applied** (October 28, 2025):
+1. ✅ `20251028000000_add_qr_rate_limiting.sql` - Rate limiting
+2. ✅ `20251028000001_add_scanner_id_to_share_events.sql` - Scanner ID column
+3. ✅ `20251028000002_fix_share_events_rls.sql` - Secure RLS policy
+
+**Code Updates**:
+1. ✅ `src/utils/urlValidation.ts` - URL validation utility (new file)
+2. ✅ `src/components/sharing/ProfileQRCode.js` - URL validation before prefetch
+3. ✅ `src/utils/deepLinking.ts` - Rate limit error handling
+
+**Testing Checklist**:
+- ⏳ Manual testing on physical devices (iOS + Android)
+  - [ ] Test rate limiting (21st scan shows alert)
+  - [ ] Test RLS policy (unauthenticated insert fails)
+  - [ ] Test URL validation (file:// URLs rejected)
+  - [ ] Test analytics logging (scanner_id matches auth user)
+- ⏳ Enable production feature flag: `enableDeepLinking: true`
+- ⏳ Deploy via OTA: `npm run update:production`
+- ⏳ Monitor `profile_share_events` table for spam/abuse (first 48 hours)
+
+**Rollback Plan** (if needed):
+```sql
+-- Emergency rollback: Drop triggers and policies
+DROP TRIGGER IF EXISTS tr_enforce_qr_scan_rate_limit ON profile_share_events;
+DROP POLICY IF EXISTS "Users can log their own scans" ON profile_share_events;
+-- Restore old permissive policy (temporary, until fix is deployed)
+```
+
+**Security Status**: Ready for manual testing and production deployment. All blocking security issues resolved.
+
+---
+
 ## Support
 
 For implementation questions:

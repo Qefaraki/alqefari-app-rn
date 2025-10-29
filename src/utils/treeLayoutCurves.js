@@ -69,10 +69,10 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // === D3 TIDY TREE CODE (EXACT COPY-PASTE) ===
   const root = hierarchy(rootNode);
 
-  // Observable Plot style: HUGE spacing for clean, airy layout
+  // Observable Plot style: Moderate spacing for clean, compact layout
   // dx controls vertical spacing between siblings/cousins (breadth axis)
   // dy controls horizontal spacing between generations (depth axis)
-  const dx = 80;  // MASSIVE sibling/cousin spacing (8x larger!)
+  const dx = 60;  // Moderate sibling/cousin spacing (reduced from 80px for tighter packing)
   const dy = (viewportWidth / (root.height + 1)) * 1.5;  // 1.5x wider generation spacing
 
   // Create tree layout
