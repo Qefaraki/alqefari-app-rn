@@ -125,18 +125,18 @@ export const CIRCULAR_NODE = {
 // For curves, cluster, and radial modes - simple uniform circles with photos
 // Optimized for perfect D3 curve connections (linkHorizontal, linkRadial)
 export const D3_SIMPLE_CIRCLE = {
-  // Standard node (40px diameter - uniform for all non-root nodes)
-  DIAMETER: 40,
-  PHOTO_SIZE: 36,         // 36px photo inside 40px circle (4px border space)
-  IMAGE_BUCKET: 40,       // Use 40px image bucket
+  // Standard node (30px diameter - tiny for Observable Plot style)
+  DIAMETER: 30,
+  PHOTO_SIZE: 26,         // 26px photo inside 30px circle
+  IMAGE_BUCKET: 30,       // Use 30px image bucket
 
-  // Root node (80px diameter - maintains visual hierarchy)
-  ROOT_DIAMETER: 80,
-  ROOT_PHOTO_SIZE: 74,    // 74px photo inside 80px circle
-  ROOT_IMAGE_BUCKET: 80,  // Better quality for prominent node
+  // Root node (50px diameter - still prominent but not huge)
+  ROOT_DIAMETER: 50,
+  ROOT_PHOTO_SIZE: 46,    // 46px photo inside 50px circle
+  ROOT_IMAGE_BUCKET: 50,  // Better quality for prominent node
 
   // Styling
-  SELECTION_BORDER: 2.5,  // Selection ring thickness
+  SELECTION_BORDER: 2,  // Thinner border for small nodes
   EMPTY_FILL: '#D1BBA3', // Camel Hair Beige for nodes without photos
 } as const;
 

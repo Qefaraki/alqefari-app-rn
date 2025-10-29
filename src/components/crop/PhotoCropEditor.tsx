@@ -88,17 +88,6 @@ export function PhotoCropEditor({
   const [localImagePath, setLocalImagePath] = useState<string | null>(null);
 
   /**
-   * Optimize image URL using Supabase Storage transformations
-   * Appends width=1080&quality=80 for fast crop loading (200-400KB vs 2-4MB)
-   * CDN-cached for instant subsequent loads
-   */
-  const getOptimizedImageUrl = (url: string): string => {
-    if (!url) return url;
-    // Supabase Storage supports on-the-fly image transformations
-    return `${url}?width=1080&quality=80`;
-  };
-
-  /**
    * Determine which image path to use: cached (instant) or download-on-demand
    * Priority: cachedPhotoPath (file://) > download optimized remote URL
    */
@@ -133,12 +122,12 @@ export function PhotoCropEditor({
           return;
         }
 
-        // Strategy 2: Download-on-demand with optimized URL (fallback)
-        console.log('[PhotoCrop] No cached image, attempting download...');
+        // Strategy 2: Download-on-demand (fallback)
+        console.log('[PhotoCrop] No cached image, downloading now...');
 
-        // Import download function dynamically to avoid circular deps
-        const { downloadImageToCache } = await import('../../utils/imageCacheUtil');
-        const downloadedPath = await downloadImageToCache(photoUrl);
+        // Import download function (uses expo-image-manipulator, no FileSystem dependency)
+        const { downloadOptimizedImage } = await import('../../utils/imageCacheUtil');
+        const downloadedPath = await downloadOptimizedImage(photoUrl);
 
         if (downloadedPath) {
           console.log('[PhotoCrop] Downloaded successfully:', downloadedPath);
