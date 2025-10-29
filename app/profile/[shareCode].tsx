@@ -23,6 +23,7 @@
  */
 
 import { useEffect } from 'react';
+import { InteractionManager, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { handleDeepLink } from '../../src/utils/deepLinking';
 
@@ -54,16 +55,17 @@ export default function ProfileDeepLinkScreen() {
       .then(() => {
         console.log('[ProfileRoute] Deep link handled successfully');
 
-        // Redirect back to main app after a short delay
-        // This allows ProfileViewer to open before route changes
-        setTimeout(() => {
+        // Redirect back to main app after all interactions complete
+        // InteractionManager ensures ProfileViewer fully opens before route changes
+        InteractionManager.runAfterInteractions(() => {
           router.replace('/(app)/');
-        }, 500);
+        });
       })
       .catch((error) => {
         console.error('[ProfileRoute] Deep link handling failed:', error);
 
-        // On error, still redirect back to main app
+        // Show error to user, then redirect back to main app
+        Alert.alert('خطأ', 'حدث خطأ أثناء فتح الرابط');
         router.replace('/(app)/');
       });
   }, [shareCode, router]);

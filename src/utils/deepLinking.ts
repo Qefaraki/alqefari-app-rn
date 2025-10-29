@@ -174,8 +174,9 @@ async function waitForTreeToLoad(timeoutMs = 10000): Promise<boolean> {
   while (true) {
     const treeStore = useTreeStore.getState();
 
-    // Check if tree is loaded (either flag or has enough data)
-    if (treeStore.isTreeLoaded || (treeStore.treeData && treeStore.treeData.length > 50)) {
+    // Check if tree is loaded (either flag or has any data)
+    // Changed from > 50 to > 0 to support small trees (< 50 profiles)
+    if (treeStore.isTreeLoaded || (treeStore.treeData && treeStore.treeData.length > 0)) {
       return true;
     }
 
