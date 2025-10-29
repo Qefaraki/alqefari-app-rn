@@ -15,6 +15,7 @@ import subscriptionManager from "../src/services/subscriptionManager";
 import * as Linking from 'expo-linking';
 import { handleDeepLink, parseProfileLink, parseInviterShareCode } from '../src/utils/deepLinking';
 import { featureFlags } from '../src/config/featureFlags';
+import { clearOldCropCache } from '../src/utils/imageCacheUtil';
 
 // Keep the splash screen visible while we determine auth state
 SplashScreen.preventAutoHideAsync();
@@ -64,7 +65,7 @@ function RootLayoutNav() {
   // Determine if we're ready to make routing decisions
   const isReady = !isLoading && hasCompletedOnboarding !== null;
 
-  // Initialize network monitoring on app start
+  // Initialize network monitoring and cleanup old crop cache on app start
   useEffect(() => {
     const networkStore = useNetworkStore.getState();
     networkStore.initialize();
@@ -72,6 +73,12 @@ function RootLayoutNav() {
     // Initialize subscription manager network listener
     // This allows graceful pause/resume of all subscriptions on network changes
     subscriptionManager.initializeNetworkListener();
+
+    // Clean up old cached crop images (files older than 24 hours)
+    // Prevents cache bloat (2-4MB per photo × many edits = wasted storage)
+    clearOldCropCache().catch(err =>
+      console.warn('[Cache] Cleanup failed (non-critical):', err)
+    );
 
     // Cleanup listeners on unmount
     return () => {

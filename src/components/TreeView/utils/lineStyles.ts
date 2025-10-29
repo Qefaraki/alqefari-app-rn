@@ -209,10 +209,11 @@ export function generateD3CurvePaths(
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
-  // Observable Plot style: Tiny nodes for clean minimal layout
-  const NODE_HEIGHT_WITH_PHOTO = 25;  // 70% smaller!
-  const NODE_HEIGHT_TEXT_ONLY = 20;
-  const ROOT_NODE_HEIGHT = 40;
+  // CRITICAL: Must match D3_SIMPLE_CIRCLE dimensions from nodeConstants.ts!
+  // If these don't match, curves will connect to wrong position on photo nodes
+  const NODE_HEIGHT_WITH_PHOTO = 30;  // = D3_SIMPLE_CIRCLE.DIAMETER
+  const NODE_HEIGHT_TEXT_ONLY = 30;   // Same size for consistency
+  const ROOT_NODE_HEIGHT = 50;        // = D3_SIMPLE_CIRCLE.ROOT_DIAMETER
 
   // Calculate parent right edge (horizontal tree grows left-to-right)
   const isParentRoot = !parent.father_id;

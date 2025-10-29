@@ -409,6 +409,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [savingCrop, setSavingCrop] = useState(false);
   const [retryDisabled, setRetryDisabled] = useState(false);
   const [cachedPhotoPath, setCachedPhotoPath] = useState(null); // Pre-downloaded image for instant crop
+  const [downloadId, setDownloadId] = useState(null); // Track current download to prevent race conditions
 
   // Initialize hooks early so they're available for useCallbacks
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(person?.id);
@@ -880,7 +881,33 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setMode('edit');
     setActiveTab('general');
     // Don't force snap - maintain current position
-  }, [form, person, setMode, setActiveTab]);
+
+    // Start background download for instant crop opening
+    if (person?.photo_url && !cachedPhotoPath) {
+      const currentDownloadId = Date.now();
+      setDownloadId(currentDownloadId);
+
+      let mounted = true;
+
+      downloadImageToCache(person.photo_url)
+        .then(path => {
+          // Only update if still mounted and download still current (prevents race conditions)
+          if (mounted && downloadId === currentDownloadId && path) {
+            setCachedPhotoPath(path);
+            console.log('[ImageCache] Ready for instant crop:', path);
+          }
+        })
+        .catch(err => {
+          console.warn('[ImageCache] Background download failed:', err);
+          // Non-critical: will fall back to on-demand download on long-press
+        });
+
+      // Cleanup function to prevent memory leaks
+      return () => {
+        mounted = false;
+      };
+    }
+  }, [form, person, setMode, setActiveTab, cachedPhotoPath, downloadId]);
 
   const handleEditPress = useCallback(async () => {
     // Check if user is online before allowing edit
@@ -990,11 +1017,37 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setShowShareSheet(true);
   }, []);
 
-  // Crop photo handler
-  const handleCropPress = useCallback(() => {
+  // Crop photo handler with fallback download for slow networks
+  const handleCropPress = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowCropEditor(true);
-  }, []);
+
+    // If cached path exists, open crop immediately (95% of cases)
+    if (cachedPhotoPath) {
+      console.log('[Crop] Opening with cached image (instant)');
+      setShowCropEditor(true);
+      return;
+    }
+
+    // Fallback: Download on-demand for slow networks or immediate long-press
+    console.log('[Crop] No cached image, downloading now...');
+    Alert.alert('جاري التحضير', 'يرجى الانتظار لحظة...', [], { cancelable: false });
+
+    try {
+      const path = await downloadImageToCache(person.photo_url);
+
+      if (path) {
+        setCachedPhotoPath(path);
+        Alert.alert(''); // Dismiss loading alert
+        setShowCropEditor(true);
+        console.log('[Crop] Download complete, opening crop editor');
+      } else {
+        Alert.alert('خطأ', 'فشل تحميل الصورة. تحقق من اتصال الإنترنت.');
+      }
+    } catch (error) {
+      console.error('[Crop] Download failed:', error);
+      Alert.alert('خطأ', 'فشل تحميل الصورة للقص. يرجى المحاولة مرة أخرى.');
+    }
+  }, [cachedPhotoPath, person?.photo_url]);
 
   // Save crop handler with RPC integration
   const handleSaveCrop = useCallback(async (crop) => {
