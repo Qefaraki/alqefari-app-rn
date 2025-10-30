@@ -28,7 +28,6 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import PagerView from 'react-native-pager-view';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -60,7 +59,7 @@ import { useProfilePermissions } from './hooks/useProfilePermissions';
 import { useProfileForm } from './hooks/useProfileForm';
 import { useProfileMetrics } from './hooks/useProfileMetrics';
 import { usePendingChanges } from './hooks/usePendingChanges';
-import { diffObjects, groupDirtyByTab } from './utils/diff';
+import { diffObjects } from './utils/diff';
 import { VIEW_TABS } from './constants';
 import { profilesService } from '../../services/profiles';
 import suggestionService, {
@@ -211,7 +210,15 @@ const ViewModeContent = React.memo(({
 });
 ViewModeContent.displayName = 'ViewModeContent';
 
-// Memoized EditMode component - prevents recreation on every render (50% performance gain)
+// Section definitions for navigation
+const SECTIONS = [
+  { id: 'general', label: 'معلومات عامة' },
+  { id: 'details', label: 'التفاصيل' },
+  { id: 'family', label: 'العائلة' },
+  { id: 'contact', label: 'التواصل' },
+];
+
+// Memoized EditMode component - Single scrolling form with navigation aids
 const EditModeContent = React.memo(({
   handleCancel,
   handleSubmit,
@@ -220,10 +227,6 @@ const EditModeContent = React.memo(({
   permissionLoading,
   accessMode,
   insets,
-  scrollY,
-  activeTab,
-  setActiveTab,
-  dirtyByTab,
   person,
   onNavigateToProfile,
   setMarriages,
@@ -231,141 +234,161 @@ const EditModeContent = React.memo(({
   handleCropPress,
   userProfile,
 }) => {
-  // Create enhanced tabs with dirty indicators
-  const enhancedTabs = useMemo(
-    () =>
-      VIEW_TABS.map((tab) => ({
-        ...tab,
-        showDot: Boolean(dirtyByTab?.[tab.id]),
-      })),
-    [dirtyByTab]
-  );
+  // Section refs for scroll tracking
+  const sectionRefs = useRef(SECTIONS.map(() => React.createRef()));
+  const [activeSection, setActiveSection] = useState('general');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
-  // Scroll to top when changing tabs for UX consistency
-  const handleTabChange = useCallback(
-    (newTab) => {
-      if (saving) return; // Prevent tab switching during save
+  // Scroll to specific section
+  const scrollToSection = useCallback((sectionId) => {
+    const sectionIndex = SECTIONS.findIndex(s => s.id === sectionId);
+    if (sectionIndex >= 0 && sectionRefs.current[sectionIndex]?.current) {
+      sectionRefs.current[sectionIndex].current.measureLayout(
+        scrollRef.current?.getNode?.() || scrollRef.current,
+        (x, y) => {
+          scrollRef.current?.scrollTo({ y: y - 10, animated: true });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+        () => {}
+      );
+    }
+  }, [scrollRef]);
 
-      setActiveTab(newTab);
+  // Scroll to top
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [scrollRef]);
 
-      // Scroll to top with smooth animation
-      if (scrollRef?.current) {
-        scrollRef.current.scrollTo?.({ y: 0, animated: true });
-      }
-    },
-    [setActiveTab, saving, scrollRef]
-  );
+  // Track scroll position for progress indicator and scroll-to-top button
+  const handleScroll = useCallback((event) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+
+    // Show/hide scroll-to-top button
+    setShowScrollTop(scrollY > 200);
+
+    // Determine active section based on scroll position
+    // (Simplified - you can enhance this with accurate measurements)
+    if (scrollY < 400) {
+      setActiveSection('general');
+    } else if (scrollY < 800) {
+      setActiveSection('details');
+    } else if (scrollY < 1200) {
+      setActiveSection('family');
+    } else {
+      setActiveSection('contact');
+    }
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Visual-only Tab Indicators (not clickable) */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, pointerEvents: 'none' }}>
-        <SegmentedControl
-          options={enhancedTabs}
-          value={activeTab}
-          onChange={() => {}} // No-op - not interactive
-        />
+      {/* Quick Jump Menu */}
+      <View style={styles.quickJumpContainer}>
+        {SECTIONS.map((section) => (
+          <TouchableOpacity
+            key={section.id}
+            style={[
+              styles.quickJumpPill,
+              activeSection === section.id && styles.quickJumpPillActive,
+            ]}
+            onPress={() => scrollToSection(section.id)}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.quickJumpText,
+                activeSection === section.id && styles.quickJumpTextActive,
+              ]}
+            >
+              {section.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Horizontal Pager for Swipeable Pages */}
-      <PagerView
-        style={{ flex: 1 }}
-        initialPage={0}
-        onPageSelected={(e) => {
-          const pageIndex = e.nativeEvent.position;
-          const tabIds = ['general', 'details', 'family', 'contact'];
-          setActiveTab(tabIds[pageIndex]);
+      {/* Single Scrolling Form */}
+      <BottomSheetScrollView
+        ref={scrollRef}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 80,
         }}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
-        {/* Page 1: General */}
-        <View key="general" style={{ flex: 1 }}>
-          <BottomSheetScrollView
-            ref={scrollRef}
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 4,
-              paddingBottom: insets.bottom + 80,
-              gap: 20,
-            }}
-            showsVerticalScrollIndicator={false}
-            keyboardDismissMode="interactive"
-            scrollEventThrottle={16}
-          >
-            <TabGeneral
-              form={form}
-              updateField={form.updateField}
-              onCropPress={handleCropPress}
-              person={person}
-              userProfile={userProfile}
-              accessMode={accessMode}
-            />
-          </BottomSheetScrollView>
+        {/* General Section */}
+        <View ref={sectionRefs.current[0]} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>معلومات عامة</Text>
+            <View style={styles.sectionHeaderLine} />
+          </View>
+          <TabGeneral
+            form={form}
+            updateField={form.updateField}
+            onCropPress={handleCropPress}
+            person={person}
+            userProfile={userProfile}
+            accessMode={accessMode}
+          />
         </View>
 
-        {/* Page 2: Details */}
-        <View key="details" style={{ flex: 1 }}>
-          <BottomSheetScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 4,
-              paddingBottom: insets.bottom + 80,
-              gap: 20,
-            }}
-            showsVerticalScrollIndicator={false}
-            keyboardDismissMode="interactive"
-            scrollEventThrottle={16}
-          >
-            <TabDetails form={form} updateField={form.updateField} />
-          </BottomSheetScrollView>
+        {/* Details Section */}
+        <View ref={sectionRefs.current[1]} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>التفاصيل</Text>
+            <View style={styles.sectionHeaderLine} />
+          </View>
+          <TabDetails form={form} updateField={form.updateField} />
         </View>
 
-        {/* Page 3: Family */}
-        <View key="family" style={{ flex: 1 }}>
-          <BottomSheetScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 4,
-              paddingBottom: insets.bottom + 80,
-              gap: 20,
+        {/* Family Section */}
+        <View ref={sectionRefs.current[2]} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>العائلة</Text>
+            <View style={styles.sectionHeaderLine} />
+          </View>
+          <TabFamily
+            person={person}
+            accessMode={accessMode}
+            onDataChanged={() => {
+              if (person?.id) {
+                profilesService
+                  .getPersonMarriages(person.id)
+                  .then((data) => setMarriages(data || []))
+                  .catch((err) => console.warn('Failed to reload marriages:', err));
+              }
             }}
-            showsVerticalScrollIndicator={false}
-            keyboardDismissMode="interactive"
-            scrollEventThrottle={16}
-          >
-            <TabFamily
-              person={person}
-              accessMode={accessMode}
-              onDataChanged={() => {
-                // Reload marriages data in parent
-                if (person?.id) {
-                  profilesService
-                    .getPersonMarriages(person.id)
-                    .then((data) => setMarriages(data || []))
-                    .catch((err) => console.warn('Failed to reload marriages:', err));
-                }
-              }}
-              onNavigateToProfile={onNavigateToProfile}
-            />
-          </BottomSheetScrollView>
+            onNavigateToProfile={onNavigateToProfile}
+          />
         </View>
 
-        {/* Page 4: Contact */}
-        <View key="contact" style={{ flex: 1 }}>
-          <BottomSheetScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 4,
-              paddingBottom: insets.bottom + 80,
-              gap: 20,
-            }}
-            showsVerticalScrollIndicator={false}
-            keyboardDismissMode="interactive"
-            scrollEventThrottle={16}
-          >
-            <TabContact form={form} updateField={form.updateField} />
-          </BottomSheetScrollView>
+        {/* Contact Section */}
+        <View ref={sectionRefs.current[3]} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>التواصل</Text>
+            <View style={styles.sectionHeaderLine} />
+          </View>
+          <TabContact form={form} updateField={form.updateField} />
         </View>
-      </PagerView>
+      </BottomSheetScrollView>
+
+      {/* Floating Scroll-to-Top Button */}
+      {showScrollTop && (
+        <TouchableOpacity
+          style={[styles.scrollTopButton, { bottom: insets.bottom + 24 }]}
+          onPress={scrollToTop}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="chevron-up"
+            size={24}
+            color={tokens.colors.najdi.background}
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -426,6 +449,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person, userProfile]);
 
+  // Auto-expand BottomSheet to 100% when entering edit mode
+  useEffect(() => {
+    if (mode === 'edit' && bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(2); // Snap to 100%
+    }
+  }, [mode]);
+
   // Debug: FileSystem availability check (crop feature dependency)
   useEffect(() => {
     console.log('[FileSystem Debug] Checking directories after rebuild:', {
@@ -460,7 +490,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // On-demand fetch in enterEditMode() handles missing version before save (see line 615-646)
 
   // ✅ FIX: Initialize state early so hooks are available for useCallbacks below
-  const [activeTab, setActiveTab] = useState('general');
   const [preEditVisible, setPreEditVisible] = useState(false);
   const [rememberChoice, setRememberChoice] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1517,32 +1546,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     submitReview,
   ]);
 
-  const dirtyByTab = useMemo(() => {
-    const tabConfig = [
-      {
-        id: 'general',
-        fields: [
-          'photo_url',
-          'name',
-          'kunya',
-          'nickname',
-          'gender',
-          'status',
-          'dob_data',
-          'dod_data',
-          'dob_is_public',
-        ],
-      },
-      {
-        id: 'details',
-        fields: ['bio', 'achievements', 'education', 'occupation', 'timeline'],
-      },
-      { id: 'family', fields: ['marriages', 'children'] },
-      { id: 'contact', fields: ['phone', 'email', 'social_media_links'] },
-    ];
-    return groupDirtyByTab(form.dirtyFields || [], tabConfig);
-  }, [form.dirtyFields]);
-
   const pendingSummary = useMemo(() => {
     if (!pending || pending.length === 0) return 'لا توجد تغييرات معلقة.';
     return pending
@@ -1631,10 +1634,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             permissionLoading={permissionLoading}
             accessMode={accessMode}
             insets={insets}
-            scrollY={scrollY}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            dirtyByTab={dirtyByTab}
             person={person}
             onNavigateToProfile={onNavigateToProfile}
             setMarriages={setMarriages}
@@ -1714,6 +1713,73 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#8c7780',
+  },
+  // Quick Jump Menu styles
+  quickJumpContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: tokens.colors.najdi.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${tokens.colors.najdi.container}40`,
+  },
+  quickJumpPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: `${tokens.colors.najdi.container}30`,
+  },
+  quickJumpPillActive: {
+    backgroundColor: `${tokens.colors.najdi.primary}20`,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.primary,
+  },
+  quickJumpText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
+  },
+  quickJumpTextActive: {
+    color: tokens.colors.najdi.primary,
+  },
+  // Section styles
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  sectionHeaderText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
+  },
+  sectionHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: `${tokens.colors.najdi.container}40`,
+  },
+  // Floating scroll-to-top button
+  scrollTopButton: {
+    position: 'absolute',
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: tokens.colors.najdi.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 
