@@ -210,6 +210,14 @@ const ViewModeContent = React.memo(({
 });
 ViewModeContent.displayName = 'ViewModeContent';
 
+// Scroll configuration constants
+const SCROLL_CONFIG = {
+  SCROLL_TO_TOP_THRESHOLD: 200,
+  SECTION_SCROLL_OFFSET: 10,
+  SCROLL_DEBOUNCE_MS: 300,
+  SCROLL_EVENT_THROTTLE: 16,
+};
+
 // Section definitions for navigation
 const SECTIONS = [
   { id: 'general', label: 'معلومات عامة' },
@@ -234,51 +242,107 @@ const EditModeContent = React.memo(({
   handleCropPress,
   userProfile,
 }) => {
-  // Section refs for scroll tracking
-  const sectionRefs = useRef(SECTIONS.map(() => React.createRef()));
-  const [activeSection, setActiveSection] = useState('general');
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  // Section refs for scroll tracking (fixed memory leak)
+  const sectionRefs = useRef(null);
+  if (!sectionRefs.current) {
+    sectionRefs.current = SECTIONS.map(() => React.createRef());
+  }
 
-  // Scroll to specific section
+  // Batched scroll state (fixes race condition)
+  const [scrollState, setScrollState] = useState({
+    activeSection: 'general',
+    showScrollTop: false,
+  });
+
+  // Dynamic section positions (fixes hardcoded thresholds)
+  const [sectionPositions, setSectionPositions] = useState([]);
+
+  // Debounce tracking (prevents rapid scroll spam)
+  const lastScrollTime = useRef(0);
+
+  // Measure section layout positions
+  const handleSectionLayout = useCallback((index, event) => {
+    const { y } = event.nativeEvent.layout;
+    setSectionPositions(prev => {
+      const newPositions = [...prev];
+      newPositions[index] = y;
+      return newPositions;
+    });
+  }, []);
+
+  // Scroll to specific section (with debouncing and error handling)
   const scrollToSection = useCallback((sectionId) => {
+    // Debounce: prevent rapid clicks
+    const now = Date.now();
+    if (now - lastScrollTime.current < SCROLL_CONFIG.SCROLL_DEBOUNCE_MS) {
+      console.log('[EditMode] Ignoring rapid scroll (debounce)');
+      return;
+    }
+    lastScrollTime.current = now;
+
     const sectionIndex = SECTIONS.findIndex(s => s.id === sectionId);
     if (sectionIndex >= 0 && sectionRefs.current[sectionIndex]?.current) {
       sectionRefs.current[sectionIndex].current.measureLayout(
         scrollRef.current?.getNode?.() || scrollRef.current,
         (x, y) => {
-          scrollRef.current?.scrollTo({ y: y - 10, animated: true });
+          scrollRef.current?.scrollTo({
+            y: y - SCROLL_CONFIG.SECTION_SCROLL_OFFSET,
+            animated: true
+          });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
-        () => {}
+        (error) => {
+          console.warn('[EditMode] Failed to scroll to section:', sectionId, error);
+          // Fallback: use measured position if available
+          if (sectionPositions[sectionIndex] !== undefined) {
+            scrollRef.current?.scrollTo({
+              y: sectionPositions[sectionIndex] - SCROLL_CONFIG.SECTION_SCROLL_OFFSET,
+              animated: true
+            });
+          }
+        }
       );
     }
-  }, [scrollRef]);
+  }, [scrollRef, sectionPositions]);
 
-  // Scroll to top
+  // Scroll to top (with distinct haptic feedback)
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [scrollRef]);
 
-  // Track scroll position for progress indicator and scroll-to-top button
+  // Track scroll position (batched state updates, dynamic thresholds)
   const handleScroll = useCallback((event) => {
     const scrollY = event.nativeEvent.contentOffset.y;
 
-    // Show/hide scroll-to-top button
-    setShowScrollTop(scrollY > 200);
+    // Determine new state
+    const newShowScrollTop = scrollY > SCROLL_CONFIG.SCROLL_TO_TOP_THRESHOLD;
 
-    // Determine active section based on scroll position
-    // (Simplified - you can enhance this with accurate measurements)
-    if (scrollY < 400) {
-      setActiveSection('general');
-    } else if (scrollY < 800) {
-      setActiveSection('details');
-    } else if (scrollY < 1200) {
-      setActiveSection('family');
-    } else {
-      setActiveSection('contact');
+    // Use dynamic section positions if available, fallback to general
+    let newActiveSection = 'general';
+    if (sectionPositions.length === SECTIONS.length) {
+      // Find which section we're currently viewing
+      const activeIndex = sectionPositions.findIndex((pos, i) => {
+        const nextPos = sectionPositions[i + 1];
+        return scrollY >= pos && (nextPos === undefined || scrollY < nextPos);
+      });
+      if (activeIndex >= 0) {
+        newActiveSection = SECTIONS[activeIndex].id;
+      }
     }
-  }, []);
+
+    // Batch updates to prevent race conditions
+    setScrollState(prev => {
+      if (prev.showScrollTop === newShowScrollTop &&
+          prev.activeSection === newActiveSection) {
+        return prev; // Skip update if no changes
+      }
+      return {
+        showScrollTop: newShowScrollTop,
+        activeSection: newActiveSection
+      };
+    });
+  }, [sectionPositions]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -289,15 +353,19 @@ const EditModeContent = React.memo(({
             key={section.id}
             style={[
               styles.quickJumpPill,
-              activeSection === section.id && styles.quickJumpPillActive,
+              scrollState.activeSection === section.id && styles.quickJumpPillActive,
             ]}
             onPress={() => scrollToSection(section.id)}
             activeOpacity={0.7}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`الانتقال إلى قسم ${section.label}`}
+            accessibilityState={{ selected: scrollState.activeSection === section.id }}
           >
             <Text
               style={[
                 styles.quickJumpText,
-                activeSection === section.id && styles.quickJumpTextActive,
+                scrollState.activeSection === section.id && styles.quickJumpTextActive,
               ]}
             >
               {section.label}
@@ -317,10 +385,14 @@ const EditModeContent = React.memo(({
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="interactive"
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={SCROLL_CONFIG.SCROLL_EVENT_THROTTLE}
       >
         {/* General Section */}
-        <View ref={sectionRefs.current[0]} style={styles.section}>
+        <View
+          ref={sectionRefs.current[0]}
+          style={styles.section}
+          onLayout={(e) => handleSectionLayout(0, e)}
+        >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>معلومات عامة</Text>
             <View style={styles.sectionHeaderLine} />
@@ -336,7 +408,11 @@ const EditModeContent = React.memo(({
         </View>
 
         {/* Details Section */}
-        <View ref={sectionRefs.current[1]} style={styles.section}>
+        <View
+          ref={sectionRefs.current[1]}
+          style={styles.section}
+          onLayout={(e) => handleSectionLayout(1, e)}
+        >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>التفاصيل</Text>
             <View style={styles.sectionHeaderLine} />
@@ -345,7 +421,11 @@ const EditModeContent = React.memo(({
         </View>
 
         {/* Family Section */}
-        <View ref={sectionRefs.current[2]} style={styles.section}>
+        <View
+          ref={sectionRefs.current[2]}
+          style={styles.section}
+          onLayout={(e) => handleSectionLayout(2, e)}
+        >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>العائلة</Text>
             <View style={styles.sectionHeaderLine} />
@@ -366,7 +446,11 @@ const EditModeContent = React.memo(({
         </View>
 
         {/* Contact Section */}
-        <View ref={sectionRefs.current[3]} style={styles.section}>
+        <View
+          ref={sectionRefs.current[3]}
+          style={styles.section}
+          onLayout={(e) => handleSectionLayout(3, e)}
+        >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>التواصل</Text>
             <View style={styles.sectionHeaderLine} />
@@ -376,11 +460,18 @@ const EditModeContent = React.memo(({
       </BottomSheetScrollView>
 
       {/* Floating Scroll-to-Top Button */}
-      {showScrollTop && (
+      {scrollState.showScrollTop && (
         <TouchableOpacity
-          style={[styles.scrollTopButton, { bottom: insets.bottom + 24 }]}
+          style={[
+            styles.scrollTopButton,
+            { bottom: Math.max(24, insets.bottom + 8) }
+          ]}
           onPress={scrollToTop}
           activeOpacity={0.8}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="العودة إلى الأعلى"
+          accessibilityHint="اضغط للتمرير إلى أعلى الصفحة"
         >
           <Ionicons
             name="chevron-up"
