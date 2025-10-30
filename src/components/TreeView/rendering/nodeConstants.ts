@@ -148,8 +148,9 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 4,
     NAME_HEIGHT: 16,
     FONT_SIZE: 11,
-    RING_WIDTH: 1.8,
+    RING_WIDTH: 2.6,
     GAP: 0,
+    PLACEHOLDER_GAP: 2.2,
     LABEL_PADDING: 12,
   },
   G2: {
@@ -158,8 +159,9 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 5,
     NAME_HEIGHT: 18,
     FONT_SIZE: 12,
-    RING_WIDTH: 1.8,
+    RING_WIDTH: 3.0,
     GAP: 1.4,
+    PLACEHOLDER_GAP: 2.6,
     LABEL_PADDING: 14,
   },
   ROOT: {
@@ -168,8 +170,9 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 7,
     NAME_HEIGHT: 21,
     FONT_SIZE: 12.5,
-    RING_WIDTH: 2.2,
+    RING_WIDTH: 3.4,
     GAP: 1.6,
+    PLACEHOLDER_GAP: 3.0,
     LABEL_PADDING: 18,
   },
   COLORS: {

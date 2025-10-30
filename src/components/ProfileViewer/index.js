@@ -100,7 +100,7 @@ const ViewModeContent = React.memo(({
   handleRefresh,
   currentSnapIndex,
 }) => {
-  // Velocity-based scroll handler for momentum transfer
+  // Scroll container for view mode content
   return (
   <BottomSheetScrollView
     ref={scrollRef}
@@ -654,11 +654,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   });
 
   // Shared values for scroll tracking and sheet animation
-  const scrollY = useSharedValue(0);
   const animatedPosition = useSharedValue(0);
 
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
-  const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
   // ✅ FIX #1: Proper cleanup on unmount to prevent memory leaks
   useEffect(() => {
@@ -1055,78 +1053,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       }
     };
   }, [pendingClose]);
-
-  // Momentum dismiss gesture - captures overscroll velocity for quick sheet dismissal
-  const momentumDismissGesture = useMemo(() => {
-    return Gesture.Pan()
-      .enabled(mode === 'view')
-      .activeOffsetY([-5, 999999]) // Only trigger on upward swipes
-      .onUpdate((event) => {
-        'worklet';
-        const translationY = event?.translationY;
-        const velocityY = event?.velocityY;
-        if (typeof translationY !== 'number' || typeof velocityY !== 'number') {
-          return;
-        }
-        // Check if at top of scroll (read shared value inside worklet)
-        const atTop = scrollY.value <= 5;
-        if (!atTop) return;
-
-        const fastUpwardSwipe = velocityY < -800;
-        const significantTranslation = translationY < -50;
-
-        if (fastUpwardSwipe && significantTranslation) {
-          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-          runOnJS(closeSheet)();
-        }
-      });
-  }, [mode, closeSheet]);
-
-  // iOS-style edge swipe to dismiss (RTL-aware)
-  const edgeSwipeGesture = useMemo(() => {
-    let gestureStartX = 0;
-    let isEdgeGesture = false;
-
-    return Gesture.Pan()
-      .enabled(mode === 'view' && !form.isDirty)
-      .activeOffsetX([-10, 10]) // Allow horizontal swipes
-      .failOffsetY([-20, 20]) // Cancel if mostly vertical
-      .onBegin((event) => {
-        'worklet';
-        gestureStartX = event.absoluteX;
-        // RTL: Right edge is trailing edge (where iOS back button is)
-        isEdgeGesture = gestureStartX > screenWidth - 50;
-
-        if (isEdgeGesture) {
-          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-        }
-      })
-      .onUpdate((event) => {
-        'worklet';
-        const translationX = event?.translationX;
-        const velocityX = event?.velocityX;
-        // RTL: Swipe left (negative translationX) from right edge
-        if (isEdgeGesture && typeof translationX === 'number' && translationX < -100) {
-          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-          isEdgeGesture = false; // Prevent multiple triggers
-          runOnJS(closeSheet)();
-        }
-      })
-      .onEnd((event) => {
-        'worklet';
-        // Also trigger on fast swipe (velocity check)
-        const velocityX = event?.velocityX;
-        if (isEdgeGesture && typeof velocityX === 'number' && velocityX < -800) {
-          runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
-          runOnJS(closeSheet)();
-        }
-      });
-  }, [mode, form.isDirty, screenWidth, closeSheet]);
-
-  // Compose gestures - both can work simultaneously
-  const composedGesture = useMemo(() => {
-    return Gesture.Simultaneous(momentumDismissGesture, edgeSwipeGesture);
-  }, [momentumDismissGesture, edgeSwipeGesture]);
 
   // Define edit mode handlers before menuOptions to prevent stale closure
   const enterEditMode = useCallback(async () => {
@@ -1764,7 +1690,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Always render BottomSheet (even when closed at index=-1)
   // This allows smooth transition from closed → open when person loads
-  // Only wrap in GestureDetector when in view mode to avoid touch blocking
   const bottomSheetContent = (
     <BottomSheet
       ref={bottomSheetRef}
@@ -1806,7 +1731,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           marriages={marriages}
           onNavigateToProfile={onNavigateToProfile}
           accessMode={accessMode}
-          scrollY={scrollY}
           scrollRef={viewScrollRef}
           canEdit={canEdit}
           refreshing={refreshing}
@@ -1832,16 +1756,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       )}
     </BottomSheet>
   );
-
   return (
     <>
-      {mode === 'view' ? (
-        <GestureDetector gesture={composedGesture}>
-          {bottomSheetContent}
-        </GestureDetector>
-      ) : (
-        bottomSheetContent
-      )}
+      {bottomSheetContent}
 
       <PreEditModal
         visible={preEditVisible}
