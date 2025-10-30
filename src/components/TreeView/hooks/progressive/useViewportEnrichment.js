@@ -41,7 +41,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       (actualStage?.value || actualStage) || { x: 0, y: 0, scale: 1 },
       actualDimensions,
       enrichedNodesRef.current,
-      250 // padding: balanced for fast scrolling without overwhelming batch size
+      200 // padding: preload nodes 200px outside viewport
     );
   }, [nodes, actualStage, actualDimensions]);
 
@@ -102,7 +102,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       return;
     }
 
-    // Debounce: Wait for user to stop scrolling before loading (100ms - reduced for faster response)
+    // Debounce: Wait for user to stop scrolling before loading (300ms)
     enrichTimeoutRef.current = setTimeout(async () => {
       // Track concurrent requests to avoid applying stale data
       const requestId = ++currentRequestIdRef.current;
@@ -170,7 +170,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       } catch (err) {
         console.error('Enrichment exception:', err);
       }
-    }, 100);
+    }, 300);
 
     return () => {
       if (enrichTimeoutRef.current) {

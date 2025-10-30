@@ -2258,9 +2258,9 @@ const TreeViewCore = ({
   // Legacy renderConnection function removed - now using line styles system
 
   // Render edges with batching and capping - Updated with line styles support
-  // Pre-build all connection paths once (cached by useMemo)
-  // Supports both straight lines and bezier curves based on settings
-  const allBatchedEdgePaths = useMemo(() => {
+  // OPTIMIZATION: Split path building from JSX creation to prevent unnecessary reconciliation
+  // Phase 1: Build Skia path objects (expensive, cache aggressively)
+  const batchedPathData = useMemo(() => {
     if (tier === 3) return { elements: null, count: 0 };
 
     // REQUIRED: Dimension guard (prevents invalid clip on first render)
@@ -2294,10 +2294,26 @@ const TreeViewCore = ({
 
     // Filter connections for viewport and apply edge limit
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
-    
+
     // Generate all paths using the line styles system
     // Step 4.3: Pass nodeStyleValue for circular edge calculations
     const batchedResult = buildBatchedPaths(limitedConnections, currentLineStyle, showPhotos, nodeStyleValue);
+
+    if (__DEV__ && startTime) {
+      const duration = performance.now() - startTime;
+      console.log(`[TreeView] ${currentLineStyle} paths built: ${batchedResult.count} edges in ${duration.toFixed(1)}ms`);
+    }
+
+    return batchedResult;
+  },
+  [connections, showPhotos, lineStyle, nodeStyleValue], // Path geometry dependencies only
+  );
+
+  // Phase 2: Create JSX elements from paths (cheap, only when styling changes)
+  const allBatchedEdgePaths = useMemo(() => {
+    if (!batchedPathData.elements) {
+      return { elements: null, count: 0 };
+    }
 
     // Configure line styling based on line style (bezier vs straight)
     const lineConfig = lineStyle === 'bezier'
@@ -2311,7 +2327,7 @@ const TreeViewCore = ({
         };
 
     // Convert to React elements for rendering
-    const pathElements = batchedResult.elements?.map((pathData) => (
+    const pathElements = batchedPathData.elements.map((pathData) => (
       <Path
         key={pathData.key}
         path={pathData.path}
@@ -2319,16 +2335,11 @@ const TreeViewCore = ({
         style="stroke"
         strokeWidth={lineConfig.width}
       />
-    )) || [];
+    ));
 
-    if (__DEV__ && startTime) {
-      const duration = performance.now() - startTime;
-      console.log(`[TreeView] ${currentLineStyle} paths built: ${batchedResult.count} edges in ${duration.toFixed(1)}ms`);
-    }
-
-    return { elements: pathElements, count: batchedResult.count };
+    return { elements: pathElements, count: batchedPathData.count };
   },
-  [connections, showPhotos, lineStyle, tier, dimensions], // Added lineStyle dependency
+  [batchedPathData, lineStyle, tier], // JSX creation dependencies only
   );
 
   // Render highlighted ancestry path
