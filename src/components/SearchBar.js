@@ -36,6 +36,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [activePillId, setActivePillId] = useState(null);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const { isOffline } = useNetworkGuard();
@@ -346,6 +347,20 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
     [getTypography, fontFamilyBase],
   );
 
+  const pillTypography = useMemo(
+    () =>
+      getTypography("subheadline", {
+        fontWeight: "600",
+        textAlign: "center",
+      }),
+    [getTypography],
+  );
+
+  const pillHitSlop = useMemo(
+    () => ({ top: 6, bottom: 6, left: 6, right: 6 }),
+    [],
+  );
+
   const dynamicInputStyle = useMemo(() => {
     const length = query.trim().length;
     const baseSize = inputTypography.fontSize;
@@ -449,12 +464,25 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   }, [onClearHighlight]);
 
   // Navigation pills handler
-  const handlePillPress = useCallback((nodeId, nodeName) => {
-    if (onNavigate) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onNavigate(nodeId);
-    }
-  }, [onNavigate]);
+  const handlePillPress = useCallback(
+    (nodeId) => {
+      if (!nodeId) {
+        return;
+      }
+
+      const didChange = nodeId !== activePillId;
+
+      if (didChange) {
+        setActivePillId(nodeId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      if (onNavigate) {
+        onNavigate(nodeId);
+      }
+    },
+    [activePillId, onNavigate],
+  );
 
   const handleFocus = () => {
     setIsFocused(true);
@@ -503,6 +531,28 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       keyboardHideListener.remove();
     };
   }, [query]);
+
+  useEffect(() => {
+    if (!navigationData.hasData) {
+      return;
+    }
+
+    if (!selectedPersonId && navigationData.rootNode) {
+      setActivePillId(navigationData.rootNode.id);
+      return;
+    }
+
+    if (selectedPersonId) {
+      const isRoot = navigationData.rootNode?.id === selectedPersonId;
+      const matchingBranch = navigationData.g2Branches.find(
+        (branch) => branch.id === selectedPersonId,
+      );
+
+      if (isRoot || matchingBranch) {
+        setActivePillId(selectedPersonId);
+      }
+    }
+  }, [navigationData.hasData, navigationData.rootNode, navigationData.g2Branches, selectedPersonId]);
 
   return (
     <>

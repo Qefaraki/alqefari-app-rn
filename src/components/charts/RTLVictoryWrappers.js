@@ -121,15 +121,14 @@ export const RTLVictoryBar = ({
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: Swap left/right padding for RTL
-      // RTL: 40px left (bars), 140px right (axis labels like "الأول", "الثاني")
-      // LTR: 140px left (axis labels), 40px right (bars)
-      // Reduced from 200px to 140px for better bar/label balance (gives bars 120% more width)
-      // Combined with wider chart (24px card padding instead of 40px)
+      // RTL: 20px left (bars get maximum space), 100px right (axis labels like "الأول", "الثاني")
+      // LTR: 100px left (axis labels), 20px right (bars)
+      // Prioritize label space - bars are secondary, labels must be fully readable
       padding={{
         top: 20,
         bottom: 40,
-        left: isRTL ? 40 : 140,
-        right: isRTL ? 140 : 40
+        left: isRTL ? 20 : 100,
+        right: isRTL ? 100 : 20
       }}
       height={height}
       {...chartProps}

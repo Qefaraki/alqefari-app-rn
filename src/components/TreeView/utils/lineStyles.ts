@@ -132,6 +132,8 @@ function calculateActualNodeHeight(
     nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
   const tidyRect =
     nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
+  const tidyRect =
+    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
 
   if (nodeStyle === "circular") {
     if (tidyCircular) {
@@ -235,6 +237,12 @@ function getLabelHeight(
 ): number {
   const tidyCircular =
     nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+  const tidyRect =
+    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
+
+  if (tidyRect) {
+    return 6;
+  }
 
   if (!tidyCircular) {
     return 0;
@@ -452,10 +460,14 @@ export function generateTidyCurvePaths(
   // Fan-out curves using single cubic Bezier per child (D3 linkVertical-style)
   childMetadata.forEach(({ childCenterX, childTopY }) => {
     const startY = stemAnchorY;
-    const anchorOffset = tidyCircular ? CHILD_ANCHOR_OFFSET * 0.6 : CHILD_ANCHOR_OFFSET;
+    const anchorOffset = tidyCircular
+      ? CHILD_ANCHOR_OFFSET * 0.6
+      : tidyRect
+      ? CHILD_ANCHOR_OFFSET * 0.8
+      : CHILD_ANCHOR_OFFSET;
     const desiredAnchor = childTopY - anchorOffset;
     const childAnchorY = Math.min(childTopY - 4, desiredAnchor);
-    const minimumGap = tidyCircular ? 2 : 4;
+    const minimumGap = tidyCircular ? 2 : tidyRect ? 3 : 4;
     const safeAnchorY = childAnchorY <= startY ? startY + minimumGap : childAnchorY;
     const midY = startY + (safeAnchorY - startY) / 2;
 
