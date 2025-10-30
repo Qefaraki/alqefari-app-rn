@@ -27,7 +27,7 @@ import BottomSheet, {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
-import { Gesture, GestureDetector, NativeViewGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -259,15 +259,11 @@ const EditModeContent = React.memo(({
     <>
       {/* Sticky Tabs - Outside scroll view */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
-        <NativeViewGestureHandler disallowInterruption={true}>
-          <View>
-            <SegmentedControl
-              options={enhancedTabs}
-              value={activeTab}
-              onChange={handleTabChange}
-            />
-          </View>
-        </NativeViewGestureHandler>
+        <SegmentedControl
+          options={enhancedTabs}
+          value={activeTab}
+          onChange={handleTabChange}
+        />
       </View>
 
       {/* Scrollable Content */}
@@ -449,17 +445,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       // Edit mode: Use EditHeader as the draggable handle (supports buttons + drag)
       if (mode === 'edit') {
         return (
-          <NativeViewGestureHandler disallowInterruption={true}>
-            <View>
-              <EditHeader
-                onCancel={handleCancel}
-                onSubmit={handleSubmit}
-                saving={saving}
-                canSubmit={form.isDirty}
-                accessMode={accessMode}
-              />
-            </View>
-          </NativeViewGestureHandler>
+          <EditHeader
+            onCancel={handleCancel}
+            onSubmit={handleSubmit}
+            saving={saving}
+            canSubmit={form.isDirty}
+            accessMode={accessMode}
+          />
         );
       }
 
@@ -1605,6 +1597,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={mode !== 'edit'}
           enableHandlePanningGesture={true}
+          activeOffsetY={[-10, 10]}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
