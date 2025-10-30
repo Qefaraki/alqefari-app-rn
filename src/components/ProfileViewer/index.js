@@ -587,7 +587,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);
-  const snapPoints = useMemo(() => ['35%', '50%', '100%'], []);
+  const snapPoints = useMemo(() => ['35%', '60%', '100%'], []);
 
   // Spring animation config for natural, responsive sheet movement
   const animationConfigs = useMemo(() => ({

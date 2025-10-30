@@ -581,78 +581,115 @@ const OperationalSnapshot = ({ stats }) => {
 
 // Generations Section: Horizontal bar chart
 const GenerationsSection = ({ stats }) => {
-  if (!stats?.generations || !Array.isArray(stats.generations) || stats.generations.length === 0) {
+  const generations = stats?.generations;
+
+  if (!Array.isArray(generations) || generations.length === 0) {
     return (
-      <View style={styles.section}>
-        <Text style={styles.sectionHeader}>رحلة الأجيال</Text>
-        <View style={styles.emptyChartContainer}>
-          <Ionicons name="bar-chart-outline" size={48} color={`${palette.text}66`} />
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.cardEyebrow}>رحلة الأجيال</Text>
+            <Text style={styles.cardSubtitle}>لم يتم تسجيل بيانات الأجيال بعد</Text>
+          </View>
+        </View>
+        <View style={styles.emptyCard}>
+          <Ionicons name="bar-chart-outline" size={48} color={`${palette.text}40`} />
           <Text style={styles.emptyChartText}>لا توجد بيانات الأجيال</Text>
         </View>
       </View>
     );
   }
 
-  const { generations } = stats;
-  const maxCount = Math.max(...generations.map((g) => g.count));
+  const maxCount = Math.max(...generations.map((g) => g.count || 0));
   const largestGen = generations.reduce((max, g) => (g.count > max.count ? g : max), generations[0]);
+  const firstGen = generations[0];
+  const latestGen = generations[generations.length - 1];
 
-  // Arabic ordinals
   const getArabicOrdinal = (num) => {
     const ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
     return ordinals[num - 1] || num.toString();
   };
 
-  // Desert Ochre gradient (light to dark)
-  const getDesertGradient = (index) => {
-    const shades = [
-      '#F4DCC8', '#ECDCC3', '#E4C5A8', '#DCAD8D',
-      '#D58C4A', '#C97A38', '#BD6826', '#B15614',
-    ];
-    return shades[index] || shades[shades.length - 1];
-  };
+  const generationShades = [
+    '#F4DCC8',
+    '#ECDCC3',
+    '#E4C5A8',
+    '#DCAD8D',
+    '#D58C4A',
+    '#C97A38',
+    '#BD6826',
+    '#B15614',
+  ];
 
   return (
     <View
-      style={styles.section}
-      accessibilityLabel={`توزيع ${generations.length} أجيال. الجيل ${getArabicOrdinal(largestGen.generation)} هو الأكبر بـ ${largestGen.count.toLocaleString('ar-SA')} فرد`}
+      style={styles.card}
+      accessibilityLabel={`توزيع ${generations.length} أجيال. الجيل ${getArabicOrdinal(
+        largestGen.generation
+      )} هو الأكبر بـ ${formatNumber(largestGen.count)} فرد`}
     >
-      <Text style={styles.sectionHeader}>رحلة الأجيال</Text>
+      <View style={styles.cardHeaderRow}>
+        <View>
+          <Text style={styles.cardEyebrow}>رحلة الأجيال</Text>
+          <Text style={styles.cardSubtitle}>مقارنة حجم كل جيل في شجرة العائلة</Text>
+        </View>
+        <View style={styles.badge}>
+          <Ionicons name="people-outline" size={16} color={palette.primary} />
+          <Text style={styles.badgeText}>{`${generations.length} أجيال`}</Text>
+        </View>
+      </View>
 
-      <RTLVictoryBar
-        data={generations.map((g, idx) => ({
-          x: `الجيل ${getArabicOrdinal(g.generation)}`,
-          y: g.count,
-          label: g.count.toString(),
-          fill: getDesertGradient(idx),
-        }))}
-        horizontal
-        height={400}
-        barProps={{
-          cornerRadius: 6, // Enhanced corner radius
-          style: {
-            data: {
-              fill: ({ datum }) => datum.fill,
-              stroke: `${palette.text}14`, // Subtle border
-              strokeWidth: 1,
+      <View style={styles.chartWrapper}>
+        <RTLVictoryBar
+          data={generations.map((g, idx) => ({
+            x: `الجيل ${getArabicOrdinal(g.generation)}`,
+            y: g.count,
+            label: formatNumber(g.count),
+            fill: generationShades[idx] || generationShades[generationShades.length - 1],
+          }))}
+          horizontal
+          height={Math.max(280, generations.length * 58)}
+          barProps={{
+            cornerRadius: 6,
+            style: {
+              data: {
+                fill: ({ datum }) => datum.fill,
+                stroke: `${palette.text}12`,
+                strokeWidth: 1,
+              },
+              labels: {
+                fontSize: 13,
+                fontFamily: 'SFArabic-Semibold',
+                fill: palette.text,
+                padding: 6,
+              },
             },
-            labels: {
-              fontSize: 14, // Increased from 13
-              fontFamily: 'SFArabic-Semibold',
-              fill: palette.text,
-              padding: 8,
-            },
-          },
-          animate: { duration: 600, easing: 'cubicOut' }, // Smoother animation
-        }}
-      />
+            animate: { duration: 600, easing: 'cubicOut' },
+          }}
+        />
+      </View>
 
-      {/* Insight Card */}
-      <View style={styles.insightCard}>
-        <Ionicons name="bulb-outline" size={20} color={palette.secondary} />
-        <Text style={styles.insightText}>
-          الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {largestGen.count.toLocaleString('ar-SA')} فرد - نمو مذهل!
+      <View style={styles.calloutRow}>
+        <Ionicons name="sparkles-outline" size={18} color={palette.secondary} />
+        <Text style={styles.calloutText}>
+          الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
         </Text>
+      </View>
+
+      <View style={styles.statsStrip}>
+        <View style={styles.statsStripItem}>
+          <Text style={styles.statsStripLabel}>أقدم جيل</Text>
+          <Text style={styles.statsStripValue}>
+            الجيل {getArabicOrdinal(firstGen.generation)}
+          </Text>
+        </View>
+        <View style={styles.statsStripDivider} />
+        <View style={styles.statsStripItem}>
+          <Text style={styles.statsStripLabel}>أحدث جيل</Text>
+          <Text style={styles.statsStripValue}>
+            الجيل {getArabicOrdinal(latestGen.generation)}
+          </Text>
+        </View>
       </View>
     </View>
   );
