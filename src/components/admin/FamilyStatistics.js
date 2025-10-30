@@ -696,63 +696,181 @@ const GenerationsSection = ({ stats }) => {
 };
 
 // Names Section: Top male/female names
-const NamesSection = ({ stats, expanded, onToggle }) => {
-  if (!stats?.top_male_names || !stats?.top_female_names ||
-      !Array.isArray(stats.top_male_names) || !Array.isArray(stats.top_female_names)) {
+const NamesSection = ({ stats }) => {
+  const topMale = stats?.top_male_names;
+  const topFemale = stats?.top_female_names;
+
+  const [selectedGender, setSelectedGender] = useState('male');
+  const [showAll, setShowAll] = useState(false);
+
+  const segments = useMemo(
+    () => [
+      {
+        key: 'male',
+        label: 'أسماء الذكور',
+        icon: 'man-outline',
+        color: palette.primary,
+        data: Array.isArray(topMale) ? topMale : [],
+      },
+      {
+        key: 'female',
+        label: 'أسماء الإناث',
+        icon: 'woman-outline',
+        color: palette.secondary,
+        data: Array.isArray(topFemale) ? topFemale : [],
+      },
+    ],
+    [topFemale, topMale]
+  );
+
+  const firstWithData = useMemo(
+    () => segments.find((item) => item.data.length > 0),
+    [segments]
+  );
+
+  useEffect(() => {
+    const activeHasData = segments.some(
+      (segment) => segment.key === selectedGender && segment.data.length > 0
+    );
+    if (!activeHasData && firstWithData) {
+      setSelectedGender(firstWithData.key);
+      setShowAll(false);
+    }
+  }, [firstWithData, segments, selectedGender]);
+
+  if (!firstWithData) {
     return (
-      <View style={styles.section}>
-        <Text style={styles.sectionHeader}>الأسماء الأكثر شيوعاً</Text>
-        <View style={styles.emptyChartContainer}>
-          <Ionicons name="stats-chart-outline" size={48} color={`${palette.text}66`} />
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.cardEyebrow}>الأسماء الأكثر شيوعاً</Text>
+            <Text style={styles.cardSubtitle}>لا توجد بيانات متاحة حالياً</Text>
+          </View>
+        </View>
+        <View style={styles.emptyCard}>
+          <Ionicons name="stats-chart-outline" size={48} color={`${palette.text}40`} />
           <Text style={styles.emptyChartText}>لا توجد بيانات الأسماء</Text>
         </View>
       </View>
     );
   }
 
-  const { top_male_names, top_female_names } = stats;
-
-  const renderNamesList = (names, gender, limit) => {
-    const displayNames = expanded ? names : names.slice(0, limit);
-    const maxCount = names[0]?.count || 1;
-
-    return displayNames.map((item, idx) => (
-      <View key={item.name} style={styles.nameRow}>
-        <Text style={styles.nameRank}>{idx + 1}.</Text>
-        <Text style={styles.nameName}>{item.name}</Text>
-        <View style={styles.nameBarContainer}>
-          <View
-            style={[
-              styles.nameBar,
-              {
-                width: `${(item.count / maxCount) * 100}%`,
-                backgroundColor: gender === 'male' ? palette.primary : palette.secondary,
-              },
-            ]}
-          />
-          <Text style={styles.nameCount}>{item.count}</Text>
-        </View>
-      </View>
-    ));
-  };
+  const activeOption =
+    segments.find((segment) => segment.key === selectedGender) || firstWithData;
+  const names = activeOption.data;
+  const totalCount = names.reduce((sum, item) => sum + (item.count || 0), 0);
+  const maxCount = names[0]?.count || 1;
+  const displayNames = showAll ? names : names.slice(0, 5);
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionHeader}>الأسماء الأكثر شيوعاً</Text>
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <View>
+          <Text style={styles.cardEyebrow}>الأسماء الأكثر شيوعاً</Text>
+          <Text style={styles.cardSubtitle}>تعرف على أبرز الأسماء داخل العائلة</Text>
+        </View>
+      </View>
 
-      {/* Male Names */}
-      <Text style={styles.subsectionTitle}>أسماء الذكور</Text>
-      {renderNamesList(top_male_names, 'male', 5)}
+      <View style={styles.segmentedControl}>
+        {segments.map((segment) => {
+          const isActive = segment.key === activeOption.key;
+          return (
+            <TouchableOpacity
+              key={segment.key}
+              style={[
+                styles.segmentOption,
+                isActive && [styles.segmentOptionActive, { backgroundColor: segment.color }],
+              ]}
+              onPress={() => {
+                if (!isActive) {
+                  setSelectedGender(segment.key);
+                  setShowAll(false);
+                }
+              }}
+              disabled={segment.data.length === 0}
+            >
+              <Ionicons
+                name={segment.icon}
+                size={18}
+                color={isActive ? palette.background : `${palette.text}99`}
+              />
+              <Text
+                style={[
+                  styles.segmentLabel,
+                  isActive && styles.segmentLabelActive,
+                  segment.data.length === 0 && styles.segmentLabelDisabled,
+                ]}
+              >
+                {segment.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-      {/* Female Names */}
-      <Text style={[styles.subsectionTitle, { marginTop: 24 }]}>أسماء الإناث</Text>
-      {renderNamesList(top_female_names, 'female', 5)}
+      <View style={styles.namesList}>
+        {displayNames.map((item, index) => {
+          const widthPercent = maxCount
+            ? `${Math.max(14, Math.round((item.count / maxCount) * 100))}%`
+            : '14%';
+          const share = totalCount ? formatPercent(item.count, totalCount) : null;
+          return (
+            <View key={`${activeOption.key}-${item.name}`} style={styles.nameRow}>
+              <View
+                style={[
+                  styles.rankBubble,
+                  index === 0 && styles.rankBubbleGold,
+                  index === 1 && styles.rankBubbleSilver,
+                  index === 2 && styles.rankBubbleBronze,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.rankBubbleText,
+                    index < 3 && styles.rankBubbleTextEmphasis,
+                  ]}
+                >
+                  {index + 1}
+                </Text>
+              </View>
+              <View style={styles.nameInfo}>
+                <Text style={styles.namePrimary}>{item.name}</Text>
+                <Text style={styles.nameSecondary}>
+                  {formatNumber(item.count)} تكرارات
+                </Text>
+              </View>
+              <View style={styles.progressColumn}>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: widthPercent,
+                        backgroundColor: activeOption.color,
+                      },
+                    ]}
+                  />
+                </View>
+                {share && <Text style={styles.progressPercent}>{share}</Text>}
+              </View>
+            </View>
+          );
+        })}
+      </View>
 
-      {/* Expand Button */}
-      {!expanded && (top_male_names.length > 5 || top_female_names.length > 5) && (
-        <TouchableOpacity style={styles.expandButton} onPress={onToggle}>
-          <Text style={styles.expandText}>عرض القائمة الكاملة</Text>
-          <Ionicons name="chevron-down" size={16} color={palette.primary} />
+      {names.length > 5 && (
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => setShowAll((prev) => !prev)}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {showAll ? 'عرض الأقل' : 'عرض القائمة الكاملة'}
+          </Text>
+          <Ionicons
+            name={showAll ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={palette.primary}
+          />
         </TouchableOpacity>
       )}
     </View>
@@ -760,68 +878,144 @@ const NamesSection = ({ stats, expanded, onToggle }) => {
 };
 
 // Munasib Section: Leaderboard style
-const MunasibSection = ({ stats, expanded, onToggle }) => {
-  if (!stats?.top_munasib_families || !stats?.munasib_totals ||
-      !Array.isArray(stats.top_munasib_families)) {
+const MunasibSection = ({ stats }) => {
+  const families = Array.isArray(stats?.top_munasib_families)
+    ? stats.top_munasib_families
+    : [];
+  const totals = stats?.munasib_totals ?? {};
+  const marriageStats = stats?.marriage_stats ?? {};
+
+  const [showAll, setShowAll] = useState(false);
+
+  if (!families.length) {
     return (
-      <View style={styles.section}>
-        <Text style={styles.sectionHeader}>أنساب القفاري</Text>
-        <View style={styles.emptyChartContainer}>
-          <Ionicons name="people-outline" size={48} color={`${palette.text}66`} />
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.cardEyebrow}>أنساب القفاري</Text>
+            <Text style={styles.cardSubtitle}>لا توجد بيانات الأنساب حاليا</Text>
+          </View>
+        </View>
+        <View style={styles.emptyCard}>
+          <Ionicons name="people-outline" size={48} color={`${palette.text}40`} />
           <Text style={styles.emptyChartText}>لا توجد بيانات الأنساب</Text>
         </View>
       </View>
     );
   }
 
-  const { top_munasib_families, munasib_totals } = stats;
-  const displayFamilies = expanded ? top_munasib_families : top_munasib_families.slice(0, 5);
-  const maxCount = top_munasib_families[0]?.count || 1;
+  const displayFamilies = showAll ? families : families.slice(0, 6);
+  const maxCount = families[0]?.count || 1;
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionHeader}>أنساب القفاري</Text>
-      <Text style={styles.subtitle}>
-        {munasib_totals.total_munasib} زواجاً مع عائلات أخرى
-      </Text>
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <View>
+          <Text style={styles.cardEyebrow}>أنساب القفاري</Text>
+          <Text style={styles.cardSubtitle}>مؤشرات الزواج مع العائلات الأخرى</Text>
+        </View>
+      </View>
 
-      {displayFamilies.map((family, idx) => (
-        <View key={family.family} style={styles.leaderboardRow}>
-          <Text style={styles.rank}>
-            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
-          </Text>
-          <Text style={styles.familyName}>عائلة {family.family}</Text>
-          <View style={styles.barContainer}>
+      <View style={styles.metricBadgeRow}>
+        <MetricBadge
+          tone="primary"
+          icon="git-network-outline"
+          label="إجمالي الزيجات"
+          value={formatNumber(marriageStats.total_marriages ?? totals.total_munasib)}
+          percent={
+            marriageStats.total_marriages
+              ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
+              : undefined
+          }
+        />
+        <MetricBadge
+          tone="secondary"
+          icon="man-outline"
+          label="زيجات الذكور"
+          value={formatNumber(totals.male_munasib)}
+        />
+      </View>
+      <View style={[styles.metricBadgeRow, styles.metricBadgeRowSpacing]}>
+        <MetricBadge
+          tone="neutral"
+          icon="woman-outline"
+          label="زيجات الإناث"
+          value={formatNumber(totals.female_munasib)}
+        />
+        <MetricBadge
+          tone="neutral"
+          icon="repeat-outline"
+          label="زيجات قائمة"
+          value={formatNumber(marriageStats.current_marriages)}
+          percent={
+            marriageStats.total_marriages
+              ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
+              : undefined
+          }
+        />
+      </View>
+
+      <View style={styles.leaderboardList}>
+        {displayFamilies.map((family, index) => (
+          <View key={family.family} style={styles.leaderboardRow}>
             <View
               style={[
-                styles.barFill,
-                {
-                  width: `${(family.count / maxCount) * 100}%`,
-                  backgroundColor: palette.secondary,
-                },
+                styles.rankBubble,
+                index === 0 && styles.rankBubbleGold,
+                index === 1 && styles.rankBubbleSilver,
+                index === 2 && styles.rankBubbleBronze,
               ]}
-            />
-            <Text style={styles.count}>{family.count}</Text>
+            >
+              <Text
+                style={[
+                  styles.rankBubbleText,
+                  index < 3 && styles.rankBubbleTextEmphasis,
+                ]}
+              >
+                {index + 1}
+              </Text>
+            </View>
+            <View style={styles.leaderboardInfo}>
+              <Text style={styles.familyName}>عائلة {family.family}</Text>
+              <Text style={styles.leaderboardHint}>
+                {formatNumber(family.count)} شراكات موثقة
+              </Text>
+            </View>
+            <View style={styles.leaderboardProgress}>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.max(14, Math.round((family.count / maxCount) * 100))}%`,
+                      backgroundColor: palette.secondary,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
 
-      {!expanded && top_munasib_families.length > 5 && (
-        <TouchableOpacity style={styles.expandButton} onPress={onToggle}>
-          <Text style={styles.expandText}>عرض جميع العائلات</Text>
-          <Ionicons name="chevron-down" size={16} color={palette.primary} />
+      {families.length > displayFamilies.length && (
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => setShowAll((prev) => !prev)}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {showAll ? 'عرض الأقل' : 'عرض جميع العائلات'}
+          </Text>
+          <Ionicons
+            name={showAll ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={palette.primary}
+          />
         </TouchableOpacity>
       )}
     </View>
   );
 };
-
-// Section Divider with Sadu Pattern
-const SectionDivider = () => (
-  <View style={styles.dividerContainer}>
-    <View style={styles.dividerLine} />
-  </View>
-);
 
 // Lazy Chart Section (Performance optimization)
 const LazyChartSection = ({ chartName, onVisible, isVisible, children }) => {

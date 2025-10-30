@@ -12,6 +12,7 @@ class StorageService {
    * @param {string} profileId - The profile ID to associate the photo with
    * @param {string} customPath - Optional custom storage path
    * @param {function} onProgress - Optional callback for upload progress
+   * @param {string} forceContentType - Optional content type override (e.g., 'image/jpeg')
    * @returns {Promise<{url: string, error: Error|null}>}
    */
   async uploadProfilePhoto(
@@ -19,6 +20,7 @@ class StorageService {
     profileId,
     customPath = null,
     onProgress = null,
+    forceContentType = null,
   ) {
     // Pre-flight network check
     const networkState = useNetworkStore.getState();
@@ -101,7 +103,7 @@ class StorageService {
         const uploadPromise = supabase.storage
           .from(this.bucketName)
           .upload(filePath, arrayBuffer, {
-            contentType: blob.type || "image/jpeg",
+            contentType: forceContentType || blob.type || "image/jpeg",
             upsert: false, // Detect concurrent uploads via "already exists" error
             onUploadProgress: (progress) => {
               if (onProgress) {
@@ -147,7 +149,7 @@ class StorageService {
           const retryUpload = await supabase.storage
             .from(this.bucketName)
             .upload(filePath, arrayBuffer, {
-              contentType: blob.type || "image/jpeg",
+              contentType: forceContentType || blob.type || "image/jpeg",
               upsert: true, // Now safe to overwrite
               onUploadProgress: (progress) => {
                 if (onProgress) {

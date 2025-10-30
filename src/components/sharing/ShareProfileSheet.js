@@ -284,6 +284,7 @@ export default function ShareProfileSheet({
       style={[
         styles.quickActionButton,
         { flexDirection: isRTL ? 'row-reverse' : 'row' },
+        { writingDirection: isRTL ? 'rtl' : 'ltr' },
         disabled && styles.quickActionButtonDisabled,
       ]}
       activeOpacity={0.7}
@@ -348,7 +349,12 @@ export default function ShareProfileSheet({
       onRequestClose={onClose}
       transparent={false}
     >
-      <SafeAreaView style={styles.modalContainer}>
+      <SafeAreaView
+        style={[
+          styles.modalContainer,
+          isRTL ? styles.directionRTL : styles.directionLTR,
+        ]}
+      >
         <LinearGradient
           colors={['#F8F3EA', COLORS.background]}
           style={styles.backgroundGradient}
@@ -377,11 +383,19 @@ export default function ShareProfileSheet({
         </View>
 
         <ScrollView
-          style={styles.scrollContainer}
+          style={[
+            styles.scrollContainer,
+            isRTL ? styles.directionRTL : styles.directionLTR,
+          ]}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.heroCard}>
+          <View
+            style={[
+              styles.heroCard,
+              isRTL ? styles.directionRTL : styles.directionLTR,
+            ]}
+          >
             <View style={styles.avatarWrapper}>
               {hasValidPhoto ? (
                 <Image
@@ -395,24 +409,47 @@ export default function ShareProfileSheet({
               )}
             </View>
 
-            <Text style={styles.heroName} numberOfLines={1}>
+            <Text
+              style={[
+                styles.heroName,
+                { writingDirection: isRTL ? 'rtl' : 'ltr' },
+              ]}
+              numberOfLines={1}
+            >
               {displayName}
             </Text>
 
             {lineage ? (
-              <Text style={styles.heroLineage} numberOfLines={2}>
+              <Text
+                style={[
+                  styles.heroLineage,
+                  { writingDirection: isRTL ? 'rtl' : 'ltr' },
+                ]}
+                numberOfLines={2}
+              >
                 {lineage}
               </Text>
             ) : null}
 
             {metadata ? (
-              <Text style={styles.heroMetadata} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.heroMetadata,
+                  { writingDirection: isRTL ? 'rtl' : 'ltr' },
+                ]}
+                numberOfLines={1}
+              >
                 {metadata}
               </Text>
             ) : null}
           </View>
 
-          <View style={styles.qrCard}>
+          <View
+            style={[
+              styles.qrCard,
+              isRTL ? styles.directionRTL : styles.directionLTR,
+            ]}
+          >
             <Text
               style={[
                 styles.sectionSubtitle,
@@ -440,7 +477,10 @@ export default function ShareProfileSheet({
               <TouchableOpacity
                 style={[
                   styles.linkChip,
-                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                  {
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
                   isRTL ? styles.linkChipRTL : styles.linkChipLTR,
                 ]}
                 activeOpacity={0.7}
@@ -461,7 +501,12 @@ export default function ShareProfileSheet({
             ) : null}
           </View>
 
-          <View style={styles.quickActionsCard}>
+          <View
+            style={[
+              styles.quickActionsCard,
+              isRTL ? styles.directionRTL : styles.directionLTR,
+            ]}
+          >
             <View style={styles.quickActionsList}>
               <QuickActionButton
                 icon="share-outline"
@@ -499,6 +544,12 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  directionRTL: {
+    direction: 'rtl',
+  },
+  directionLTR: {
+    direction: 'ltr',
   },
   backgroundGradient: {
     position: 'absolute',

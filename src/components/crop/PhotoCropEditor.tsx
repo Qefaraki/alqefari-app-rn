@@ -120,7 +120,8 @@ export function PhotoCropEditor({
           result.path,  // Cropped image file path (uri)
           profileId,    // Profile ID
           `profiles/${profileId}/${croppedFileName}`,  // Custom storage path
-          null          // No progress callback
+          null,         // No progress callback
+          'image/jpeg'  // Force JPEG content type (fixes MIME detection for local files)
         );
 
         if (uploadError) {
