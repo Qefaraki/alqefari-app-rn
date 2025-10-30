@@ -158,14 +158,7 @@ export function CircularNodeRenderer({
 
     if (hasPhoto) {
       if (isTidyVariant) {
-        return (
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={Math.max(radius - 0.6, 0)}
-            color={TIDY_CIRCLE.COLORS.INNER_FILL}
-          />
-        );
+        return null;
       }
 
       return (
