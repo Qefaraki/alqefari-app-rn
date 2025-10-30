@@ -121,13 +121,13 @@ export const RTLVictoryBar = ({
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: In RTL horizontal bar charts, labels appear on the LEFT side!
-      // 85px left (axis labels - compact Arabic ordinals), 25px right (minimal bar margin)
-      // Optimized to maximize bar width while keeping labels readable
+      // 100px left (axis labels - accommodates longer ordinals like "السادس"), 35px right (buffer for 4-digit numbers)
+      // Balanced to prevent clipping on both sides while maximizing bar width
       padding={{
         top: 20,
         bottom: 40,
-        left: 85,
-        right: 25
+        left: 100,
+        right: 35
       }}
       height={height}
       {...chartProps}
@@ -151,9 +151,9 @@ export const RTLVictoryBar = ({
         labelComponent={
           <VictoryLabel
             // CRITICAL FIX: Position labels inside bars, away from axis labels
-            // RTL: +20 (shift RIGHT away from left axis labels)
+            // RTL: +10 (shift RIGHT away from left axis labels, but not too far to overflow)
             // LTR: +12 (shift right inside bar)
-            dx={isRTL ? 20 : 12}
+            dx={isRTL ? 10 : 12}
             // CRITICAL FIX: Add textAnchor for proper label alignment
             // RTL: 'start' (anchor to left side of number, positioned at right end)
             // LTR: 'start' (anchor to left side of number)

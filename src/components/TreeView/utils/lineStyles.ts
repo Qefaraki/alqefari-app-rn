@@ -279,6 +279,7 @@ export function generateBezierPaths(
   lineStyle: LineStyle = LINE_STYLES.BEZIER,
 ): SkPath[] {
   const { parent, children } = connection;
+  const parentDepth = (parent as any).depth ?? 0;
   const paths: SkPath[] = [];
 
   // Calculate actual rendered dimensions (respects rectangular vs circular mode)

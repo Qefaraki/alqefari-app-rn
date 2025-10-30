@@ -106,12 +106,20 @@ const ViewModeContent = React.memo(({
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       'worklet';
-      scrollY.value = event.contentOffset.y;
+      const offsetY = event?.contentOffset?.y;
+      if (typeof offsetY !== 'number') {
+        return;
+      }
+      scrollY.value = offsetY;
     },
     onEndDrag: (event) => {
       'worklet';
-      const velocity = event.velocity?.y || 0;
-      const atTop = event.contentOffset.y <= 0;
+      const velocity = event?.velocity?.y || 0;
+      const offsetY = event?.contentOffset?.y;
+      if (typeof offsetY !== 'number') {
+        return;
+      }
+      const atTop = offsetY <= 0;
 
       // Fast upward swipe at top of scroll (> 800px/s) → close sheet
       if (atTop && velocity < -800) {
@@ -327,7 +335,7 @@ const EditModeContent = React.memo(({
 
   // Track scroll position (batched state updates, dynamic thresholds)
   const handleScroll = useCallback((event) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
+    const scrollY = event?.nativeEvent?.contentOffset?.y ?? 0;
 
     // Determine new state
     const newShowScrollTop = scrollY > SCROLL_CONFIG.SCROLL_TO_TOP_THRESHOLD;

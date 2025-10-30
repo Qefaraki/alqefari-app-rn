@@ -76,11 +76,11 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   const dx = 41;  // Increased to account for larger tidy nodes (extra sibling separation)
   const dyBase = (viewportWidth / (root.height + 1)) * 1.6;
   const generationPadding = 56; // Extra vertical breathing room between generations
-  const depthSpacing = dyBase + generationPadding;
+  const dy = dyBase + generationPadding;
 
   // Create tree layout
   const treeLayout = tree()
-    .nodeSize([dx, depthSpacing])
+    .nodeSize([dx, dy])
     .separation((a, b) => (a.parent === b.parent ? 0.8 : 1.2));
 
   // Sort by name (optional, D3 example does this)
@@ -105,7 +105,6 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
 
   // Normalize coordinates to match straight-layout conventions
   const breadthOffset = -minBreadth;
-  const depthSpacing = dy;
 
   const layoutNodes = [];
   const idToLayout = new Map();
@@ -113,7 +112,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
 
   root.each((d) => {
     const layoutX = d.x + breadthOffset;
-    let layoutY = d.depth * depthSpacing;
+    let layoutY = d.depth * dy;
 
     if (d.depth === 0 && !d.data.father_id) {
       layoutY -= generationPadding; // visual gap above root
