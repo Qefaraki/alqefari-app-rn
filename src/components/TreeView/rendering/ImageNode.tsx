@@ -210,18 +210,10 @@ export function renderImageSkeleton(
  */
 
 /**
- * Render loaded image with rounded square clipping and crop support
+ * Render loaded image with rounded square clipping
  *
- * NEW APPROACH (Fixed): Render-time clipping using Group + clip
- * - Position full image offset by crop amount
- * - Use Group.clip to show only visible portion
- * - GPU-accelerated, no pre-cropping needed
- *
- * Crop Flow:
- * 1. Validate and normalize crop values (prevent edge cases)
- * 2. Calculate crop offset in image pixels
- * 3. Position full image offset by crop amount
- * 4. Apply clip mask (rounded rect) to show only visible region
+ * Uses Skia's fit="cover" mode for automatic scaling and centering.
+ * Works with cropped images (already cropped at file level via photo_url_cropped).
  *
  * @param image - Loaded Skia image
  * @param x - Node X position in canvas coordinates
@@ -229,10 +221,6 @@ export function renderImageSkeleton(
  * @param width - Node display width
  * @param height - Node display height
  * @param cornerRadius - Corner radius for rounded clipping
- * @param crop_top - Top crop (0.0-1.0, optional)
- * @param crop_bottom - Bottom crop (0.0-1.0, optional)
- * @param crop_left - Left crop (0.0-1.0, optional)
- * @param crop_right - Right crop (0.0-1.0, optional)
  * @param opacity - Optional opacity for animations
  * @returns Group with clipped image
  */
@@ -266,11 +254,6 @@ export function renderLoadedImage(
  * Shows low-res image fading out while high-res image fades in with subtle scale animation.
  * Creates smooth quality upgrade effect at extreme zoom levels.
  *
- * Crop Support:
- * - Applies crop to BOTH low-res and high-res images
- * - Ensures consistent crop area during transition
- * - GPU-accelerated (applyCrop ~0.1ms per image)
- *
  * @param lowResImage - Current lower-quality image
  * @param highResImage - Higher-quality image that loaded
  * @param x - Top-left X position
@@ -278,10 +261,6 @@ export function renderLoadedImage(
  * @param width - Image width
  * @param height - Image height
  * @param cornerRadius - Corner radius for rounded square clipping
- * @param crop_top - Top crop (0.0-1.0, optional)
- * @param crop_bottom - Bottom crop (0.0-1.0, optional)
- * @param crop_left - Left crop (0.0-1.0, optional)
- * @param crop_right - Right crop (0.0-1.0, optional)
  * @param lowResOpacity - Animated opacity for low-res (1 → 0)
  * @param highResOpacity - Animated opacity for high-res (0 → 1)
  * @param highResScale - Animated scale for high-res (0.98 → 1.0)
@@ -295,18 +274,10 @@ export function renderMorphTransition(
   width: number,
   height: number,
   cornerRadius: number,
-  crop_top: number = 0,
-  crop_bottom: number = 0,
-  crop_left: number = 0,
-  crop_right: number = 0,
   lowResOpacity: any,
   highResOpacity: any,
   highResScale: any
 ): JSX.Element {
-  // Apply crop to both images for consistent transition
-  const croppedLowRes = applyCrop(lowResImage, crop_top, crop_bottom, crop_left, crop_right);
-  const croppedHighRes = applyCrop(highResImage, crop_top, crop_bottom, crop_left, crop_right);
-
   const centerX = x + width / 2;
   const centerY = y + height / 2;
   const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
@@ -316,7 +287,7 @@ export function renderMorphTransition(
       {/* Low-res image fading out */}
       <Group clip={clipPath} opacity={lowResOpacity}>
         <SkiaImage
-          image={croppedLowRes}
+          image={lowResImage}
           x={x}
           y={y}
           width={width}
@@ -336,7 +307,7 @@ export function renderMorphTransition(
           transform={[{ scaleX: highResScale }, { scaleY: highResScale }]}
         >
           <SkiaImage
-            image={croppedHighRes}
+            image={highResImage}
             x={x}
             y={y}
             width={width}
@@ -548,10 +519,6 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
           width,
           height,
           cornerRadius,
-          normalizedCrop.crop_top,
-          normalizedCrop.crop_bottom,
-          normalizedCrop.crop_left,
-          normalizedCrop.crop_right,
           0.9
         );
       }
@@ -576,10 +543,6 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         width,
         height,
         cornerRadius,
-        normalizedCrop.crop_top,
-        normalizedCrop.crop_bottom,
-        normalizedCrop.crop_left,
-        normalizedCrop.crop_right,
         lowResOpacity,
         highResOpacity,
         highResScale
@@ -593,11 +556,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       y,
       width,
       height,
-      cornerRadius,
-      normalizedCrop.crop_top,
-      normalizedCrop.crop_bottom,
-      normalizedCrop.crop_left,
-      normalizedCrop.crop_right
+      cornerRadius
     );
   }
 );

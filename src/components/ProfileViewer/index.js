@@ -256,31 +256,34 @@ const EditModeContent = React.memo(({
   );
 
   return (
-    <BottomSheetScrollView
-      ref={scrollRef}
-      contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingTop: 4,
-        paddingBottom: insets.bottom + 80,
-        gap: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-      keyboardDismissMode="interactive"
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
-      ListHeaderComponent={
-        <View style={{ paddingTop: 8, paddingBottom: 12 }}>
-          <SegmentedControl
-            options={enhancedTabs}
-            value={activeTab}
-            onChange={handleTabChange}
-          />
-        </View>
-      }
-    >
+    <View style={{ flex: 1 }}>
+      {/* Sticky Tabs */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
+        <SegmentedControl
+          options={enhancedTabs}
+          value={activeTab}
+          onChange={handleTabChange}
+        />
+      </View>
+
+      {/* Scrollable Content */}
+      <BottomSheetScrollView
+        style={{ flex: 1 }}
+        ref={scrollRef}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 4,
+          paddingBottom: insets.bottom + 80,
+          gap: 20,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
+      >
         {/* Lazy load tabs - only render the active one */}
         {activeTab === 'general' && (
           <TabGeneral
@@ -315,6 +318,7 @@ const EditModeContent = React.memo(({
           <TabContact form={form} updateField={form.updateField} />
         )}
       </BottomSheetScrollView>
+    </View>
   );
 });
 EditModeContent.displayName = 'EditModeContent';
