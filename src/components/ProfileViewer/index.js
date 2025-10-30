@@ -1029,12 +1029,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     bottomSheetRef.current?.close?.();
   }, []);
 
-  // ✅ FIX #3: Create worklet-safe close function for gesture handlers
-  const closeSheetFromGesture = useCallback(() => {
-    'worklet';
-    runOnJS(closeSheet)();
-  }, [closeSheet]);
-
   // Momentum dismiss gesture - captures overscroll velocity for quick sheet dismissal
   const momentumDismissGesture = useMemo(() => {
     return Gesture.Pan()
@@ -1051,10 +1045,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
         if (fastUpwardSwipe && significantTranslation) {
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-          closeSheetFromGesture();
+          runOnJS(closeSheet)();
         }
       });
-  }, [mode, closeSheetFromGesture]);
+  }, [mode, closeSheet]);
 
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
@@ -1081,7 +1075,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         if (isEdgeGesture && event.translationX < -100) {
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           isEdgeGesture = false; // Prevent multiple triggers
-          closeSheetFromGesture();
+          runOnJS(closeSheet)();
         }
       })
       .onEnd((event) => {
@@ -1089,10 +1083,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         // Also trigger on fast swipe (velocity check)
         if (isEdgeGesture && event.velocityX < -800) {
           runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
-          closeSheetFromGesture();
+          runOnJS(closeSheet)();
         }
       });
-  }, [mode, form.isDirty, screenWidth, closeSheetFromGesture]);
+  }, [mode, form.isDirty, screenWidth, closeSheet]);
 
   // Compose gestures - both can work simultaneously
   const composedGesture = useMemo(() => {
