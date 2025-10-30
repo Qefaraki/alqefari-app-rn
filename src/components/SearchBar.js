@@ -245,6 +245,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
           .split(/\s+/)
           .filter((name) => name.length > 0);
 
+        console.log("🔍 Searching for:", names, "| Min length:", names.length > 0 ? Math.min(...names.map(n => n.length)) : 0);
 
         // Use search service (uses search_name_chain RPC with partial matching)
         const { data, error } =
@@ -253,10 +254,14 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
           });
 
         if (error) {
+          console.error("❌ Search error:", error);
+          console.error("Error details:", JSON.stringify(error, null, 2));
           setResults([]);
           setShowResults(false);
         } else {
+          console.log("✅ Search results:", data?.length || 0, "items");
           if (data && data.length > 0) {
+            console.log("First result:", {
               name: data[0].name,
               name_chain: data[0].name_chain,
               hasTitle: !!data[0].professional_title
@@ -289,6 +294,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
           }
         }
       } catch (err) {
+        console.error("Search exception:", err);
         setResults([]);
         setShowResults(false);
       }
@@ -527,8 +533,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 returnKeyType="search"
                 textAlign="right"
                 multiline={false}
-                numberOfLines={1}
-                ellipsizeMode="tail"
                 allowFontScaling
               />
 
