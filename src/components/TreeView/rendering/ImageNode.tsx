@@ -198,72 +198,42 @@ export function renderImageSkeleton(
 
 
 /**
- * Apply crop to Skia image using GPU (makeImageFromRect)
+ * REMOVED: applyCrop() function (makeImageFromRect doesn't exist in React Native Skia)
  *
- * Crops image before rendering by creating a new Skia image from the source rectangle.
- * This is GPU-accelerated and maintains aspect ratio correctly.
+ * Previous approach tried to pre-crop images using image.makeImageFromRect() which is NOT
+ * available in the React Native Skia wrapper (only exists in native Skia C++).
  *
- * Strategy: Crop BEFORE circular mask
- * - Source image → makeImageFromRect (crop) → SkiaImage (fit="cover") → Group.clip (rounded corners)
- *
- * @param image - Source Skia image
- * @param crop_top - Top crop (0.0-1.0)
- * @param crop_bottom - Bottom crop (0.0-1.0)
- * @param crop_left - Left crop (0.0-1.0)
- * @param crop_right - Right crop (0.0-1.0)
- * @returns Cropped Skia image or original if no crop
+ * New approach: Render-time clipping using Group + clip (see renderLoadedImage below)
+ * - Position full image offset by crop amount
+ * - Use Group.clip to show only visible region
+ * - GPU-accelerated, no memory overhead
  */
-export function applyCrop(
-  image: any,
-  crop_top: number,
-  crop_bottom: number,
-  crop_left: number,
-  crop_right: number
-): any {
-  // Skip if no crop applied
-  if (crop_top === 0 && crop_bottom === 0 && crop_left === 0 && crop_right === 0) {
-    return image;
-  }
-
-  // Calculate source rectangle in image coordinates
-  const imageWidth = image.width();
-  const imageHeight = image.height();
-
-  const srcX = crop_left * imageWidth;
-  const srcY = crop_top * imageHeight;
-  const srcWidth = (1.0 - crop_left - crop_right) * imageWidth;
-  const srcHeight = (1.0 - crop_top - crop_bottom) * imageHeight;
-
-  // Create source rectangle
-  const srcRect = Skia.XYWHRect(srcX, srcY, srcWidth, srcHeight);
-
-  // Apply GPU crop using makeImageFromRect
-  // This is ~0.1ms per image and maintains image quality
-  return image.makeImageFromRect(srcRect);
-}
 
 /**
- * Render loaded image with rounded square clipping
+ * Render loaded image with rounded square clipping and crop support
  *
- * Displays image clipped to rounded square shape.
- * Uses Group.clip for clean edge rendering.
+ * NEW APPROACH (Fixed): Render-time clipping using Group + clip
+ * - Position full image offset by crop amount
+ * - Use Group.clip to show only visible portion
+ * - GPU-accelerated, no pre-cropping needed
  *
  * Crop Flow:
- * 1. Apply crop (if present) using applyCrop() → GPU operation ~0.1ms
- * 2. Render with fit="cover" → maintains aspect ratio
- * 3. Apply rounded corners mask → Group.clip
+ * 1. Validate and normalize crop values (prevent edge cases)
+ * 2. Calculate crop offset in image pixels
+ * 3. Position full image offset by crop amount
+ * 4. Apply clip mask (rounded rect) to show only visible region
  *
  * @param image - Loaded Skia image
- * @param x - Top-left X position
- * @param y - Top-left Y position
- * @param width - Image width
- * @param height - Image height
- * @param cornerRadius - Corner radius for rounded square clipping
+ * @param x - Node X position in canvas coordinates
+ * @param y - Node Y position in canvas coordinates
+ * @param width - Node display width
+ * @param height - Node display height
+ * @param cornerRadius - Corner radius for rounded clipping
  * @param crop_top - Top crop (0.0-1.0, optional)
  * @param crop_bottom - Bottom crop (0.0-1.0, optional)
  * @param crop_left - Left crop (0.0-1.0, optional)
  * @param crop_right - Right crop (0.0-1.0, optional)
- * @param opacity - Optional opacity shared value for animations
+ * @param opacity - Optional opacity for animations
  * @returns Group with clipped image
  */
 export function renderLoadedImage(
@@ -279,19 +249,58 @@ export function renderLoadedImage(
   crop_right: number = 0,
   opacity?: any
 ): JSX.Element {
-  // Apply crop if present (GPU operation ~0.1ms)
-  const croppedImage = applyCrop(image, crop_top, crop_bottom, crop_left, crop_right);
+  // Validate and normalize crop values (prevent edge cases from invalid DB data)
+  const clamp = (v: number) => Math.max(0, Math.min(0.999, v ?? 0));
+  const safeCrop = {
+    top: clamp(crop_top),
+    bottom: clamp(crop_bottom),
+    left: clamp(crop_left),
+    right: clamp(crop_right),
+  };
 
-  const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
+  // Get image dimensions
+  const imageWidth = image.width();
+  const imageHeight = image.height();
+
+  // Calculate visible portion after crops (0.0-1.0 range)
+  const visibleWidthRatio = 1 - safeCrop.left - safeCrop.right;
+  const visibleHeightRatio = 1 - safeCrop.top - safeCrop.bottom;
+
+  // Calculate visible dimensions in image pixels
+  const visibleWidth = imageWidth * visibleWidthRatio;
+  const visibleHeight = imageHeight * visibleHeightRatio;
+
+  // Calculate scale to fill node container (cover behavior like CSS)
+  const scaleX = width / visibleWidth;
+  const scaleY = height / visibleHeight;
+  const scale = Math.max(scaleX, scaleY);
+
+  // Scaled image dimensions (NOT raw dimensions)
+  const scaledWidth = imageWidth * scale;
+  const scaledHeight = imageHeight * scale;
+
+  // Offset to align visible portion with node position
+  const offsetX = x - (safeCrop.left * imageWidth * scale);
+  const offsetY = y - (safeCrop.top * imageHeight * scale);
+
+  // Create clip path at node position (rounded rect)
+  const clipPath = rrect(
+    rect(x, y, width, height),
+    cornerRadius,
+    cornerRadius
+  );
+
+  // Render: Position scaled image offset by crop amount, clip to node bounds
+  // This shows only the visible (non-cropped) portion of the image at correct scale
   return (
     <Group clip={clipPath} opacity={opacity}>
       <SkiaImage
-        image={croppedImage}
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fit="cover"
+        image={image}
+        x={offsetX}           // Offset image to align visible portion
+        y={offsetY}           // Offset image to align visible portion
+        width={scaledWidth}   // Scaled to fit node container
+        height={scaledHeight} // Scaled to fit node container
+        fit="none"            // No auto-scaling (manual positioning)
       />
     </Group>
   );

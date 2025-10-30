@@ -260,11 +260,13 @@ const EditModeContent = React.memo(({
       {/* Sticky Tabs - Outside scroll view */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
         <NativeViewGestureHandler disallowInterruption={true}>
-          <SegmentedControl
-            options={enhancedTabs}
-            value={activeTab}
-            onChange={handleTabChange}
-          />
+          <View>
+            <SegmentedControl
+              options={enhancedTabs}
+              value={activeTab}
+              onChange={handleTabChange}
+            />
+          </View>
         </NativeViewGestureHandler>
       </View>
 
@@ -448,13 +450,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       if (mode === 'edit') {
         return (
           <NativeViewGestureHandler disallowInterruption={true}>
-            <EditHeader
-              onCancel={handleCancel}
-              onSubmit={handleSubmit}
-              saving={saving}
-              canSubmit={form.isDirty}
-              accessMode={accessMode}
-            />
+            <View>
+              <EditHeader
+                onCancel={handleCancel}
+                onSubmit={handleSubmit}
+                saving={saving}
+                canSubmit={form.isDirty}
+                accessMode={accessMode}
+              />
+            </View>
           </NativeViewGestureHandler>
         );
       }

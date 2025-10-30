@@ -41,7 +41,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       (actualStage?.value || actualStage) || { x: 0, y: 0, scale: 1 },
       actualDimensions,
       enrichedNodesRef.current,
-      500 // padding: preload nodes 500px outside viewport (increased for curves mode)
+      250 // padding: balanced for fast scrolling without overwhelming batch size
     );
   }, [nodes, actualStage, actualDimensions]);
 

@@ -40,6 +40,7 @@ import tokens, { useAccessibilitySize } from '../../../ui/tokens';
 import { formatNameWithTitle } from '../../../../services/professionalTitleService';
 import { useTreeStore } from '../../../../stores/useTreeStore';
 import { toArabicNumerals } from '../../../../utils/dateUtils';
+import { getCroppedImageStyle, hasCrop } from '../../../../utils/imageCropStyles';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { hero: heroTokens } = profileViewer;
@@ -265,15 +266,43 @@ const EnhancedHero = ({
       );
     }
 
+    // Apply CSS-based cropping if crop values exist
+    const shouldApplyCrop = hasCrop(person);
+    const cropStyle = shouldApplyCrop
+      ? getCroppedImageStyle(person, {
+          width: heroTokens.avatarSize,
+          height: heroTokens.avatarSize,
+        })
+      : null;
+
     return (
       <Galeria urls={[person.photo_url]}>
         <Galeria.Image index={0}>
-          <Image
-            source={{ uri: person.photo_url }}
-            style={styles.avatarImage}
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-          />
+          {shouldApplyCrop ? (
+            // Cropped image: Wrap in overflow container with manual positioning
+            <View
+              style={{
+                overflow: 'hidden',
+                width: heroTokens.avatarSize,
+                height: heroTokens.avatarSize,
+                borderRadius: heroTokens.avatarBorderRadius,
+              }}
+            >
+              <Image
+                source={{ uri: person.photo_url }}
+                style={cropStyle}
+                accessibilityIgnoresInvertColors
+              />
+            </View>
+          ) : (
+            // No crop: Use standard cover mode
+            <Image
+              source={{ uri: person.photo_url }}
+              style={styles.avatarImage}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
+          )}
         </Galeria.Image>
       </Galeria>
     );
