@@ -53,6 +53,85 @@ export async function copyProfileLink(
   }
 }
 
+interface ShareProfileViaWhatsAppOptions {
+  fallbackToCopy?: boolean;
+}
+
+/**
+ * Shares profile via WhatsApp with optional fallback behaviour.
+ * @param profile - Target profile object
+ * @param mode - 'share' or 'invite'
+ * @param inviterProfile - Optional inviter profile for tracking
+ * @param options - Behavioural overrides (fallback to copy, etc.)
+ * @returns True if WhatsApp share was initiated
+ */
+export async function shareProfileViaWhatsApp(
+  profile: any,
+  mode: 'share' | 'invite' = 'share',
+  inviterProfile?: any,
+  options: ShareProfileViaWhatsAppOptions = {}
+): Promise<boolean> {
+  const { fallbackToCopy = false } = options;
+
+  try {
+    if (!profile?.share_code) {
+      console.error('[ProfileSharing] Cannot share via WhatsApp - profile missing share_code');
+      if (fallbackToCopy) {
+        Alert.alert('خطأ', 'لا يمكن مشاركة الملف الشخصي');
+      }
+      return false;
+    }
+
+    const link = generateProfileLink(profile.share_code, inviterProfile?.share_code);
+
+    if (!link) {
+      if (fallbackToCopy) {
+        Alert.alert('خطأ', 'فشل إنشاء رابط المشاركة');
+      }
+      return false;
+    }
+
+    const message = getShareMessage(profile, mode, inviterProfile);
+    const fullMessage = `${message}\n\n${link}`;
+    const encodedMessage = encodeURIComponent(fullMessage);
+    const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
+
+    const canOpen = await Linking.canOpenURL(whatsappUrl);
+
+    if (canOpen) {
+      await Linking.openURL(whatsappUrl);
+
+      // Log WhatsApp share (non-blocking)
+      logShareEvent(profile.id, 'whatsapp', inviterProfile?.id).catch((err) =>
+        console.warn('[ProfileSharing] Failed to log share event:', err)
+      );
+
+      return true;
+    }
+
+    if (fallbackToCopy) {
+      const copied = await copyProfileLink(profile, inviterProfile);
+      if (copied) {
+        Alert.alert(
+          'واتساب غير متوفر',
+          'تم نسخ الرابط. يمكنك لصقه في أي تطبيق للمشاركة.'
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[ProfileSharing] WhatsApp share failed:', error);
+
+    if (fallbackToCopy) {
+      const copied = await copyProfileLink(profile, inviterProfile);
+      if (copied) {
+        Alert.alert('تم النسخ', 'تم نسخ الرابط بدلاً من ذلك');
+      }
+    }
+  }
+
+  return false;
+}
+
 /**
  * Shares profile via native share sheet or WhatsApp
  * @param profile - Target profile object
@@ -82,12 +161,11 @@ export async function shareProfile(
 
     // For invite mode, prefer WhatsApp if available
     if (mode === 'invite') {
-      const canOpenWhatsApp = await Linking.canOpenURL('whatsapp://');
+      const shared = await shareProfileViaWhatsApp(profile, mode, inviterProfile, {
+        fallbackToCopy: false,
+      });
 
-      if (canOpenWhatsApp) {
-        await shareViaWhatsApp(message, link, profile, inviterProfile);
-        return;
-      }
+      if (shared) return;
     }
 
     // Use native share sheet (Share.share works for both iOS and Android)
@@ -131,52 +209,6 @@ function getShareMessage(
 
   // Share mode
   return `شاهد ملف ${name} في شجرة عائلة القفاري`;
-}
-
-/**
- * Opens WhatsApp with pre-filled message and link
- * @param message - Arabic message text
- * @param link - Profile link URL
- * @param profile - Target profile
- * @param inviterProfile - Optional inviter profile
- */
-async function shareViaWhatsApp(
-  message: string,
-  link: string,
-  profile: any,
-  inviterProfile?: any
-): Promise<void> {
-  try {
-    // Encode message + link for WhatsApp
-    const fullMessage = `${message}\n\n${link}`;
-    const encodedMessage = encodeURIComponent(fullMessage);
-
-    // WhatsApp deep link (no phone number = open WhatsApp with message ready)
-    const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
-
-    const canOpen = await Linking.canOpenURL(whatsappUrl);
-
-    if (canOpen) {
-      await Linking.openURL(whatsappUrl);
-
-      // Log WhatsApp share (non-blocking)
-      logShareEvent(profile.id, 'whatsapp', inviterProfile?.id).catch((err) =>
-        console.warn('[ProfileSharing] Failed to log share event:', err)
-      );
-    } else {
-      // Fallback if WhatsApp not installed (shouldn't happen as we check before calling)
-      await copyProfileLink(profile, inviterProfile);
-      Alert.alert(
-        'واتساب غير متوفر',
-        'تم نسخ الرابط. يمكنك لصقه في أي تطبيق للمشاركة.'
-      );
-    }
-  } catch (error) {
-    console.error('[ProfileSharing] WhatsApp share failed:', error);
-    // Fallback to copy
-    await copyProfileLink(profile, inviterProfile);
-    Alert.alert('تم النسخ', 'تم نسخ الرابط بدلاً من ذلك');
-  }
 }
 
 /**

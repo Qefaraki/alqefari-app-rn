@@ -1669,73 +1669,82 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Always render BottomSheet (even when closed at index=-1)
   // This allows smooth transition from closed → open when person loads
+  // Only wrap in GestureDetector when in view mode to avoid touch blocking
+  const bottomSheetContent = (
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={currentSnapIndex}
+      snapPoints={snapPoints}
+      enablePanDownToClose={mode !== 'edit'}
+      enableContentPanningGesture={mode !== 'edit'}
+      enableHandlePanningGesture={true}
+      activeOffsetY={mode === 'edit' ? [-20, 20] : [-1, 10]}
+      backdropComponent={renderBackdrop}
+      handleComponent={handleComponent}
+      animatedPosition={animatedPosition}
+      animateOnMount={true}
+      keyboardBehavior="fillParent"
+      android_keyboardInputMode="adjustResize"
+      enableDynamicSizing={false}
+      onClose={() => {
+        onClose?.();
+      }}
+      onChange={handleSheetChange}
+      backgroundStyle={styles.sheetBackground}
+    >
+      {/* Conditional content rendering - skeleton while loading, then view/edit modes */}
+      {!person && loading ? (
+        <SkeletonContent insets={insets} />
+      ) : mode === 'view' ? (
+        <ViewModeContent
+          insets={insets}
+          handleMenuPress={handleMenuPress}
+          handleCopyChain={handleCopyChain}
+          handleEditPress={handleEditPress}
+          closeSheet={closeSheet}
+          pending={pending}
+          pendingSummary={pendingSummary}
+          loadingStates={loadingStates}
+          person={person}
+          metrics={metrics}
+          marriages={marriages}
+          onNavigateToProfile={onNavigateToProfile}
+          accessMode={accessMode}
+          scrollY={scrollY}
+          scrollRef={viewScrollRef}
+          canEdit={canEdit}
+          refreshing={refreshing}
+          handleRefresh={handleRefresh}
+        />
+      ) : (
+        <EditModeContent
+          handleCancel={handleCancel}
+          handleSubmit={handleSubmit}
+          saving={saving}
+          form={form}
+          permissionLoading={permissionLoading}
+          accessMode={accessMode}
+          insets={insets}
+          person={person}
+          onNavigateToProfile={onNavigateToProfile}
+          setMarriages={setMarriages}
+          scrollRef={editScrollRef}
+          handleCropPress={handleCropPress}
+          userProfile={userProfile}
+        />
+      )}
+    </BottomSheet>
+  );
+
   return (
     <>
-      <GestureDetector gesture={edgeSwipeGesture}>
-        <BottomSheet
-          ref={bottomSheetRef}
-          index={currentSnapIndex}
-          snapPoints={snapPoints}
-          enablePanDownToClose={mode !== 'edit'}
-          enableContentPanningGesture={mode !== 'edit'}
-          enableHandlePanningGesture={true}
-          activeOffsetY={mode === 'edit' ? [-20, 20] : [-1, 10]}
-          backdropComponent={renderBackdrop}
-          handleComponent={handleComponent}
-          animatedPosition={animatedPosition}
-          animateOnMount={true}
-          keyboardBehavior="fillParent"
-          android_keyboardInputMode="adjustResize"
-          enableDynamicSizing={false}
-          onClose={() => {
-            onClose?.();
-          }}
-          onChange={handleSheetChange}
-          backgroundStyle={styles.sheetBackground}
-        >
-        {/* Conditional content rendering - skeleton while loading, then view/edit modes */}
-        {!person && loading ? (
-          <SkeletonContent insets={insets} />
-        ) : mode === 'view' ? (
-          <ViewModeContent
-            insets={insets}
-            handleMenuPress={handleMenuPress}
-            handleCopyChain={handleCopyChain}
-            handleEditPress={handleEditPress}
-            closeSheet={closeSheet}
-            pending={pending}
-            pendingSummary={pendingSummary}
-            loadingStates={loadingStates}
-            person={person}
-            metrics={metrics}
-            marriages={marriages}
-            onNavigateToProfile={onNavigateToProfile}
-            accessMode={accessMode}
-            scrollY={scrollY}
-            scrollRef={viewScrollRef}
-            canEdit={canEdit}
-            refreshing={refreshing}
-            handleRefresh={handleRefresh}
-          />
-        ) : (
-          <EditModeContent
-            handleCancel={handleCancel}
-            handleSubmit={handleSubmit}
-            saving={saving}
-            form={form}
-            permissionLoading={permissionLoading}
-            accessMode={accessMode}
-            insets={insets}
-            person={person}
-            onNavigateToProfile={onNavigateToProfile}
-            setMarriages={setMarriages}
-            scrollRef={editScrollRef}
-            handleCropPress={handleCropPress}
-            userProfile={userProfile}
-          />
-        )}
-      </BottomSheet>
-      </GestureDetector>
+      {mode === 'view' ? (
+        <GestureDetector gesture={edgeSwipeGesture}>
+          {bottomSheetContent}
+        </GestureDetector>
+      ) : (
+        bottomSheetContent
+      )}
 
       <PreEditModal
         visible={preEditVisible}
