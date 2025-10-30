@@ -337,59 +337,244 @@ const IntroSurface = () => (
   </View>
 );
 
-// Hero Section: Total members + Gender donut chart (simplified, HIG-compliant)
+// Hero Section: Total members + Gender donut chart
 const HeroSection = ({ stats }) => {
-  if (!stats?.gender || stats.gender.total === 0) {
+  const gender = stats?.gender;
+
+  if (!gender || gender.total === 0) {
     return (
-      <View style={styles.section}>
+      <View style={styles.card}>
         <Text style={styles.emptyStateText}>لا توجد بيانات متاحة</Text>
       </View>
     );
   }
 
-  const { gender } = stats;
-  const malePercentage = ((gender.male / gender.total) * 100).toFixed(0);
-  const femalePercentage = ((gender.female / gender.total) * 100).toFixed(0);
-  const generations = stats.generations?.length || 0;
+  const maleCount = gender.male ?? 0;
+  const femaleCount = gender.female ?? 0;
+  const totalCount = gender.total ?? maleCount + femaleCount;
+  const generationsCount = stats?.generations?.length ?? 0;
+  const lastUpdated = formatDateTime(stats?.calculated_at);
 
   return (
-    <View style={styles.section}>
-      {/* Hero Number */}
-      <View style={styles.heroNumberContainer}>
-        <Text style={styles.heroNumber}>{gender.total.toLocaleString('ar-SA')}</Text>
-        <Text style={styles.heroLabel}>فرد عبر {generations} أجيال</Text>
-        <View style={styles.genderBreakdown}>
-          <Text style={styles.genderText}>
-            {gender.male.toLocaleString('ar-SA')} ذكور ({malePercentage}%)  •  {gender.female.toLocaleString('ar-SA')} إناث ({femalePercentage}%)
-          </Text>
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <View>
+          <Text style={styles.cardEyebrow}>إجمالي أفراد العائلة</Text>
+          <Text style={styles.heroNumber}>{formatNumber(totalCount)}</Text>
+          <Text style={styles.cardSubtitle}>توزيع الأعضاء حسب الجنس عبر الأجيال</Text>
+        </View>
+        {lastUpdated && (
+          <View style={styles.badge}>
+            <Ionicons name="time-outline" size={16} color={palette.primary} />
+            <Text style={styles.badgeText}>{lastUpdated}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.heroContent}>
+        <View style={styles.heroMeta}>
+          <MetricBadge
+            tone="primary"
+            icon="man-outline"
+            label="ذكور"
+            value={formatNumber(maleCount)}
+            percent={formatPercent(maleCount, totalCount)}
+          />
+          <MetricBadge
+            tone="secondary"
+            icon="woman-outline"
+            label="إناث"
+            value={formatNumber(femaleCount)}
+            percent={formatPercent(femaleCount, totalCount)}
+          />
+          {generationsCount > 0 && (
+            <View style={styles.heroGenerations}>
+              <Ionicons name="layers-outline" size={18} color={palette.primary} />
+              <Text style={styles.heroGenerationsText}>
+                يغطي {generationsCount} أجيال متصلة
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View
+          style={styles.heroChart}
+          accessibilityLabel={`توزيع الأفراد: ${maleCount} ذكور و ${femaleCount} إناث من إجمالي ${totalCount}`}
+        >
+          <RTLVictoryPie
+            data={[
+              { x: '', y: maleCount },
+              { x: '', y: femaleCount },
+            ]}
+            colorScale={[palette.primary, palette.secondary]}
+            innerRadius={85}
+            width={260}
+            height={220}
+            padding={{ top: 0, bottom: 0, left: 0, right: 0 }}
+            labels={() => null}
+            style={{
+              data: {
+                stroke: palette.background,
+                strokeWidth: 4,
+              },
+            }}
+            animate={{ duration: 650, easing: 'cubicOut' }}
+          />
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const MetricBadge = ({ tone = 'primary', icon, label, value, percent }) => {
+  const toneColor =
+    tone === 'secondary'
+      ? palette.secondary
+      : tone === 'neutral'
+      ? `${palette.text}`
+      : palette.primary;
+
+  return (
+    <View style={styles.metricBadge}>
+      <View style={[styles.metricBadgeIcon, { backgroundColor: `${toneColor}16` }]}>
+        <Ionicons name={icon} size={18} color={toneColor} />
+      </View>
+      <View style={styles.metricBadgeTextGroup}>
+        <Text style={styles.metricBadgeLabel}>{label}</Text>
+        <Text style={styles.metricBadgeValue}>{value}</Text>
+      </View>
+      {percent && <Text style={[styles.metricBadgePercent, { color: toneColor }]}>{percent}</Text>}
+    </View>
+  );
+};
+
+const OperationalSnapshot = ({ stats }) => {
+  const vital = stats?.vital_status;
+  const quality = stats?.data_quality;
+  const totalProfiles = quality?.total_profiles ?? stats?.gender?.total ?? 0;
+
+  const tiles = useMemo(() => {
+    const items = [];
+    if (typeof vital?.living === 'number') {
+      items.push({
+        key: 'living',
+        label: 'أعضاء على قيد الحياة',
+        value: formatNumber(vital.living),
+        caption: totalProfiles ? formatPercent(vital.living, totalProfiles) : null,
+        icon: 'heart-outline',
+        iconColor: palette.primary,
+        tint: `${palette.primary}12`,
+      });
+    }
+    if (typeof vital?.deceased === 'number') {
+      items.push({
+        key: 'deceased',
+        label: 'أعضاء متوفون',
+        value: formatNumber(vital.deceased),
+        caption: totalProfiles ? formatPercent(vital.deceased, totalProfiles) : null,
+        icon: 'flower-outline',
+        iconColor: palette.secondary,
+        tint: `${palette.secondary}12`,
+      });
+    }
+    if (quality?.total_profiles && typeof quality.with_photos === 'number') {
+      items.push({
+        key: 'photos',
+        label: 'ملفات مع صور',
+        value: formatNumber(quality.with_photos),
+        caption: formatPercent(quality.with_photos, quality.total_profiles),
+        icon: 'image-outline',
+        iconColor: palette.primary,
+        tint: `${palette.primary}0F`,
+      });
+    }
+    if (quality?.total_profiles && typeof quality.with_birthdates === 'number') {
+      items.push({
+        key: 'birthdates',
+        label: 'تواريخ ميلاد مسجلة',
+        value: formatNumber(quality.with_birthdates),
+        caption: formatPercent(quality.with_birthdates, quality.total_profiles),
+        icon: 'calendar-outline',
+        iconColor: palette.secondary,
+        tint: `${palette.secondary}0F`,
+      });
+    }
+    return items;
+  }, [quality, totalProfiles, vital]);
+
+  if (!tiles.length && !(quality?.total_profiles > 0)) {
+    return null;
+  }
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeaderRow}>
+        <View>
+          <Text style={styles.cardEyebrow}>نظرة تشغيلية</Text>
+          <Text style={styles.cardSubtitle}>حالة الأعضاء وجودة البيانات الحالية</Text>
         </View>
       </View>
 
-      {/* Gender Donut Chart - Clean, no labels */}
-      <View
-        style={styles.chartContainer}
-        accessibilityLabel={`توزيع الأفراد: ${gender.male} ذكور و ${gender.female} إناث من إجمالي ${gender.total}`}
-      >
-        <RTLVictoryPie
-          data={[
-            { x: '', y: gender.male },
-            { x: '', y: gender.female },
-          ]}
-          colorScale={[palette.primary, palette.secondary]} // Najdi Crimson & Desert Ochre
-          innerRadius={90}
-          width={320}
-          height={280}
-          padding={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          labels={() => null} // No labels on chart
-          style={{
-            data: {
-              stroke: palette.background,
-              strokeWidth: 4,
-            },
-          }}
-          animate={{ duration: 600, easing: 'cubicOut' }}
-        />
-      </View>
+      {tiles.length > 0 && (
+        <View style={styles.metricsGrid}>
+          {tiles.map((tile) => (
+            <View key={tile.key} style={styles.metricTile}>
+              <View style={[styles.metricTileIcon, { backgroundColor: tile.tint }]}>
+                <Ionicons name={tile.icon} size={18} color={tile.iconColor} />
+              </View>
+              <Text style={styles.metricTileLabel}>{tile.label}</Text>
+              <Text style={styles.metricTileValue}>{tile.value}</Text>
+              {tile.caption && <Text style={styles.metricTileCaption}>{tile.caption}</Text>}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {quality?.total_profiles ? (
+        <View style={styles.qualitySection}>
+          <View style={styles.qualityRow}>
+            <Text style={styles.qualityLabel}>تغطية الصور</Text>
+            <Text style={styles.qualityValue}>
+              {formatNumber(quality.with_photos)} • {formatPercent(quality.with_photos, quality.total_profiles)}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(
+                    100,
+                    Math.round((quality.with_photos / quality.total_profiles) * 100)
+                  )}%`,
+                  backgroundColor: palette.primary,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={[styles.qualityRow, { marginTop: spacing.md }]}>
+            <Text style={styles.qualityLabel}>تواريخ الميلاد الموثقة</Text>
+            <Text style={styles.qualityValue}>
+              {formatNumber(quality.with_birthdates)} • {formatPercent(quality.with_birthdates, quality.total_profiles)}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(
+                    100,
+                    Math.round((quality.with_birthdates / quality.total_profiles) * 100)
+                  )}%`,
+                  backgroundColor: palette.secondary,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 };
