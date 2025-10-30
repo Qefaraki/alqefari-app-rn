@@ -109,6 +109,10 @@ const LifeEventsSection = ({ person = {} }) => {
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm,
           marginVertical: spacing.sm,
+          backgroundColor: `rgba(255, 255, 255, ${timelineTokens.containerBackgroundOpacity})`,  // Semi-transparent white overlay
+          borderRadius: tokens.radii.md,  // 12px border radius
+          paddingTop: timelineTokens.containerPadding,  // Add internal padding
+          paddingBottom: timelineTokens.containerPadding,
         },
         timelineContainer: {
           paddingLeft: timelineTokens.leftPadding,

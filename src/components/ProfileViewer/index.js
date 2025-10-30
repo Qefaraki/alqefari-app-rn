@@ -40,9 +40,7 @@ import {
   EnhancedHero,
   BioSection,
   DataFieldsSection,
-  SocialMediaSection,
   LifeEventsSection,
-  ContactActionsSection,
 } from './ViewMode/sections';
 import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
 import FamilyCardSkeleton from '../ui/skeletons/FamilyCardSkeleton';
@@ -149,11 +147,6 @@ const ViewModeContent = React.memo(({
 
     <PhotosCard person={person} accessMode={accessMode} />
 
-    {/* Social Media Section - Icon grid with links */}
-    {!loadingStates.permissions && person?.social_links && (
-      <SocialMediaSection socialLinks={person.social_links} />
-    )}
-
     {/* Life Events Timeline - Birth/Death events */}
     {!loadingStates.permissions && (
       <LifeEventsSection person={person} />
@@ -169,7 +162,6 @@ const ViewModeContent = React.memo(({
       <>
         <TimelineCard timeline={person?.timeline} />
         <ProfessionalCard person={person} />
-        <ContactActionsSection phone={person?.phone} email={person?.email} />
       </>
     )}
 
@@ -214,13 +206,13 @@ ViewModeContent.displayName = 'ViewModeContent';
 const SCROLL_CONFIG = {
   SCROLL_TO_TOP_THRESHOLD: 200,
   SECTION_SCROLL_OFFSET: 10,
-  SCROLL_DEBOUNCE_MS: 300,
+  SCROLL_DEBOUNCE_MS: 150,
   SCROLL_EVENT_THROTTLE: 16,
 };
 
 // Section definitions for navigation
 const SECTIONS = [
-  { id: 'general', label: 'معلومات عامة' },
+  { id: 'general', label: 'عام' },
   { id: 'details', label: 'التفاصيل' },
   { id: 'family', label: 'العائلة' },
   { id: 'contact', label: 'التواصل' },
@@ -279,6 +271,12 @@ const EditModeContent = React.memo(({
       return;
     }
     lastScrollTime.current = now;
+
+    // IMMEDIATELY update active state before scrolling
+    setScrollState(prev => ({
+      ...prev,
+      activeSection: sectionId
+    }));
 
     const sectionIndex = SECTIONS.findIndex(s => s.id === sectionId);
     if (sectionIndex >= 0 && sectionRefs.current[sectionIndex]?.current) {
@@ -624,6 +622,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             saving={saving}
             canSubmit={form.isDirty}
             accessMode={accessMode}
+            isFullScreen={currentSnapIndex === 2}
           />
         );
       }
@@ -635,7 +634,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         </View>
       );
     },
-    [mode, handleCancel, handleSubmit, saving, form.isDirty, accessMode],
+    [mode, handleCancel, handleSubmit, saving, form.isDirty, accessMode, currentSnapIndex],
   );
 
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
@@ -1679,7 +1678,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={mode !== 'edit'}
           enableHandlePanningGesture={true}
-          activeOffsetY={[-10, 10]}
+          activeOffsetY={mode === 'edit' ? [-20, 20] : [-10, 10]}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}

@@ -123,16 +123,18 @@ const tokens = {
     },
     // Pattern 4: Life Events Timeline (vertical timeline)
     timeline: {
-      dotSize: 12,
-      dotBorderWidth: 2,
-      lineWidth: 1,
-      lineColorOpacity: 0.15,
-      leftPadding: 24,  // Space for timeline on left
-      eventMinHeight: 60,  // Flexible - grows with content
-      yearFontSize: 13,
-      yearFontWeight: '600',
+      dotSize: 14,  // Increased from 12
+      dotBorderWidth: 2.5,  // Increased from 2
+      lineWidth: 1.5,  // Increased from 1
+      lineColorOpacity: 0.2,  // Increased from 0.15
+      leftPadding: 28,  // Increased from 24 - Space for timeline on left
+      eventMinHeight: 64,  // Increased from 60 - Flexible, grows with content
+      yearFontSize: 15,  // Increased from 13
+      yearFontWeight: '700',  // Increased from '600'
       descriptionFontSize: 15,
       descriptionMaxLines: 0,  // Unlimited wrapping
+      containerPadding: 16,  // NEW: Padding inside timeline container
+      containerBackgroundOpacity: 0.6,  // NEW: Semi-transparent white overlay
     },
     // Social Media Section specs
     social: {

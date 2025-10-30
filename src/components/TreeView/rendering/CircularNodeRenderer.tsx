@@ -97,6 +97,9 @@ export function CircularNodeRenderer({
   const centerX = node.x;
   const centerY = node.y;
 
+  // Calculate deceased status for grayscale photos
+  const isDeceased = node.status === 'deceased';
+
   // Check if we should show photo
   const hasPhoto = showPhotos && !!node.photo_url;
 
@@ -162,6 +165,7 @@ export function CircularNodeRenderer({
             nodeId={node.id}
             selectBucket={node._selectBucket}
             showPhotos={showPhotos}
+            isDeceased={isDeceased}
             useBatchedSkiaImage={useBatchedSkiaImage}
             crop_top={node.crop_top}
             crop_bottom={node.crop_bottom}

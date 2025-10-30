@@ -71,6 +71,7 @@ export interface LayoutNode {
   name: string;
   generation: number;
   father_id: string | null;
+  status?: 'alive' | 'deceased'; // Person status for visual styling (grayscale photos for deceased)
   photo_url?: string;
   photo_url_cropped?: string; // Cropped variant (preferred over photo_url)
   blurhash?: string; // BlurHash placeholder for progressive loading
@@ -476,6 +477,9 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   // Rectangular node rendering (existing logic below)
   const { width, height, borderRadius } = dimensions;
 
+  // Calculate deceased status for grayscale photos
+  const isDeceased = node.status === 'deceased';
+
   // Calculate position (centered)
   // Unified PTS Architecture: node.y already includes root offset + top-alignment
   // No runtime offsets needed - just use node.y directly!
@@ -519,6 +523,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               nodeId={node.id}
               selectBucket={node._selectBucket}
               showPhotos={showPhotos}
+              isDeceased={isDeceased}
               useBatchedSkiaImage={useBatchedSkiaImage}
               crop_top={node.crop_top}
               crop_bottom={node.crop_bottom}

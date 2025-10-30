@@ -251,61 +251,97 @@ export function generateBezierPaths(
 }
 
 /**
- * Generate D3 horizontal curves (Tidy Tree + Professional Curves)
- * Replaces custom bezier with D3's linkHorizontal() for clean S-curves
+ * Generate tidy bus-style curves (D3-inspired vertical stems with curved fan-out)
  *
- * Uses D3's Reingold-Tilford "tidy" tree algorithm (already in calculateTreeLayout)
- * with professional curve rendering via linkHorizontal()
- *
- * @param connection - Parent and children nodes
- * @param showPhotos - Whether photos are visible
- * @param nodeStyle - 'rectangular' or 'circular' (Tree Design System)
+ * Matches the classic tidy tree look:
+ * - Parent stem: straight vertical segment from parent node
+ * - Shared bus: optional horizontal segment that aligns siblings
+ * - Child approach: gentle Bézier easing that peels away from bus and straightens
+ *   before entering the child card
  */
-export function generateD3CurvePaths(
+export function generateTidyCurvePaths(
   connection: Connection,
   showPhotos: boolean = true,
   nodeStyle: 'rectangular' | 'circular' = 'rectangular',
 ): SkPath[] {
   const { parent, children } = connection;
-  const paths: SkPath[] = [];
 
-  // Direct Skia path generation with curveBumpX-style S-curves
-  // Bypasses D3 SVG generation → Skia string parsing overhead
-  // Creates elegant S-curves matching Observable tidy tree example
-  // Performance: ~5-10x faster than D3 SVG approach (no string allocations/parsing)
+  if (!parent || !children || children.length === 0) {
+    return [];
+  }
 
-  // Generate curve from parent to each child
-  children.forEach((child) => {
-    const pathBuilder = Skia.Path.Make();
+  const pathBuilder = Skia.Path.Make();
 
-    // Start at parent center
-    pathBuilder.moveTo(parent.x, parent.y);
+  // Parent stem – straight drop from the rendered bottom edge
+  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
+  const parentBottomY = parent.y + parentHeight / 2;
 
-    // Calculate control points for curveBumpX-style horizontal S-curve
-    // curveBumpX creates Bézier curves with horizontal tangents at endpoints
-    // Control points positioned at horizontal midpoint with vertical offset
-    const dx = child.x - parent.x;
-    const midX = parent.x + dx * 0.5;  // Horizontal midpoint
+  const busY = calculateBusY(parent, children, showPhotos);
 
-    // First control point: Horizontal from parent (maintains parent Y)
-    const cp1X = midX;
-    const cp1Y = parent.y;
+  pathBuilder.moveTo(parent.x, parentBottomY);
+  pathBuilder.lineTo(parent.x, busY);
 
-    // Second control point: Horizontal to child (maintains child Y)
-    const cp2X = midX;
-    const cp2Y = child.y;
+  // Shared horizontal bus when needed (multiple or offset child)
+  if (shouldRenderBusLine(children, parent)) {
+    const busSegment = calculateBusLine(children, busY);
+    pathBuilder.moveTo(busSegment.startX, busSegment.startY);
+    pathBuilder.lineTo(busSegment.endX, busSegment.endY);
+  }
 
-    // Draw cubic Bezier curve (smooth S-curve)
+  // Fan-out curves for each child – gentle easing with straight entry segment
+  children.forEach((child, index) => {
+    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
+    const childTopY = child.y - childHeight / 2;
+
+    const dropDistance = childTopY - busY;
+    if (dropDistance <= 2) {
+      // Child almost aligned with bus → fall back to straight line
+      pathBuilder.moveTo(child.x, busY);
+      pathBuilder.lineTo(child.x, childTopY);
+      return;
+    }
+
+    // Keep a straight segment right before the node for tidy appearance
+    const straightTail = Math.min(Math.max(dropDistance * 0.35, 8), Math.max(dropDistance - 4, 12));
+    const clampedTail = Math.min(straightTail, dropDistance - 2);
+    const approachTargetY = childTopY - clampedTail;
+
+    if (approachTargetY <= busY) {
+      pathBuilder.moveTo(child.x, busY);
+      pathBuilder.lineTo(child.x, childTopY);
+      return;
+    }
+
+    // Horizontal influence based on parent-child offset (fallback to alternating bias)
+    const rawDirection = Math.sign(child.x - parent.x);
+    const direction = rawDirection !== 0 ? rawDirection : (index % 2 === 0 ? 1 : -1);
+    const horizontalSpan = Math.max(Math.abs(child.x - parent.x), 12);
+    const horizontalOffset = Math.min(horizontalSpan * 0.45, 72);
+
+    const tentativeCp1X = child.x - direction * horizontalOffset;
+    const cp1X = direction > 0
+      ? Math.max(tentativeCp1X, parent.x)
+      : Math.min(tentativeCp1X, parent.x);
+
+    const cp1Y = busY;
+    const cp2YOffset = Math.min(clampedTail * 0.6, dropDistance * 0.5);
+    const cp2Y = Math.max(busY + 2, approachTargetY - cp2YOffset);
+
+    pathBuilder.moveTo(child.x, busY);
     pathBuilder.cubicTo(
-      cp1X, cp1Y,      // First control point
-      cp2X, cp2Y,      // Second control point
-      child.x, child.y // End point
+      cp1X,
+      cp1Y,
+      child.x,
+      cp2Y,
+      child.x,
+      approachTargetY,
     );
 
-    paths.push(pathBuilder);
+    // Final straight segment into the child card for the tidy look
+    pathBuilder.lineTo(child.x, childTopY);
   });
 
-  return paths;
+  return [pathBuilder];
 }
 
 /**
@@ -328,7 +364,7 @@ export function generateLinePaths(
 ): SkPath[] {
   switch (lineStyle) {
     case LINE_STYLES.CURVES:
-      return generateD3CurvePaths(connection, showPhotos, nodeStyle);
+      return generateTidyCurvePaths(connection, showPhotos, nodeStyle);
 
     case LINE_STYLES.BEZIER:
       // DEPRECATED: Use CURVES instead

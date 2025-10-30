@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
-const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
+const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode, isFullScreen }) => {
   const insets = useSafeAreaInsets();
   const submitLabel = accessMode === 'review' ? 'إرسال' : 'حفظ';
 
@@ -28,7 +28,7 @@ const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
   };
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.safeArea, isFullScreen && { paddingTop: insets.top + 8 }]}>
       <View style={styles.headerContainer}>
         {/* Cancel Button */}
         <TouchableOpacity
@@ -143,12 +143,14 @@ EditHeader.propTypes = {
   saving: PropTypes.bool,
   canSubmit: PropTypes.bool,
   accessMode: PropTypes.oneOf(['direct', 'review']),
+  isFullScreen: PropTypes.bool,
 };
 
 EditHeader.defaultProps = {
   saving: false,
   canSubmit: false,
   accessMode: 'direct',
+  isFullScreen: false,
 };
 
 export default EditHeader;

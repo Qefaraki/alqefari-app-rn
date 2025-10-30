@@ -43,12 +43,13 @@
 
 import React from 'react';
 import { PixelRatio } from 'react-native';
-import { Group, RoundedRect, rrect, rect, Image as SkiaImage, Skia } from '@shopify/react-native-skia';
+import { Group, RoundedRect, rrect, rect, Image as SkiaImage, Skia, ColorMatrix, Paint } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
 import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
 import { blurhashToSkiaImage } from '../../../utils/blurhashToSkia';
 import { featureFlags } from '../../../config/featureFlags';
 import { hasCrop, normalizeCropValues } from '../../../utils/cropUtils';
+import { createGrayscaleMatrix } from '../utils/colorUtils';
 
 export interface ImageNodeProps {
   // Image source
@@ -84,6 +85,9 @@ export interface ImageNodeProps {
   crop_bottom?: number | null;
   crop_left?: number | null;
   crop_right?: number | null;
+
+  // Visual styling for deceased people (grayscale photos)
+  isDeceased?: boolean;
 
   // Batched image loading hook with morph tracking
   useBatchedSkiaImage: (
@@ -222,6 +226,7 @@ export function renderImageSkeleton(
  * @param height - Node display height
  * @param cornerRadius - Corner radius for rounded clipping
  * @param opacity - Optional opacity for animations
+ * @param isDeceased - Apply grayscale ColorMatrix for deceased people
  * @returns Group with clipped image
  */
 export function renderLoadedImage(
@@ -231,10 +236,12 @@ export function renderLoadedImage(
   width: number,
   height: number,
   cornerRadius: number,
-  opacity?: any
+  opacity?: any,
+  isDeceased?: boolean
 ): JSX.Element {
   const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
-  return (
+
+  const imageContent = (
     <Group clip={clipPath} opacity={opacity}>
       <SkiaImage
         image={image}
@@ -246,6 +253,17 @@ export function renderLoadedImage(
       />
     </Group>
   );
+
+  // Apply grayscale ColorMatrix for deceased people
+  if (isDeceased) {
+    return (
+      <Group layer={<Paint><ColorMatrix matrix={createGrayscaleMatrix()} /></Paint>}>
+        {imageContent}
+      </Group>
+    );
+  }
+
+  return imageContent;
 }
 
 /**
@@ -264,6 +282,7 @@ export function renderLoadedImage(
  * @param lowResOpacity - Animated opacity for low-res (1 → 0)
  * @param highResOpacity - Animated opacity for high-res (0 → 1)
  * @param highResScale - Animated scale for high-res (0.98 → 1.0)
+ * @param isDeceased - Apply grayscale ColorMatrix for deceased people
  * @returns Group with both images and animations
  */
 export function renderMorphTransition(
@@ -276,13 +295,14 @@ export function renderMorphTransition(
   cornerRadius: number,
   lowResOpacity: any,
   highResOpacity: any,
-  highResScale: any
+  highResScale: any,
+  isDeceased?: boolean
 ): JSX.Element {
   const centerX = x + width / 2;
   const centerY = y + height / 2;
   const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
 
-  return (
+  const morphContent = (
     <Group>
       {/* Low-res image fading out */}
       <Group clip={clipPath} opacity={lowResOpacity}>
@@ -318,6 +338,17 @@ export function renderMorphTransition(
       </Group>
     </Group>
   );
+
+  // Apply grayscale ColorMatrix for deceased people
+  if (isDeceased) {
+    return (
+      <Group layer={<Paint><ColorMatrix matrix={createGrayscaleMatrix()} /></Paint>}>
+        {morphContent}
+      </Group>
+    );
+  }
+
+  return morphContent;
 }
 
 /**
@@ -358,6 +389,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     crop_bottom,
     crop_left,
     crop_right,
+    isDeceased = false,
     useBatchedSkiaImage,
   }) => {
     const renderCountRef = React.useRef(0);
@@ -519,7 +551,8 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
           width,
           height,
           cornerRadius,
-          0.9
+          0.9,
+          isDeceased
         );
       }
       // Fallback to skeleton if no blurhash
@@ -545,7 +578,8 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         cornerRadius,
         lowResOpacity,
         highResOpacity,
-        highResScale
+        highResScale,
+        isDeceased
       );
     }
 
@@ -556,7 +590,9 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
       y,
       width,
       height,
-      cornerRadius
+      cornerRadius,
+      undefined,
+      isDeceased
     );
   }
 );

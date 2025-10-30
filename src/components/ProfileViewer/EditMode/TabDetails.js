@@ -135,7 +135,7 @@ const TabDetails = ({ form, updateField }) => {
               value={draft?.occupation || ''}
               onChange={(text) => updateField('occupation', text)}
               placeholder="المهنة..."
-              maxLength={100}
+              maxLength={500}
             />
           </FormField>
 
@@ -144,7 +144,7 @@ const TabDetails = ({ form, updateField }) => {
               value={draft?.education || ''}
               onChange={(text) => updateField('education', text)}
               placeholder="التعليم..."
-              maxLength={150}
+              maxLength={1000}
               multiline
             />
           </FormField>
@@ -159,7 +159,7 @@ const TabDetails = ({ form, updateField }) => {
               value={draft?.birth_place || ''}
               onChange={(text) => updateField('birth_place', text)}
               placeholder="مكان الميلاد..."
-              maxLength={100}
+              maxLength={200}
             />
           </FormField>
 

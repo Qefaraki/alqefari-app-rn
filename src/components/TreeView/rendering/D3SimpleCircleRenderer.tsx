@@ -77,6 +77,9 @@ export function D3SimpleCircleRenderer({
   const centerX = node.x;
   const centerY = node.y;
 
+  // Calculate deceased status for grayscale photos
+  const isDeceased = node.status === 'deceased';
+
   // Check if we should show photo
   const hasPhoto = showPhotos && !!node.photo_url;
 
@@ -119,6 +122,7 @@ export function D3SimpleCircleRenderer({
             nodeId={node.id}
             selectBucket={node._selectBucket}
             showPhotos={showPhotos}
+            isDeceased={isDeceased}
             useBatchedSkiaImage={useBatchedSkiaImage}
           />
         </>

@@ -23,7 +23,7 @@
  * />
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import {
   I18nManager,
   Platform,
   AccessibilityInfo,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
@@ -126,6 +128,78 @@ const EnhancedHero = ({
   }
 
   const hasPersonalInfo = Boolean(currentResidence) || Boolean(birthYearDisplay);
+
+  // Social connectivity configuration
+  const connectivityMethods = useMemo(() => {
+    const methods = [];
+
+    // Phone
+    if (person?.phone) {
+      methods.push({
+        id: 'phone',
+        icon: 'call',
+        color: '#34C759', // iOS green
+        label: 'اتصال',
+        url: `tel:${person.phone}`,
+      });
+    }
+
+    // WhatsApp
+    if (person?.phone) {
+      methods.push({
+        id: 'whatsapp',
+        icon: 'logo-whatsapp',
+        color: '#25D366', // WhatsApp green
+        label: 'واتساب',
+        url: `https://wa.me/${person.phone.replace(/[^0-9]/g, '')}`,
+      });
+    }
+
+    // Email
+    if (person?.email) {
+      methods.push({
+        id: 'email',
+        icon: 'mail',
+        color: '#007AFF', // iOS blue
+        label: 'بريد',
+        url: `mailto:${person.email}`,
+      });
+    }
+
+    // Social media platforms
+    const socialPlatforms = [
+      { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', label: 'تويتر' },
+      { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', label: 'إنستغرام' },
+      { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', label: 'لينكدإن' },
+      { key: 'facebook', icon: 'logo-facebook', color: '#1877F2', label: 'فيسبوك' },
+      { key: 'youtube', icon: 'logo-youtube', color: '#FF0000', label: 'يوتيوب' },
+      { key: 'tiktok', icon: 'logo-tiktok', color: '#000000', label: 'تيك توك' },
+    ];
+
+    if (person?.social_links) {
+      socialPlatforms.forEach(platform => {
+        const url = person.social_links[platform.key];
+        if (url && typeof url === 'string') {
+          methods.push({
+            id: platform.key,
+            icon: platform.icon,
+            color: platform.color,
+            label: platform.label,
+            url,
+          });
+        }
+      });
+    }
+
+    return methods;
+  }, [person?.phone, person?.email, person?.social_links]);
+
+  // Handle connectivity method press
+  const handleConnectivityPress = useCallback((method) => {
+    Linking.openURL(method.url).catch(() => {
+      Alert.alert('خطأ', `تعذر فتح ${method.label}`);
+    });
+  }, []);
 
   // Memoize styles
   const styles = useMemo(
@@ -249,6 +323,24 @@ const EnhancedHero = ({
           color: colors.najdi.secondary,
           maxWidth: 180,
           textAlign: 'center',
+        },
+        // Social connectivity bar
+        connectivityBar: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 12,
+          justifyContent: 'center',
+          marginTop: spacing.md,
+        },
+        connectivityButton: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: `${colors.najdi.container}12`, // Camel Hair 12%
+          alignItems: 'center',
+          justifyContent: 'center',
+          // Ensure 44px touch target
+          padding: 4,
         },
       }),
     [shouldUseAlternateLayout]
@@ -406,6 +498,30 @@ const EnhancedHero = ({
             ) : null}
           </View>
         ) : null}
+
+        {/* Social Connectivity Bar */}
+        {connectivityMethods.length > 0 && (
+          <View style={styles.connectivityBar}>
+            {connectivityMethods.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={styles.connectivityButton}
+                onPress={() => handleConnectivityPress(method)}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${method.label}`}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={method.icon}
+                  size={18}
+                  color={method.color}
+                  accessible={false}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
