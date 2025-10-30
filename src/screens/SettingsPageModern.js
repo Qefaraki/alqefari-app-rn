@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Linking,
   ActivityIndicator,
   Platform,
   Modal,
@@ -33,12 +34,17 @@ import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
 import { formatNameWithTitle } from "../services/professionalTitleService";
 import LargeTitleHeader from "../components/ios/LargeTitleHeader";
-import tokens from '../components/ui/tokens';
+import tokens, { hexWithOpacity } from '../components/ui/tokens';
 import MySuggestions from "./MySuggestions";
 import { PhoneChangeModal } from "../components/settings/PhoneChangeModal";
 import ShareProfileSheet from "../components/sharing/ShareProfileSheet";
 import { DeleteAccountModal } from "../components/settings/DeleteAccountModal";
 import { checkDeletionRateLimit } from "../services/deleteAccountOtp";
+import {
+  formatPhoneForDisplay,
+  formatPhoneForWhatsApp,
+  buildWhatsAppUrl,
+} from "../utils/phoneUtils";
 
 // Debug: Verify ShareProfileSheet import
 console.log('[DEBUG Settings] ShareProfileSheet import type:', typeof ShareProfileSheet);
@@ -49,7 +55,18 @@ const colors = {
   ...tokens.colors.najdi,
   white: '#FFFFFF',
   muted: tokens.colors.najdi.textMuted,
-  border: `${tokens.colors.najdi.container  }20`,
+  border: hexWithOpacity(tokens.colors.najdi.container, 0.12),
+};
+
+const colorShades = {
+  containerBorder: hexWithOpacity(colors.container, 0.19),
+  primaryTint: hexWithOpacity(colors.primary, 0.07),
+  primaryOutline: hexWithOpacity(colors.primary, 0.12),
+  secondaryTint: hexWithOpacity(colors.secondary, 0.08),
+  secondaryOutline: hexWithOpacity(colors.secondary, 0.15),
+  primaryWashed: hexWithOpacity(colors.primary, 0.06),
+  primarySoftBorder: hexWithOpacity(colors.primary, 0.13),
+  primaryStrongBorder: hexWithOpacity(colors.primary, 0.19),
 };
 
 // Cross-platform font fallbacks to keep typography close to iOS San Francisco
@@ -730,75 +747,53 @@ export default function SettingsPageModern({ user }) {
 
   const hasLinkedProfile = Boolean(userProfile);
   const hasPendingRequest = Boolean(pendingRequest);
+  const isPendingLink = hasPendingRequest && !hasLinkedProfile;
+  const isLinkedProfile = hasLinkedProfile && Boolean(userProfile?.id);
+  const qrSupported = Boolean(
+    currentUser && !isGuestMode && userProfile?.hid && userProfile?.user_id
+  );
 
-  const profileStatus = useMemo(() => {
-    if (loadingProfile) {
-      return {
-        label: "جارٍ التحديث",
-        color: colors.muted,
-      };
+  const currentUserPhone = currentUser?.phone || "";
+  const phoneDetails = useMemo(() => {
+    if (!currentUserPhone) {
+      return { display: "", whatsappUrl: "", isSaudi: false };
     }
 
-    if (hasLinkedProfile) {
-      return { label: null, color: colors.muted };
-    }
-
-    if (hasPendingRequest) {
+    const canonical = formatPhoneForWhatsApp(currentUserPhone);
+    if (canonical && canonical.startsWith("+966")) {
       return {
-        label: "طلبك قيد المراجعة",
-        color: "#B45309",
-      };
-    }
-
-    return {
-      label: "لم يتم ربط الملف بعد",
-      color: colors.primary,
-    };
-  }, [hasLinkedProfile, hasPendingRequest, loadingProfile]);
-
-  const pendingHelperText = useMemo(() => {
-    if (!pendingRequest) return null;
-    const target =
-      pendingRequest.fullNameChain ||
-      pendingRequest.profile?.name ||
-      "الملف المختار";
-
-    return `تم إرسال طلب ربط ${target} وهو قيد المراجعة لدى الإدارة.`;
-  }, [pendingRequest]);
-
-  const profileCardAction = (() => {
-    if (loadingProfile) {
-      return {
-        onPress: null,
-        chevron: false,
-        hint: "جارٍ تحديث بيانات الملف...",
-      };
-    }
-
-    if (hasLinkedProfile && userProfile?.id) {
-      return {
-        onPress: handleViewFamilyCard,
-        chevron: true,
-        hint: null,
-      };
-    }
-
-    if (hasPendingRequest) {
-      return {
-        onPress: handleFollowUpLinkRequest,
-        chevron: featureFlags.profileLinkRequests,
-        hint:
-          pendingHelperText ||
-          "طلبك قيد المراجعة لدى الإدارة. سنخطرك فور اعتماد الملف.",
+        display: formatPhoneForDisplay(currentUserPhone),
+        whatsappUrl: buildWhatsAppUrl(currentUserPhone),
+        isSaudi: true,
       };
     }
 
     return {
-      onPress: handleStartProfileLink,
-      chevron: true,
-      hint: "لن يستغرق الأمر سوى دقيقة لبدء عملية الربط.",
+      display: currentUserPhone.trim(),
+      whatsappUrl: "",
+      isSaudi: false,
     };
-  })();
+  }, [currentUserPhone]);
+
+  const openWhatsApp = useCallback(() => {
+    if (!phoneDetails.whatsappUrl) return;
+    handleFeedback();
+    Linking.openURL(phoneDetails.whatsappUrl).catch(() => {
+      Alert.alert(
+        "تعذر فتح الواتساب",
+        "يرجى التأكد من تثبيت تطبيق الواتساب على جهازك",
+        [{ text: "حسناً" }],
+      );
+    });
+  }, [handleFeedback, phoneDetails.whatsappUrl]);
+
+  const profileCardAction = loadingProfile
+    ? { onPress: null, disabled: true }
+    : isLinkedProfile
+      ? { onPress: handleViewFamilyCard, disabled: false }
+      : isPendingLink
+        ? { onPress: handleFollowUpLinkRequest, disabled: false }
+        : { onPress: handleStartProfileLink, disabled: false };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -907,26 +902,13 @@ export default function SettingsPageModern({ user }) {
             <TouchableOpacity
               style={[
                 styles.profileCard,
-                profileCardAction.onPress && styles.profileCardPressable,
-                !profileCardAction.onPress && styles.profileCardDisabled,
+                profileCardAction.disabled && styles.profileCardDisabled,
               ]}
-              onPress={profileCardAction.onPress}
-              activeOpacity={profileCardAction.onPress ? 0.75 : 1}
-              disabled={!profileCardAction.onPress}
+              activeOpacity={0.85}
+              onPress={profileCardAction.onPress || undefined}
+              disabled={profileCardAction.disabled}
             >
               <View style={styles.profileIdentityRow}>
-                <View style={styles.profileImageContainer}>
-                  {userProfile?.photo_url ? (
-                    <Image
-                      source={{ uri: userProfile.photo_url }}
-                      style={styles.profileImage}
-                    />
-                  ) : (
-                    <View style={styles.profilePlaceholder}>
-                      <Ionicons name="person-outline" size={28} color={colors.primary} />
-                    </View>
-                  )}
-                </View>
                 <View style={styles.profileInfo}>
                   {loadingProfile ? (
                     <>
@@ -956,31 +938,113 @@ export default function SettingsPageModern({ user }) {
                             : `${displayName} القفاري`;
                         })()}
                       </Text>
-                      {profileStatus.label ? (
-                        <Text
-                          style={[
-                            styles.profileStatusText,
-                            { color: profileStatus.color },
-                          ]}
-                        >
-                          {profileStatus.label}
-                        </Text>
+                      {isPendingLink ? (
+                        <View style={styles.profileStatusBadgeRow}>
+                          <View style={styles.profileStatusBadge}>
+                            <View style={styles.profileStatusDot} />
+                            <Text style={styles.profileStatusText}>قيد المراجعة</Text>
+                          </View>
+                        </View>
                       ) : null}
-                      <Text style={styles.profilePhone}>
-                        {currentUser?.phone || currentUser?.email || ""}
-                      </Text>
+                      {phoneDetails.display ? (
+                        <View style={styles.profilePhoneRow}>
+                          {phoneDetails.whatsappUrl ? (
+                            <TouchableOpacity
+                              style={styles.profilePhoneAction}
+                              onPress={openWhatsApp}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+                            </TouchableOpacity>
+                          ) : null}
+                          <Text style={styles.profilePhone}>{phoneDetails.display}</Text>
+                        </View>
+                      ) : currentUser?.email ? (
+                        <Text style={styles.profilePhone}>{currentUser.email}</Text>
+                      ) : null}
                     </>
                   )}
                 </View>
-                {profileCardAction.chevron ? (
-                  <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-                ) : null}
+                <View style={styles.profileImageContainer}>
+                  {userProfile?.photo_url ? (
+                    <Image
+                      source={{ uri: userProfile.photo_url }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.profilePlaceholder}>
+                      <Ionicons name="person-outline" size={28} color={colors.primary} />
+                    </View>
+                  )}
+                </View>
               </View>
-
-            {!loadingProfile && profileCardAction.hint ? (
-              <Text style={styles.profileStatusNote}>{profileCardAction.hint}</Text>
-            ) : null}
-          </TouchableOpacity>
+              {!loadingProfile && (
+                <View style={styles.profileActionsRow}>
+                  {isLinkedProfile ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.profileActionButton, styles.profileActionButtonPrimary]}
+                        onPress={handleViewFamilyCard}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="عرض البطاقة العائلية"
+                      >
+                        <Ionicons name="id-card-outline" size={20} color={colors.white} />
+                      </TouchableOpacity>
+                      {qrSupported ? (
+                      <TouchableOpacity
+                          style={[
+                            styles.profileActionButton,
+                            styles.profileActionButtonNeutral,
+                            styles.profileActionButtonSpacing,
+                          ]}
+                          onPress={() => {
+                            handleFeedback();
+                            setShowShareSheet(true);
+                          }}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel="مشاركة رمز QR"
+                        >
+                          <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+                        </TouchableOpacity>
+                      ) : null}
+                    </>
+                  ) : isPendingLink ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.profileActionButton, styles.profileActionButtonSecondary]}
+                        onPress={handleFollowUpLinkRequest}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="متابعة طلب الربط"
+                      >
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
+                      </TouchableOpacity>
+                      <View
+                        style={[
+                          styles.profileActionButton,
+                          styles.profileActionButtonDisabled,
+                          styles.profileActionButtonSpacing,
+                        ]}
+                      >
+                        <Ionicons name="qr-code-outline" size={20} color={colors.muted} />
+                      </View>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.profileActionButton, styles.profileActionButtonPrimary]}
+                      onPress={handleStartProfileLink}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="بدء ربط الملف"
+                    >
+                      <Ionicons name="link-outline" size={20} color={colors.white} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1307,26 +1371,6 @@ export default function SettingsPageModern({ user }) {
               rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
             />
           )}
-          {/* QR Code Sharing - Only for linked profiles with HID */}
-          {currentUser && !isGuestMode && userProfile?.hid && userProfile?.user_id && (
-            <SettingsCell
-              label="رمز QR للملف"
-              description="شارك ملفك مع العائلة"
-              onPress={() => {
-                console.log('[DEBUG QR Button] Pressed! State before:', {
-                  currentUser: !!currentUser,
-                  isGuestMode,
-                  hid: userProfile?.hid,
-                  user_id: userProfile?.user_id,
-                  showShareSheet: false // about to change
-                });
-                handleFeedback();
-                setShowShareSheet(true);
-                console.log('[DEBUG QR Button] setShowShareSheet(true) called');
-              }}
-              rightAccessory={<Ionicons name="qr-code-outline" size={18} color={colors.muted} />}
-            />
-          )}
           <SettingsCell
             label="تواصل مع الإدارة"
             description="أرسل رسالة فورية عبر الواتساب"
@@ -1500,7 +1544,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 5,
     borderWidth: 1.5,
-    borderColor: `${colors.container  }30`,
+    borderColor: colorShades.containerBorder,
     alignItems: "center",
     overflow: "hidden",
   },
@@ -1508,12 +1552,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: `${colors.primary  }12`,
+    backgroundColor: colorShades.primaryTint,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
     borderWidth: 3,
-    borderColor: `${colors.primary  }20`,
+    borderColor: colorShades.primaryOutline,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1549,7 +1593,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: `${colors.container  }30`,
+    borderColor: colorShades.containerBorder,
   },
   guestBenefit: {
     flexDirection: "row",
@@ -1561,12 +1605,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: `${colors.secondary  }15`,
+    backgroundColor: colorShades.secondaryTint,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: `${colors.secondary  }25`,
+    borderColor: colorShades.secondaryOutline,
   },
   guestBenefitText: {
     fontSize: 15,
@@ -1608,26 +1652,28 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: colors.white,
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
   },
   profileIdentityRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
   profileImageContainer: {
-    marginRight: 14,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    marginLeft: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: "hidden",
     backgroundColor: "#F2F2F7",
     justifyContent: "center",
@@ -1640,13 +1686,14 @@ const styles = StyleSheet.create({
   profilePlaceholder: {
     width: "100%",
     height: "100%",
-    borderRadius: 30,
+    borderRadius: 28,
     backgroundColor: "#F2F2F7",
     justifyContent: "center",
     alignItems: "center",
   },
   profileInfo: {
     flex: 1,
+    alignItems: "flex-end",
   },
   profileName: {
     fontSize: 18,
@@ -1654,31 +1701,97 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...fontStyles.semibold,
     marginBottom: 4,
+    textAlign: "right",
   },
   profileStatusText: {
     fontSize: 13,
     fontWeight: "600",
     ...fontStyles.semibold,
-    marginBottom: 2,
+    color: colors.secondary,
   },
   profilePhone: {
     fontSize: 14,
     color: colors.muted,
     ...fontStyles.regular,
+    textAlign: "right",
+  },
+  profileStatusBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+    justifyContent: "flex-end",
+  },
+  profileStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(213, 140, 74, 0.12)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  profileStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.secondary,
+    marginRight: 4,
+  },
+  profilePhoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
+    justifyContent: "flex-end",
   },
-  profileStatusNote: {
-    marginTop: 8,
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 20,
-    ...fontStyles.regular,
+  profilePhoneAction: {
+    marginRight: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(37, 211, 102, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  profileCardPressable: {
-    opacity: 0.95,
+  profileActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 16,
+  },
+  profileActionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  profileActionButtonPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  profileActionButtonNeutral: {
+    backgroundColor: "#F8F8F8",
+  },
+  profileActionButtonSecondary: {
+    backgroundColor: colorShades.primaryWashed,
+    borderColor: colorShades.primarySoftBorder,
+  },
+  profileActionButtonDisabled: {
+    backgroundColor: "#F2F2F7",
+    borderColor: colors.border,
   },
   profileCardDisabled: {
-    opacity: 0.9,
+    opacity: 0.65,
+  },
+  profileActionButtonSpacing: {
+    marginLeft: 12,
   },
 
   // Settings Sections
@@ -1724,7 +1837,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: `${colors.primary  }12`,
+    backgroundColor: colorShades.primaryTint,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -1785,7 +1898,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: `${colors.secondary  }15`,
+    backgroundColor: colorShades.secondaryTint,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -1810,7 +1923,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: `${colors.primary  }12`,
+    backgroundColor: colorShades.primaryTint,
   },
   comingSoonBadgeText: {
     fontSize: 12,
@@ -1899,13 +2012,13 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${colors.primary  }10`,
+    backgroundColor: colorShades.primaryWashed,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: `${colors.primary  }30`,
+    borderColor: colorShades.primaryStrongBorder,
     flexWrap: 'wrap',
   },
   errorText: {
@@ -1927,7 +2040,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
   },
-  retryButtonText: {
+ retryButtonText: {
     color: colors.white,
     fontSize: 14,
     fontWeight: '600',
