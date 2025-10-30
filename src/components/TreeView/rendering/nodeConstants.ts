@@ -148,7 +148,8 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 4,
     NAME_HEIGHT: 16,
     FONT_SIZE: 9,
-    RING_WIDTH: 0,
+    RING_WIDTH: 1.6,
+    GAP: 1.2,
   },
   G2: {
     DIAMETER: 34,
@@ -156,7 +157,8 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 5,
     NAME_HEIGHT: 18,
     FONT_SIZE: 9.5,
-    RING_WIDTH: 0,
+    RING_WIDTH: 1.8,
+    GAP: 1.4,
   },
   ROOT: {
     DIAMETER: 42,
@@ -164,7 +166,8 @@ export const TIDY_CIRCLE = {
     NAME_GAP: 6,
     NAME_HEIGHT: 20,
     FONT_SIZE: 10,
-    RING_WIDTH: 0,
+    RING_WIDTH: 2.2,
+    GAP: 1.6,
   },
   COLORS: {
     OUTER_RING: '#1E1E1F',
@@ -223,8 +226,8 @@ export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
 
 // Connection line styling (Najdi Sadu palette)
 export const CONNECTION_STYLES = {
-  LINE_COLOR: '#D1BBA340',  // Camel Hair Beige 40%
-  LINE_WIDTH: 2.5,
+  LINE_COLOR: '#BBBBBB70',  // Soft grey 44%
+  LINE_WIDTH: 1.4,
   CORNER_RADIUS: 8,
 } as const;
 

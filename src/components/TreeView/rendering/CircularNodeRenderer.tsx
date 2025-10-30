@@ -153,8 +153,8 @@ export function CircularNodeRenderer({
   );
 
   const baseLayer = useMemo(() => {
-    const tidyRingWidth = 1.6;
-    const tidyGap = 1.2;
+    const tidyRingWidth = tidyConfig.RING_WIDTH;
+    const tidyGap = tidyConfig.GAP ?? 1.2;
 
     if (hasPhoto) {
       if (isTidyVariant) {
@@ -180,7 +180,8 @@ export function CircularNodeRenderer({
 
     if (isTidyVariant) {
       const ringRadius = radius;
-      const fillRadius = Math.max(ringRadius - tidyRingWidth / 2 - tidyGap, 0);
+      const gapRadius = Math.max(ringRadius - tidyRingWidth / 2, 0);
+      const fillRadius = Math.max(gapRadius - tidyGap, 0);
       return (
         <>
           <Circle
@@ -191,6 +192,14 @@ export function CircularNodeRenderer({
             strokeWidth={tidyRingWidth}
             color={TIDY_CIRCLE.COLORS.OUTER_RING}
           />
+          {gapRadius > 0 && tidyGap > 0 && (
+            <Circle
+              cx={centerX}
+              cy={centerY}
+              r={gapRadius}
+              color={TIDY_CIRCLE.COLORS.INNER_FILL}
+            />
+          )}
           {fillRadius > 0 && (
             <Circle
               cx={centerX}
@@ -211,11 +220,13 @@ export function CircularNodeRenderer({
         color={CIRCULAR_NODE.TEXT_ONLY_FILL}
       />
     );
-  }, [hasPhoto, isTidyVariant, centerX, centerY, radius]);
+  }, [hasPhoto, isTidyVariant, centerX, centerY, radius, tidyConfig]);
 
-  const tidyOuterOffset = hasPhoto ? 0.8 : 2.0;
+  const tidyOuterOffset = isTidyVariant
+    ? (hasPhoto ? 0.6 : tidyConfig.RING_WIDTH + (tidyConfig.GAP ?? 1.2))
+    : 0;
   const selectionRadius =
-    radius + (isTidyVariant ? tidyOuterOffset : 0) + selectionStrokeWidth;
+    radius + tidyOuterOffset + selectionStrokeWidth;
 
   const selectionElement = isSelected ? (
     <Circle

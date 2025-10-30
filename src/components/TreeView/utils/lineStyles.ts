@@ -39,9 +39,9 @@ export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
  */
 export const BEZIER_CONFIG = {
   CURVE_STRENGTH: 0.40,      // Reduced from 0.50 - gentler curves
-  STROKE_WIDTH: 2.5,         // Slightly thicker for readability
-  STROKE_OPACITY: 0.6,       // Soft, not overpowering
-  STROKE_COLOR: '#D1BBA3',   // Camel Hair Beige (greyish from design system)
+  STROKE_WIDTH: 1.4,         // Light, D3-style stroke
+  STROKE_OPACITY: 0.7,       // Slightly stronger than default for clarity
+  STROKE_COLOR: '#BEBEBE',   // Soft grey similar to D3 example
 } as const;
 
 // Dev-only instrumentation to trace tidy curve geometry when needed
@@ -279,8 +279,6 @@ export function generateTidyCurvePaths(
   const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
   const parentBottomY = parent.y + parentHeight / 2;
 
-  const busY = calculateBusY(parent, children, showPhotos, nodeStyle);
-
   const childXs = children.map(child => child.x);
   const childYs = children.map(child => child.y);
 
@@ -290,60 +288,36 @@ export function generateTidyCurvePaths(
       childXs,
       childYs,
       parentBottomY,
-      busY,
       nodeStyle,
     });
     tidyCurveDebugSamples += 1;
   }
 
-  pathBuilder.moveTo(parent.x, parentBottomY);
-  pathBuilder.lineTo(parent.x, busY);
-
-  // Fan-out curves for each child – gentle easing with straight entry segment
-  children.forEach((child, index) => {
+  // Fan-out curves using single cubic Bezier per child (D3 linkVertical-style)
+  children.forEach((child) => {
     const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
     const childTopY = child.y - childHeight / 2;
 
-    const dropDistance = childTopY - busY;
-    if (dropDistance <= 2) {
-      // Child almost aligned with bus → fall back to straight line
-      pathBuilder.moveTo(parent.x, busY);
-      if (parent.x !== child.x) {
-        pathBuilder.lineTo(child.x, busY);
-      }
+    const verticalSpan = childTopY - parentBottomY;
+
+    // If parent and child nearly overlap vertically, fall back to straight line
+    if (Math.abs(verticalSpan) < 2) {
+      pathBuilder.moveTo(parent.x, parentBottomY);
       pathBuilder.lineTo(child.x, childTopY);
       return;
     }
 
-    // Keep a straight segment right before the node for tidy appearance
-    const straightTail = Math.min(Math.max(dropDistance * 0.35, 8), Math.max(dropDistance - 4, 12));
-    const clampedTail = Math.min(straightTail, dropDistance - 2);
-    const approachTargetY = childTopY - clampedTail;
+    const midY = parentBottomY + verticalSpan / 2;
 
-    const rawDirection = Math.sign(child.x - parent.x);
-    const direction = rawDirection !== 0 ? rawDirection : (index % 2 === 0 ? 1 : -1);
-    const horizontalSpan = Math.abs(child.x - parent.x);
-
-    const cp1Y = busY + Math.min(dropDistance * 0.4, 60);
-    const cp2Y = Math.max(busY + 4, approachTargetY - Math.min(dropDistance * 0.45, 60));
-
-    // Small horizontal kick so curves peel away from the stem
-    const lateralKick = Math.max(Math.min(horizontalSpan * 0.25, 60), 12);
-    const cp1X = parent.x + direction * lateralKick * 0.2;
-    const cp2X = child.x - direction * Math.min(lateralKick, Math.abs(child.x - parent.x));
-
-    pathBuilder.moveTo(parent.x, busY);
+    pathBuilder.moveTo(parent.x, parentBottomY);
     pathBuilder.cubicTo(
-      cp1X,
-      cp1Y,
-      cp2X,
-      cp2Y,
+      parent.x,
+      midY,
       child.x,
-      approachTargetY,
+      midY,
+      child.x,
+      childTopY,
     );
-
-    // Final straight segment into the child card for the tidy look
-    pathBuilder.lineTo(child.x, childTopY);
   });
 
   return [pathBuilder];

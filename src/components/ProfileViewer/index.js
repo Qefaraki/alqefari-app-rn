@@ -1008,18 +1008,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
-  // ✅ FIX (Oct 28, 2025): Added profileSheetProgress to deps for Reanimated 4.x compatibility
-  // Reanimated 4.x requires all variables used in worklet to be in dependency array
+  // Track sheet position and update global store progress
+  // Note: Only JS values in deps - Reanimated tracks shared values automatically via Babel plugin
   useAnimatedReaction(
     () => (profileSheetProgress ? animatedPosition.value : null),
     (current, previous) => {
       'worklet';
       if (!current || current === previous) return;
-      if (!profileSheetProgress) return; // Defensive check (now safe - var in deps)
+      if (!profileSheetProgress) return; // Defensive null check
       const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
       profileSheetProgress.value = progress;
     },
-    [screenHeight, profileSheetProgress]
+    [screenHeight]
   );
 
   const canEdit = accessMode !== 'readonly';
