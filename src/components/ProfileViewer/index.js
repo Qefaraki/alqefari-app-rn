@@ -26,8 +26,7 @@ import BottomSheet, {
   BottomSheetView,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
-import { useSharedValue, useAnimatedReaction, runOnJS, useAnimatedScrollHandler, useDerivedValue } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -95,7 +94,6 @@ const ViewModeContent = React.memo(({
   marriages,
   onNavigateToProfile,
   accessMode,
-  scrollY,
   scrollRef,
   canEdit,
   refreshing,
@@ -103,32 +101,6 @@ const ViewModeContent = React.memo(({
   currentSnapIndex,
 }) => {
   // Velocity-based scroll handler for momentum transfer
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      'worklet';
-      const offsetY = event?.contentOffset?.y;
-      if (typeof offsetY !== 'number') {
-        return;
-      }
-      scrollY.value = offsetY;
-    },
-    onEndDrag: (event) => {
-      'worklet';
-      const velocity = event?.velocity?.y || 0;
-      const offsetY = event?.contentOffset?.y;
-      if (typeof offsetY !== 'number') {
-        return;
-      }
-      const atTop = offsetY <= 0;
-
-      // Fast upward swipe at top of scroll (> 800px/s) → close sheet
-      if (atTop && velocity < -800) {
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-        runOnJS(closeSheet)();
-      }
-    }
-  });
-
   return (
   <BottomSheetScrollView
     ref={scrollRef}
@@ -150,8 +122,6 @@ const ViewModeContent = React.memo(({
       gap: 16,
     }}
     showsVerticalScrollIndicator={false}
-    onScroll={scrollHandler}
-    scrollEventThrottle={8}
     accessibilityLiveRegion="polite"
   >
     <EnhancedHero
@@ -1093,12 +1063,17 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       .activeOffsetY([-5, 999999]) // Only trigger on upward swipes
       .onUpdate((event) => {
         'worklet';
+        const translationY = event?.translationY;
+        const velocityY = event?.velocityY;
+        if (typeof translationY !== 'number' || typeof velocityY !== 'number') {
+          return;
+        }
         // Check if at top of scroll (read shared value inside worklet)
         const atTop = scrollY.value <= 5;
         if (!atTop) return;
 
-        const fastUpwardSwipe = event.velocityY < -800;
-        const significantTranslation = event.translationY < -50;
+        const fastUpwardSwipe = velocityY < -800;
+        const significantTranslation = translationY < -50;
 
         if (fastUpwardSwipe && significantTranslation) {
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
@@ -1128,8 +1103,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       })
       .onUpdate((event) => {
         'worklet';
+        const translationX = event?.translationX;
+        const velocityX = event?.velocityX;
         // RTL: Swipe left (negative translationX) from right edge
-        if (isEdgeGesture && event.translationX < -100) {
+        if (isEdgeGesture && typeof translationX === 'number' && translationX < -100) {
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           isEdgeGesture = false; // Prevent multiple triggers
           runOnJS(closeSheet)();
@@ -1138,7 +1115,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       .onEnd((event) => {
         'worklet';
         // Also trigger on fast swipe (velocity check)
-        if (isEdgeGesture && event.velocityX < -800) {
+        const velocityX = event?.velocityX;
+        if (isEdgeGesture && typeof velocityX === 'number' && velocityX < -800) {
           runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
           runOnJS(closeSheet)();
         }

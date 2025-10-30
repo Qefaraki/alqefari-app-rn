@@ -23,6 +23,7 @@ import { useMemo } from 'react';
 import { useStructureLoader } from './useStructureLoader';
 import { useViewportEnrichment } from './progressive/useViewportEnrichment';
 import { calculateTreeLayout } from '../../../utils/treeLayout';
+import { useTreeStore } from '../../../stores/useTreeStore';
 
 export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyle = 'rectangular', layoutMode = 'normal') {
   // Phase 1: Load structure-only (0.45 MB)
@@ -55,6 +56,11 @@ export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyl
     // This ensures layout is stable even when photos load later
     // Pass actual viewport width for proper D3 curve scaling
     const layout = calculateTreeLayout(structure, false, nodeStyle, layoutMode, dimensions?.width || 800);
+
+    // Sync coordinates to store for highlighting system
+    // This ensures store.nodesMap has x/y coordinates for rendering highlights
+    // Without this, highlights would try to access undefined coordinates and fail
+    useTreeStore.getState().syncCoordinates(layout.nodes);
 
     return layout;
   }, [structureHash, nodeStyle, layoutMode]); // Hash-based dependency: only recalcs on structural changes

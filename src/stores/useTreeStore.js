@@ -106,6 +106,38 @@ export const useTreeStore = create((set, get) => ({
   // Phase 3B: Set cached schema version for progressive loading
   setCachedSchemaVersion: (version) => set({ cachedSchemaVersion: version }),
 
+  /**
+   * Sync coordinates from layout calculation into nodesMap
+   * Used by progressive loading after d3 layout completes
+   * Preserves all existing node fields, only updates x/y/depth
+   *
+   * @param {Array} nodesWithCoords - Nodes with x, y, depth from layout calculation
+   */
+  syncCoordinates: (nodesWithCoords) => {
+    const newNodesMap = new Map();
+    nodesWithCoords.forEach(node => {
+      const existing = get().nodesMap.get(node.id);
+      if (existing) {
+        // Merge coordinates into existing node (preserves enriched data like photo_url)
+        newNodesMap.set(node.id, {
+          ...existing,
+          x: node.x,
+          y: node.y,
+          depth: node.depth,
+        });
+      } else {
+        // Node not in store yet, add it
+        newNodesMap.set(node.id, node);
+      }
+    });
+
+    set({ nodesMap: newNodesMap });
+
+    if (__DEV__) {
+      console.log(`[TreeStore] Synced coordinates for ${nodesWithCoords.length} nodes`);
+    }
+  },
+
   // Clear tree data and force refetch (useful after migrations)
   clearTreeData: () =>
     set({
@@ -574,6 +606,17 @@ export const useTreeStore = create((set, get) => ({
     const { highlights, nodesMap } = get();
 
     if (Object.keys(highlights).length === 0) {
+      return [];
+    }
+
+    // Guard: Check if layout has calculated coordinates
+    // During progressive loading, nodesMap initially lacks x/y coordinates
+    // syncCoordinates() adds them after layout completes
+    const firstNode = Array.from(nodesMap.values())[0];
+    if (!firstNode || firstNode.x === undefined) {
+      if (__DEV__) {
+        console.warn('[Highlighting] Layout not ready, skipping render (coordinates not synced yet)');
+      }
       return [];
     }
 

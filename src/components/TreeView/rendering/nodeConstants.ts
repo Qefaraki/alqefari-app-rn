@@ -175,7 +175,7 @@ export const TIDY_CIRCLE = {
   COLORS: {
     OUTER_RING: '#1E1E1F',
     GAP_FILL: '#F7F4EF',
-    CENTER_FILL: '#141414',
+    CENTER_FILL: '#3D3D3D',
     PHOTO_BACKDROP: '#F7F4EF',
     TEXT: '#5C5C5C',
   },
@@ -266,7 +266,7 @@ export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
 
 // Connection line styling (Najdi Sadu palette)
 export const CONNECTION_STYLES = {
-  LINE_COLOR: '#BEBEBE70',  // Soft grey 44%
+  LINE_COLOR: '#A5A5A533',  // Soft mid-grey ~20% opacity for straight edges
   LINE_WIDTH: 1.2,
   CORNER_RADIUS: 8,
 } as const;

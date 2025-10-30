@@ -189,14 +189,24 @@ export function CircularNodeRenderer({
       );
     }
 
-    const outerRadius = radius * 0.88;
+    const outerRadius = radius * 0.9;
     return (
-      <Circle
-        cx={centerX}
-        cy={centerY}
-        r={outerRadius}
-        color={TIDY_CIRCLE.COLORS.CENTER_FILL}
-      />
+      <>
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={outerRadius}
+          color={TIDY_CIRCLE.COLORS.CENTER_FILL}
+        />
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={outerRadius}
+          style="stroke"
+          strokeWidth={radius - outerRadius}
+          color={TIDY_CIRCLE.COLORS.GAP_FILL}
+        />
+      </>
     );
   }, [hasPhoto, isTidyVariant, centerX, centerY, radius]);
 
