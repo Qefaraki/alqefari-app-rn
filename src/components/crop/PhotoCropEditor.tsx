@@ -163,7 +163,8 @@ export function PhotoCropEditor({
           profileId,    // Profile ID
           `profiles/${profileId}/${croppedFileName}`,  // Custom storage path
           null,         // No progress callback
-          'image/jpeg'  // Force JPEG content type (fixes MIME detection for local files)
+          'image/jpeg', // Force JPEG content type (fixes MIME detection for local files)
+          true          // isCropUpload: Preserve original photo_url (crop variant upload)
         );
 
         if (uploadError) {

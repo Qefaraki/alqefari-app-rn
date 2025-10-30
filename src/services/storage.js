@@ -13,6 +13,7 @@ class StorageService {
    * @param {string} customPath - Optional custom storage path
    * @param {function} onProgress - Optional callback for upload progress
    * @param {string} forceContentType - Optional content type override (e.g., 'image/jpeg')
+   * @param {boolean} isCropUpload - If true, preserves original photo_url (crop variant upload)
    * @returns {Promise<{url: string, error: Error|null}>}
    */
   async uploadProfilePhoto(
@@ -21,6 +22,7 @@ class StorageService {
     customPath = null,
     onProgress = null,
     forceContentType = null,
+    isCropUpload = false,
   ) {
     // Pre-flight network check
     const networkState = useNetworkStore.getState();
@@ -181,7 +183,8 @@ class StorageService {
         }
 
         // Clean up old photos on successful upload
-        await this.cleanupOldPhotos(profileId, publicUrl);
+        // For crop uploads, preserve both original and cropped variants
+        await this.cleanupOldPhotos(profileId, publicUrl, isCropUpload);
 
         // LOG: Upload success
         console.log('[STORAGE_UPLOAD_SUCCESS]', {
@@ -398,9 +401,10 @@ class StorageService {
    * Cleans up old photos when uploading a new one
    * @param {string} profileId - The profile ID
    * @param {string} currentPhotoUrl - The current photo URL to preserve
+   * @param {boolean} isCropUpload - If true, preserves both original and cropped photos
    * @returns {Promise<void>}
    */
-  async cleanupOldPhotos(profileId, currentPhotoUrl = null) {
+  async cleanupOldPhotos(profileId, currentPhotoUrl = null, isCropUpload = false) {
     try {
       const path = this.getProfilePhotoPath(profileId);
 
@@ -413,10 +417,27 @@ class StorageService {
         throw error;
       }
 
-      // Delete all photos except the current one
+      // Delete strategy depends on upload type
       const filesToDelete = files
         .filter((file) => {
           if (!currentPhotoUrl) return true;
+
+          // For crop uploads: preserve BOTH original (photo_*) AND cropped (*_cropped_*) files
+          if (isCropUpload) {
+            // Keep the file being uploaded
+            if (currentPhotoUrl.includes(file.name)) return false;
+
+            // Keep all photo_* files (original photos)
+            if (file.name.startsWith('photo_')) return false;
+
+            // Keep all *_cropped_* files (crop variants)
+            if (file.name.includes('_cropped_')) return false;
+
+            // Delete everything else (old temp files, etc.)
+            return true;
+          }
+
+          // For normal uploads: delete all except the current one (existing behavior)
           return !currentPhotoUrl.includes(file.name);
         })
         .map((file) => `${path}${file.name}`);
