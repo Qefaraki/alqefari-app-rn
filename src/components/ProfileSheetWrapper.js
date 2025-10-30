@@ -13,6 +13,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const nodesMap = useTreeStore((s) => s.nodesMap);
+  const treeNode = useTreeStore((s) => s.selectedPersonId ? s.nodesMap.get(s.selectedPersonId) : null);
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
   // Local state for non-tree profiles (Munasib/spouses from outside family)
@@ -105,7 +106,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
     };
   }, [selectedPersonId, nodesMap, setSelectedPersonId]);
 
-  // Get person data - try nodesMap first (tree members), fallback to Munasib state
+  // Get person data - subscribe to specific tree node, fallback to Munasib state
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
 
@@ -120,7 +121,6 @@ const ProfileSheetWrapper = ({ editMode }) => {
     // PRIORITY FIX: Use complete auth profile for self-view (45 fields vs 10 fields from tree store)
     // BUT: Merge with tree store if it has newer version (preserves all fields + fresh version)
     if (userProfile?.id === selectedPersonId && userProfile) {
-      const treeNode = nodesMap.get(selectedPersonId);
 
       // Defensive: handle null/undefined versions
       const treeVersion = treeNode?.version ?? 0;
@@ -187,7 +187,6 @@ const ProfileSheetWrapper = ({ editMode }) => {
     }
 
     // 1. Try tree store (Al-Qefari family members with HID)
-    const treeNode = nodesMap.get(selectedPersonId);
     if (treeNode) {
       console.log('[PROFILE SHEET DEBUG] ✅ Found in tree store:', {
         id: treeNode.id,
@@ -224,7 +223,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
       munasibAvailable: !!munasibProfile
     });
     return null;
-  }, [selectedPersonId, nodesMap, munasibProfile, userProfile]);
+  }, [selectedPersonId, treeNode, munasibProfile, userProfile]);
 
   // Critical: Reset profileSheetProgress when switching between modals
   useEffect(() => {

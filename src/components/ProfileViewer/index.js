@@ -66,7 +66,6 @@ import suggestionService, {
   ALLOWED_SUGGESTION_FIELDS,
 } from '../../services/suggestionService';
 import { supabase, handleSupabaseError } from '../../services/supabase';
-import skiaImageCache from '../../services/skiaImageCache';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import { invalidateStructureCache } from '../../utils/cacheInvalidation';
@@ -1140,9 +1139,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         version: newVersion,
       });
 
-      // Clear Skia image cache to force tree to re-render cropped photos immediately
-      skiaImageCache.clear();
-
       // Update parent component via onUpdate callback
       onUpdate?.(updatedPerson);
 
@@ -1335,10 +1331,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       console.log('[ProfileViewer] Updating store with version:', updatedProfile.version);
 
       useTreeStore.getState().updateNode(person.id, updatedProfile);
-
-      // Clear Skia image cache to force tree to reload photos immediately
-      skiaImageCache.clear();
-
       onUpdate?.(updatedProfile);
 
       // Invalidate AsyncStorage cache to ensure fresh data on next app launch
