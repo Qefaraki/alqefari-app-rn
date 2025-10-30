@@ -1361,7 +1361,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     const fetchPhotos = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, photo_url')
+        .select('id, photo_url, photo_url_cropped')
         .in('id', missingIds);
 
       if (error) {
@@ -1375,7 +1375,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       setActorPhotoMap((prev) => {
         const next = { ...prev };
         data?.forEach((row) => {
-          next[row.id] = row.photo_url || null;
+          next[row.id] = row.photo_url_cropped || row.photo_url || null;  // Prefer cropped (Phase 5 fix)
         });
         missingIds.forEach((id) => {
           if (!returnedIds.has(id)) {

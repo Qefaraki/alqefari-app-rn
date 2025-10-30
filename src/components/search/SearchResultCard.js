@@ -39,9 +39,9 @@ const SearchResultCard = ({
       <View style={styles.cardContent}>
         {/* Avatar - positioned on RIGHT for RTL */}
         <View style={styles.avatarContainer}>
-          {item.photo_url ? (
+          {(item.photo_url_cropped || item.photo_url) ? (
             <Image
-              source={{ uri: item.photo_url }}
+              source={{ uri: item.photo_url_cropped || item.photo_url }}
               style={styles.avatarPhoto}
               defaultSource={require("../../../assets/icon.png")}
             />
