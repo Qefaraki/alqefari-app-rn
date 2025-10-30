@@ -500,12 +500,12 @@ const GenerationsSection = ({ stats }) => {
 
   return (
     <View
-      style={styles.card}
+      style={styles.chartCard}
       accessibilityLabel={`توزيع ${generations.length} أجيال. الجيل ${getArabicOrdinal(
         largestGen.generation
       )} هو الأكبر بـ ${formatNumber(largestGen.count)} فرد`}
     >
-      <View style={styles.cardHeaderRow}>
+      <View style={[styles.cardHeaderRow, { paddingHorizontal: spacing.lg }]}>
         <View>
           <Text style={styles.cardEyebrow}>رحلة الأجيال</Text>
           <Text style={styles.cardSubtitle}>مقارنة حجم كل جيل في شجرة العائلة</Text>
@@ -546,7 +546,7 @@ const GenerationsSection = ({ stats }) => {
         />
       </View>
 
-      <Text style={styles.calloutText}>
+      <Text style={[styles.calloutText, { paddingHorizontal: spacing.lg }]}>
         {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
       </Text>
     </View>
@@ -969,6 +969,26 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.xl,
     padding: spacing.lg,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}0F`,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  chartCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xl,
+    paddingVertical: spacing.lg,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,

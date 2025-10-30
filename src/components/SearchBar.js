@@ -4,7 +4,6 @@ import {
   TextInput,
   Text,
   Pressable,
-  TouchableOpacity,
   Keyboard,
   Animated,
   Platform,
@@ -537,22 +536,22 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       return;
     }
 
-    if (!selectedPersonId && navigationData.rootNode) {
-      setActivePillId(navigationData.rootNode.id);
-      return;
-    }
-
     if (selectedPersonId) {
       const isRoot = navigationData.rootNode?.id === selectedPersonId;
       const matchingBranch = navigationData.g2Branches.find(
         (branch) => branch.id === selectedPersonId,
       );
 
-      if (isRoot || matchingBranch) {
+      if ((isRoot || matchingBranch) && activePillId !== selectedPersonId) {
         setActivePillId(selectedPersonId);
       }
+      return;
     }
-  }, [navigationData.hasData, navigationData.rootNode, navigationData.g2Branches, selectedPersonId]);
+
+    if (!activePillId && navigationData.rootNode) {
+      setActivePillId(navigationData.rootNode.id);
+    }
+  }, [activePillId, navigationData.hasData, navigationData.rootNode, navigationData.g2Branches, selectedPersonId]);
 
   return (
     <>
@@ -654,25 +653,46 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
             {/* Navigation Pills - INSIDE opacity wrapper for synchronization */}
             {navigationData.hasData && (
               <View style={styles.pillsContainer}>
-                <ScrollView 
-                  horizontal 
+                <ScrollView
+                  horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.pillsContent}
                   style={styles.pillsScrollView}
+                  decelerationRate="fast"
                 >
                   {/* Root Node Pill */}
                   {navigationData.rootNode && (
-                    <TouchableOpacity
-                      style={[styles.pill, styles.rootPill]}
-                      onPress={() => handlePillPress(navigationData.rootNode.id, getRootDisplayName(navigationData.rootNode))}
-                      activeOpacity={0.7}
+                    <Pressable
+                      onPress={() => handlePillPress(navigationData.rootNode.id)}
+                      hitSlop={pillHitSlop}
                       accessibilityRole="button"
                       accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
+                      accessibilityState={{ selected: activePillId === navigationData.rootNode.id }}
+                      style={({ pressed }) => [
+                        styles.pill,
+                        styles.rootPill,
+                        activePillId === navigationData.rootNode.id
+                          ? styles.pillSelected
+                          : styles.rootPillResting,
+                        pressed && styles.pillPressed,
+                      ]}
                     >
-                      <Text style={[styles.pillText, styles.rootPillText]}>
+                      <Text
+                        style={[
+                          pillTypography,
+                          styles.pillText,
+                          { fontFamily: fontFamilyArabic },
+                          activePillId === navigationData.rootNode.id
+                            ? styles.pillTextSelected
+                            : styles.rootPillTextDefault,
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        allowFontScaling
+                      >
                         {getRootDisplayName(navigationData.rootNode)}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
 
                   {/* Divider */}
@@ -681,20 +701,39 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
                   )}
 
                   {/* G2 Branch Pills */}
-                  {navigationData.g2Branches.map((branch) => (
-                    <TouchableOpacity
-                      key={branch.id}
-                      style={[styles.pill, styles.branchPill]}
-                      onPress={() => handlePillPress(branch.id, branch.name)}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
-                    >
-                      <Text style={[styles.pillText, styles.branchPillText]} numberOfLines={1}>
-                        {branch.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {navigationData.g2Branches.map((branch) => {
+                    const isSelected = activePillId === branch.id;
+                    return (
+                      <Pressable
+                        key={branch.id}
+                        onPress={() => handlePillPress(branch.id)}
+                        hitSlop={pillHitSlop}
+                        accessibilityRole="button"
+                        accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
+                        accessibilityState={{ selected: isSelected }}
+                        style={({ pressed }) => [
+                          styles.pill,
+                          styles.branchPill,
+                          isSelected ? styles.pillSelected : styles.pillOutline,
+                          pressed && styles.pillPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            pillTypography,
+                            styles.pillText,
+                            { fontFamily: fontFamilyArabic },
+                            isSelected ? styles.pillTextSelected : styles.pillTextDefault,
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          allowFontScaling
+                        >
+                          {branch.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -844,60 +883,78 @@ const styles = StyleSheet.create({
   },
   // Navigation Pills styles
   pillsContainer: {
-    marginTop: 8,
+    marginTop: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.xs,
   },
   pillsScrollView: {
     flexGrow: 0,
   },
   pillsContent: {
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    gap: 8,
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    gap: tokens.spacing.xs,
   },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
     borderRadius: tokens.radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 64,
-    minHeight: 32,
-    
-    // Shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  rootPill: {
-    backgroundColor: tokens.colors.najdi.primary,
-    minWidth: 120,  // Allow more width for full Arabic name
-    maxWidth: 220,  // Reasonable max width for long names
-  },
-  branchPill: {
-    backgroundColor: tokens.colors.surface,
+    minWidth: 72,
+    minHeight: tokens.touchTarget.minimum,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.surface,
+    flexShrink: 1,
+    maxWidth: 240,
+  },
+  pillOutline: {
+    backgroundColor: tokens.colors.surface,
+    borderColor: tokens.colors.najdi.container,
+  },
+  pillSelected: {
+    backgroundColor: tokens.colors.najdi.primary,
+    borderColor: tokens.colors.najdi.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  pillPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
+  rootPill: {
+    minWidth: 120,
+    borderColor: tokens.colors.najdi.primary,
+  },
+  rootPillResting: {
+    borderColor: tokens.colors.najdi.primary,
+  },
+  branchPill: {
+    minWidth: 84,
   },
   pillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: 'SF Arabic',
     textAlign: 'center',
+    flexShrink: 1,
+    maxWidth: 220,
   },
-  rootPillText: {
+  pillTextSelected: {
     color: tokens.colors.surface,
   },
-  branchPillText: {
+  pillTextDefault: {
     color: tokens.colors.najdi.text,
   },
+  rootPillTextDefault: {
+    color: tokens.colors.najdi.primary,
+  },
   pillDivider: {
-    width: 1,
-    height: 20,
+    width: StyleSheet.hairlineWidth,
+    height: 24,
     backgroundColor: `${tokens.colors.najdi.textMuted}30`,
-    marginHorizontal: 4,
+    marginHorizontal: tokens.spacing.xs,
   },
 });
 

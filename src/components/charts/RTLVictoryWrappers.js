@@ -107,12 +107,12 @@ export const RTLVictoryBar = ({
   // Victory Native defaults to 450px width, which is wider than most phone screens!
   // We must explicitly calculate available width based on container layout:
   // - Card margins: tokens.spacing.md (16px) × 2 = 32px
-  // - Card padding: 12px × 2 = 24px (reduced from 40px for wider chart)
-  // - Total offset: 56px
+  // - Card padding: 0px (removed for charts - chart handles its own internal padding)
+  // - Total offset: 32px
   // This ensures chart fits within container on all devices (iPhone SE to iPad Pro)
   const spacing = tokens.spacing;
   const cardMargins = spacing.md * 2;  // 32px total (16px each side)
-  const cardPadding = 24;  // 24px total (12px each side) - reduced for wider chart
+  const cardPadding = 0;  // Chart cards have no horizontal padding
   const chartWidth = windowWidth - cardMargins - cardPadding;
 
   return (

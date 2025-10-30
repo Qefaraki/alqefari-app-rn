@@ -186,6 +186,10 @@ export const TIDY_RECT = {
     WIDTH_TEXT_ONLY: 46,
     HEIGHT_TEXT_ONLY: 28,
     CORNER_RADIUS: 8,
+    PHOTO_SIZE: 32,
+    PHOTO_OFFSET_Y: -6,
+    NAME_FONT_SIZE: 10,
+    NAME_OFFSET_FROM_BOTTOM: 6,
   },
   G2: {
     WIDTH_PHOTO: 60,
@@ -193,11 +197,19 @@ export const TIDY_RECT = {
     HEIGHT_PHOTO: 66,
     HEIGHT_TEXT: 30,
     CORNER_RADIUS: 10,
+    PHOTO_SIZE: 38,
+    PHOTO_OFFSET_Y: -8,
+    NAME_FONT_SIZE: 11,
+    NAME_OFFSET_FROM_BOTTOM: 8,
   },
   ROOT: {
     WIDTH: 90,
     HEIGHT: 82,
     BORDER_RADIUS: 16,
+    PHOTO_SIZE: 54,
+    PHOTO_OFFSET_Y: -10,
+    NAME_FONT_SIZE: 16,
+    NAME_OFFSET_FROM_BOTTOM: 10,
   },
 } as const;
 

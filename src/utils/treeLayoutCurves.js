@@ -7,7 +7,7 @@
  */
 
 import { hierarchy, tree } from "d3-hierarchy";
-import { STANDARD_NODE, ROOT_NODE } from "../components/TreeView/rendering/nodeConstants";
+import { STANDARD_NODE, ROOT_NODE, TIDY_RECT } from "../components/TreeView/rendering/nodeConstants";
 
 /**
  * Calculate D3 tidy tree layout with EXACT D3 code
@@ -73,11 +73,13 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Observable Plot style: Moderate spacing for clean, compact layout
   // dx controls vertical spacing between siblings/cousins (breadth axis)
   // dy controls horizontal spacing between generations (depth axis)
-  const dx = 40;  // Tight sibling spacing (reduced from 60px to match normal mode density)
-  const dy = (viewportWidth / (root.height + 1)) * 1.5;  // 1.5x wider generation spacing
+  const dx = 26;  // Compact sibling spacing for tidy / bezier mode
+  const dy = (viewportWidth / (root.height + 1)) * 1.2;  // Slightly tighter generation spacing
 
   // Create tree layout
-  const treeLayout = tree().nodeSize([dx, dy]);
+  const treeLayout = tree()
+    .nodeSize([dx, dy])
+    .separation((a, b) => (a.parent === b.parent ? 0.7 : 1));
 
   // Sort by name (optional, D3 example does this)
   // We skip this since we already sorted by sibling_order above
@@ -112,7 +114,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
     let layoutY = d.depth * depthSpacing;
 
     if (d.depth === 0 && !d.data.father_id) {
-      layoutY -= 80; // visual gap above root
+      layoutY -= 60; // visual gap above root (scaled down for tidy mode)
     }
 
     const layoutNode = {
@@ -135,11 +137,18 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Top-align nodes within each generation (text-only heights for progressive layout)
   depthGroups.forEach((nodesAtDepth, depth) => {
     const minHeight = Math.min(
-      ...nodesAtDepth.map((node) => (depth === 0 && !node.data.father_id ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY))
+      ...nodesAtDepth.map((node) =>
+        depth === 0 && !node.data.father_id
+          ? TIDY_RECT.ROOT.HEIGHT
+          : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY,
+      )
     );
 
     nodesAtDepth.forEach((node) => {
-      const nodeHeight = depth === 0 && !node.data.father_id ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+      const nodeHeight =
+        depth === 0 && !node.data.father_id
+          ? TIDY_RECT.ROOT.HEIGHT
+          : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY;
       node.layoutY += (nodeHeight - minHeight) / 2;
     });
   });

@@ -241,7 +241,13 @@ function getLabelHeight(
     nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
 
   if (tidyRect) {
-    return 6;
+    const config =
+      !node.father_id
+        ? TIDY_RECT.ROOT
+        : node.generation === 2 && (node as any)._hasChildren
+        ? TIDY_RECT.G2
+        : TIDY_RECT.STANDARD;
+    return config.NAME_OFFSET_FROM_BOTTOM ?? 6;
   }
 
   if (!tidyCircular) {

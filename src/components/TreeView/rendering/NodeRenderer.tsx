@@ -523,6 +523,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     nodeStyle,
     lineStyle,
   );
+  const useTidyRect = (lineStyle === 'bezier' || lineStyle === 'curves') && nodeStyle !== 'circular';
+  const tidyRectConfig = useTidyRect
+    ? (isRoot
+        ? TIDY_RECT.ROOT
+        : isG2Parent
+        ? TIDY_RECT.G2
+        : TIDY_RECT.STANDARD)
+    : null;
 
   // Conditional rendering: Use CircularNodeRenderer for circular nodes
   if (dimensions.shape === 'circular') {
@@ -542,6 +550,19 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   // Rectangular node rendering (existing logic below)
   const { width, height, borderRadius } = dimensions;
 
+  const photoSize = hasPhoto
+    ? useTidyRect
+      ? tidyRectConfig?.PHOTO_SIZE ?? PHOTO_SIZE
+      : PHOTO_SIZE
+    : 0;
+  const photoOffsetY = useTidyRect
+    ? tidyRectConfig?.PHOTO_OFFSET_Y ?? -10
+    : -10;
+  const nameFontSize = useTidyRect
+    ? tidyRectConfig?.NAME_FONT_SIZE ?? (isRoot ? 22 : 11)
+    : isRoot ? 22 : 11;
+  const nameOffsetFromBottom = tidyRectConfig?.NAME_OFFSET_FROM_BOTTOM;
+
   // Calculate deceased status for grayscale photos
   const isDeceased = node.status === 'deceased';
 
@@ -557,7 +578,15 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     y,
     width,
     height,
-    borderRadius: isRoot ? ROOT_NODE.BORDER_RADIUS : isT1 ? 16 : isT2 ? 13 : STANDARD_NODE.CORNER_RADIUS,
+    borderRadius: useTidyRect
+      ? borderRadius
+      : isRoot
+      ? ROOT_NODE.BORDER_RADIUS
+      : isT1
+      ? 16
+      : isT2
+      ? 13
+      : STANDARD_NODE.CORNER_RADIUS,
   });
 
   return (
@@ -571,18 +600,23 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
       {hasPhoto ? (
         <>
           {/* Photo placeholder */}
-          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE, STANDARD_NODE.CORNER_RADIUS)}
+          {renderPhotoPlaceholder(
+            node.x,
+            node.y + photoOffsetY,
+            useTidyRect ? photoSize : PHOTO_SIZE,
+            useTidyRect ? borderRadius : STANDARD_NODE.CORNER_RADIUS,
+          )}
 
           {/* Load and display image if available */}
           {photoUrl && (
             <ImageNode
               url={photoUrl}
               blurhash={node.blurhash}
-              x={node.x - PHOTO_SIZE / 2}
-              y={node.y - 10 - PHOTO_SIZE / 2}
-              width={PHOTO_SIZE}
-              height={PHOTO_SIZE}
-              cornerRadius={STANDARD_NODE.CORNER_RADIUS}
+              x={node.x - (useTidyRect ? photoSize : PHOTO_SIZE) / 2}
+              y={node.y + photoOffsetY - (useTidyRect ? photoSize : PHOTO_SIZE) / 2}
+              width={useTidyRect ? photoSize : PHOTO_SIZE}
+              height={useTidyRect ? photoSize : PHOTO_SIZE}
+              cornerRadius={useTidyRect ? borderRadius : STANDARD_NODE.CORNER_RADIUS}
               tier={node._tier || 1}
               scale={node._scale || 1}
               nodeId={node.id}
@@ -598,15 +632,16 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 11,
+              nameFontSize,
               COLORS.TEXT,
               width,
             );
 
             if (!nameParagraph) return null;
 
-            // Position text near bottom of card - slightly higher than bottom edge
-            const textY = y + (height * 0.80) - (nameParagraph.getHeight() / 2) + 2;
+            const textY = useTidyRect && nameOffsetFromBottom != null
+              ? y + height - nameOffsetFromBottom - nameParagraph.getHeight()
+              : y + (height * 0.80) - (nameParagraph.getHeight() / 2) + 2;
 
             return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
           })()}
@@ -619,7 +654,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 11,
+              nameFontSize,
               COLORS.TEXT,
               width,
             );
@@ -627,13 +662,15 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             if (!nameParagraph) return null;
 
             const textX = x;
-            const textY = y + (height - nameParagraph.getHeight()) / 2;
+            const textY = useTidyRect && nameOffsetFromBottom != null
+              ? y + height - nameOffsetFromBottom - nameParagraph.getHeight()
+              : y + (height - nameParagraph.getHeight()) / 2;
 
             return <Paragraph paragraph={nameParagraph} x={textX} y={textY} width={width} />;
           })()}
 
           {/* Sadu icons for root node */}
-          {isRoot && !hasPhoto && (
+          {isRoot && !hasPhoto && !useTidyRect && (
             <>
               {/* Left Sadu icon */}
               <SaduIcon x={x + 5} y={y + height / 2 - 10} size={20} />
@@ -644,7 +681,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           )}
 
           {/* Sadu icons for Generation 2 parent nodes */}
-          {isG2Parent && (
+          {isG2Parent && !useTidyRect && (
             <>
               {/* Left Sadu icon */}
               <SaduIconG2
