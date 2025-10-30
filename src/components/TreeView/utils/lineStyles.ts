@@ -11,6 +11,7 @@
 import { Skia, SkPath } from "@shopify/react-native-skia";
 import {
   calculateBusY,
+  calculateBusLine,
   calculateParentVerticalPath,
   calculateChildVerticalPaths,
   shouldRenderBusLine,

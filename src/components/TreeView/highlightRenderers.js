@@ -481,8 +481,10 @@ function HighlightSegment({ segment, highlight, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      // Route bezier mode to tidy bus curves (reuse tree geometry)
-      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
+      // Route line style to match tree rendering (straight or curves)
+      // When user selects 'bezier' or 'curves' in settings, use CURVES for tidy tree
+      // When user selects 'straight' in settings, use STRAIGHT for elbow connections
+      const currentLineStyle = (lineStyle === 'bezier' || lineStyle === 'curves') ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 
       // Warn if path generation is slow (>5ms per segment)
@@ -614,8 +616,10 @@ function OverlappingHighlightSegment({ segment, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      // Route bezier mode to tidy bus curves (reuse tree geometry)
-      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
+      // Route line style to match tree rendering (straight or curves)
+      // When user selects 'bezier' or 'curves' in settings, use CURVES for tidy tree
+      // When user selects 'straight' in settings, use STRAIGHT for elbow connections
+      const currentLineStyle = (lineStyle === 'bezier' || lineStyle === 'curves') ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 
       // Warn if path generation is slow (>5ms per segment)
