@@ -9,7 +9,7 @@
  */
 
 import { Skia, SkPath } from "@shopify/react-native-skia";
-import { link, curveStepBefore } from 'd3-shape';
+import { link, curveBumpX } from 'd3-shape';
 import {
   calculateBusY,
   calculateParentVerticalPath,
@@ -270,29 +270,20 @@ export function generateD3CurvePaths(
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
-  // Calculate actual rendered dimensions (respects rectangular vs circular mode)
-  // This ensures curves connect to the ACTUAL edge position of rendered nodes
-  const parentWidth = calculateActualNodeWidth(parent, showPhotos, nodeStyle);
-  const parentRightEdge = parent.y + parentWidth / 2;  // Right edge (horizontal depth position)
+  // D3 link() with curveBumpX for smooth S-curve connections
+  // curveBumpX creates Bézier curves with horizontal tangents (same as linkHorizontal default)
+  // Creates elegant S-curves matching Observable tidy tree example
+  // Connect to node centers (where nodes actually render) for perfect alignment
+  const linkGen = link(curveBumpX)
+    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical] = [node.y, node.x]
+    .target((d: any) => [d.target.y, d.target.x]); // Connect to node centers
 
-  // D3 link() with curveStepBefore for elbow-style connections
-  // Creates angular "staircase" curves: horizontal → sharp vertical turn → horizontal
-  // Note: linkHorizontal() doesn't support .curve() - must use link(curve) constructor
-  const linkGen = link(curveStepBefore)  // Pass curve to constructor for elbow effect
-    .x(d => d.y)  // Use Y coordinate for horizontal position (depth → left-to-right)
-    .y(d => d.x); // Use X coordinate for vertical position (breadth → up-down)
-
-  // Generate curve from parent right edge to each child left edge
+  // Generate curve from parent to each child
   children.forEach((child) => {
-    const childWidth = calculateActualNodeWidth(child, showPhotos, nodeStyle);
-    const childLeftEdge = child.y - childWidth / 2;  // Left edge (horizontal depth position)
-
-    // Connect edges (not centers) for clean convergence with elbow-style approach
-    // Assign horizontal coord to x field, vertical coord to y field
-    // linkGen accessors .x(d => d.y) and .y(d => d.x) will swap them for horizontal tree display
+    // Pass full node objects - link generator extracts coordinates via .source()/.target()
     const svgPathData = linkGen({
-      source: { x: parentRightEdge, y: parent.x },  // horizontal (depth) to x, vertical (breadth) to y
-      target: { x: childLeftEdge, y: child.x }      // horizontal (depth) to x, vertical (breadth) to y
+      source: parent,  // Parent node at (parent.y, parent.x)
+      target: child    // Child node at (child.y, child.x)
     });
 
     // Convert SVG path to Skia path

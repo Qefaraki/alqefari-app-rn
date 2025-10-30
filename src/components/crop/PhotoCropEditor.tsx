@@ -38,11 +38,13 @@ import {
   Text,
   ActivityIndicator,
   Image,
+  I18nManager,
 } from 'react-native';
 import { ImageEditor } from 'expo-dynamic-image-crop';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from '../ui/tokens';
 import { isValidCrop, clampCropCoordinates } from '../../utils/cropUtils';
+import { downloadImageForCrop } from '../../utils/imageCacheUtil';
 
 interface PhotoCropEditorProps {
   visible: boolean;
@@ -122,22 +124,36 @@ export function PhotoCropEditor({
           return;
         }
 
-        // Strategy 2: Try using remote URL directly (expo-dynamic-image-crop might support it)
-        console.log('[PhotoCrop] No cached image, trying remote URL directly');
-        setLocalImagePath(photoUrl);
+        // Strategy 2: Download image on-demand using FileSystem (cache for instant crop)
+        console.log('[PhotoCrop] No cached image, downloading now:', photoUrl);
 
+        const downloadedPath = await downloadImageForCrop(photoUrl);
+
+        if (!downloadedPath) {
+          console.error('[PhotoCrop] Download failed, cannot proceed');
+          Alert.alert(
+            'تعذر تحميل الصورة',
+            'لم نتمكن من تحميل الصورة للقص. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
+            [{ text: 'حسناً', onPress: onCancel }]
+          );
+          return;
+        }
+
+        setLocalImagePath(downloadedPath);
+
+        // Load dimensions from downloaded file
         Image.getSize(
-          photoUrl,
+          downloadedPath,
           (width, height) => {
             setImageDimensions({ width, height });
             setImageLoaded(true);
-            console.log('[PhotoCrop] Remote image loaded directly:', { width, height });
+            console.log('[PhotoCrop] Downloaded image loaded:', { width, height, path: downloadedPath });
           },
           (error) => {
-            console.error('[PhotoCrop] Remote URL failed, cannot proceed:', error);
+            console.error('[PhotoCrop] Failed to load downloaded image:', error);
             Alert.alert(
-              'تعذر تحميل الصورة',
-              'لم نتمكن من تحميل الصورة للقص. هذه ميزة تجريبية قد لا تعمل على جميع الأجهزة.',
+              'خطأ',
+              'حدث خطأ أثناء تحميل الصورة. يرجى المحاولة مرة أخرى.',
               [{ text: 'حسناً', onPress: onCancel }]
             );
           }
@@ -245,7 +261,8 @@ export function PhotoCropEditor({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel} statusBarTranslucent>
-      <View style={styles.container}>
+      {/* Force LTR layout for crop editor (expo-dynamic-image-crop not RTL-aware) */}
+      <View style={[styles.container, I18nManager.isRTL && { direction: 'ltr' }]}>
         {/* Custom Header (matching Najdi Sadu design) */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleCloseEditor} style={styles.headerButton} disabled={saving}>
@@ -263,7 +280,7 @@ export function PhotoCropEditor({
             isVisible={true}
             imageUri={localImagePath} // Use pre-downloaded local file:// path (instant) or downloaded cache
             onEditingComplete={handleEditingComplete}
-            onCloseEditor={handleCloseEditor}
+            onEditingCancel={handleCloseEditor}
             fixedAspectRatio={1} // 1:1 square for profile photos
             dynamicCrop={true} // Allow free-form cropping within square
             mode="contain" // Fit entire image initially

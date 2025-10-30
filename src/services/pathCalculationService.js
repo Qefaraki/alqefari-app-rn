@@ -93,6 +93,14 @@ export class PathCalculationService {
       maxDepth = 500,
     } = options;
 
+    // Guard: Check if node exists before processing
+    if (!this.nodesMap.has(nodeId)) {
+      if (__DEV__) {
+        console.warn(`[PathCalculationService] Node ${nodeId} not in nodesMap yet`);
+      }
+      return []; // Return empty path, caller will handle
+    }
+
     // Check cache
     const cacheKey = `${nodeId}-${direction}-${maxDepth}`;
     const cached = this.cache.get(cacheKey);

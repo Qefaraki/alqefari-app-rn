@@ -203,13 +203,16 @@ class HighlightingServiceV2 {
       return [];
     }
 
-    const fromNode = nodesMap.get(from);
-    const toNode = nodesMap.get(to);
-
-    if (!fromNode || !toNode) {
-      console.warn(`[HighlightingServiceV2] Node not found: from=${from}, to=${to}`);
+    // Guard: Check both nodes exist before processing
+    if (!nodesMap.has(from) || !nodesMap.has(to)) {
+      if (__DEV__) {
+        console.warn(`[HighlightingServiceV2] Nodes not ready: from=${from}, to=${to}`);
+      }
       return [];
     }
+
+    const fromNode = nodesMap.get(from);
+    const toNode = nodesMap.get(to);
 
     // Create PathCalculationService instance
     const pathService = new PathCalculationService(nodesMap);
@@ -266,13 +269,16 @@ class HighlightingServiceV2 {
       return [];
     }
 
-    const fromNode = nodesMap.get(from);
-    const toNode = nodesMap.get(to);
-
-    if (!fromNode || !toNode) {
-      console.warn(`[HighlightingServiceV2] Node not found: from=${from}, to=${to}`);
+    // Guard: Check both nodes exist before processing
+    if (!nodesMap.has(from) || !nodesMap.has(to)) {
+      if (__DEV__) {
+        console.warn(`[HighlightingServiceV2] Nodes not ready: from=${from}, to=${to}`);
+      }
       return [];
     }
+
+    const fromNode = nodesMap.get(from);
+    const toNode = nodesMap.get(to);
 
     // Check if direct parent-child connection exists
     const isDirect = fromNode.father_id === to || toNode.father_id === from;

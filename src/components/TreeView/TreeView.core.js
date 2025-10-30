@@ -886,6 +886,20 @@ const TreeViewCore = ({
   // NOTE: Progressive hook returns { treeData, connections } - rename treeData to nodes
   const { treeData: nodes = [], connections = [] } = progressiveResult || { treeData: [], connections: [] };
 
+  // DEBUG: Verify node coordinates match layout mode
+  if (__DEV__ && nodes.length > 0 && connections.length > 0) {
+    const firstNode = nodes[0];
+    const firstConn = connections[0];
+    console.log('[TreeView.core] Node/Connection coordinate verification:', {
+      layoutMode,
+      lineStyle,
+      nodeCount: nodes.length,
+      firstNodeCoords: { id: firstNode.id, x: firstNode.x, y: firstNode.y },
+      firstConnParentCoords: { id: firstConn.parent.id, x: firstConn.parent.x, y: firstConn.parent.y },
+      coordsMatch: firstNode.id === firstConn.parent.id && firstNode.x === firstConn.parent.x && firstNode.y === firstConn.parent.y
+    });
+  }
+
   // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {
     if (nodes.length === 0) {
@@ -1430,11 +1444,21 @@ const TreeViewCore = ({
     (nodeId) => {
       console.log("Attempting to navigate to node:", nodeId);
 
+      // Guard: Check if tree data is ready
+      if (!store.state.nodesMap.has(nodeId)) {
+        Alert.alert(
+          "تنبيه",
+          "جاري تحميل البيانات، يرجى الانتظار قليلاً"
+        );
+        return;
+      }
+
       // Find the node in the current nodes array (not indices)
       // This ensures we always use fresh coordinates
       const targetNode = nodes.find((n) => n.id === nodeId);
 
       if (!targetNode) {
+        // This should be unreachable now, but keep as fallback
         console.warn("Node not found in current nodes:", nodeId);
         console.log("Total nodes in tree:", nodes.length);
         // Show alert if node is not loaded
@@ -1531,7 +1555,7 @@ const TreeViewCore = ({
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
-    [nodes, dimensions, highlightNode, syncTransform],
+    [nodes, dimensions, highlightNode, syncTransform, store.state.nodesMap],
   );
 
   useEffect(() => {
@@ -1577,12 +1601,19 @@ const TreeViewCore = ({
   const cousinMarriageRef2 = useRef(null);  // Zustand pendingCousinHighlight
 
   useEffect(() => {
-    if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
-      // Wait for nodesMap to be populated before calculating paths (fixes "node not found" warning)
-      if (store.state.nodesMap.size === 0) {
-        return; // Skip until data loads
-      }
+    if (!autoHighlight) return;
 
+    // VALIDATOR FIX: Check if specific node exists (progressive loading compatible)
+    // Don't check nodesMap.size === 0 as that breaks progressive enrichment
+    const targetNodeId = typeof autoHighlight === 'object' ? autoHighlight.nodeId : autoHighlight;
+    if (!targetNodeId || !store.state.nodesMap.has(targetNodeId)) {
+      if (__DEV__) {
+        console.log('[TreeView] Skipping autoHighlight: node not loaded yet:', targetNodeId);
+      }
+      return;
+    }
+
+    if (autoHighlight.type === 'SEARCH' && nodes.length > 0) {
       const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
 
       if (pathData && pathData.pathNodeIds.length > 0) {
@@ -2063,6 +2094,14 @@ const TreeViewCore = ({
     (nodeId) => {
       // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
 
+      // Guard: Check if node data is loaded (progressive enrichment)
+      if (!store.state.nodesMap.has(nodeId)) {
+        if (__DEV__) {
+          console.log('[TreeView] Node data not loaded yet:', nodeId);
+        }
+        return; // Silently ignore (progressive enrichment in progress)
+      }
+
       // Clear search highlight when tapping any node
       clearAllHighlights();
 
@@ -2070,7 +2109,7 @@ const TreeViewCore = ({
       setProfileEditMode(isAdminMode);
       // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
     },
-    [setSelectedPersonId, isAdminMode, clearAllHighlights],
+    [setSelectedPersonId, isAdminMode, clearAllHighlights, store.state.nodesMap],
   );
 
   // Tap gesture for selection with movement/time thresholds
