@@ -41,8 +41,8 @@ export type LineStyle = (typeof LINE_STYLES)[keyof typeof LINE_STYLES];
 export const BEZIER_CONFIG = {
   CURVE_STRENGTH: 0.4, // Reduced from 0.50 - gentler curves
   STROKE_WIDTH: 1.6, // Light but visible stroke (scaled 30%)
-  STROKE_OPACITY: 0.45, // Allow overlap to build subtle spine
-  STROKE_COLOR: "#BEBEBE", // Soft grey similar to D3 example
+  STROKE_OPACITY: 0.13, // Low opacity to let overlap build gradually
+  STROKE_COLOR: "#000000", // Pure black at low opacity
 } as const;
 
 // Dev-only instrumentation to trace tidy curve geometry when needed

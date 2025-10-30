@@ -121,13 +121,13 @@ export const RTLVictoryBar = ({
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: In RTL horizontal bar charts, labels appear on the LEFT side!
-      // 120px left (axis labels like "الأول", "الثاني"), 40px right (bars + bar labels)
-      // Balanced to give labels breathing room without excessive empty space
+      // 85px left (axis labels - compact Arabic ordinals), 25px right (minimal bar margin)
+      // Optimized to maximize bar width while keeping labels readable
       padding={{
         top: 20,
         bottom: 40,
-        left: 120,
-        right: 40
+        left: 85,
+        right: 25
       }}
       height={height}
       {...chartProps}
