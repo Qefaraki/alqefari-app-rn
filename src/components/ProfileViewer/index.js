@@ -119,7 +119,7 @@ const ViewModeContent = React.memo(({
         runOnJS(closeSheet)();
       }
     }
-  }, []);
+  });
 
   return (
   <BottomSheetScrollView
@@ -672,8 +672,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     permissions: true,
   });
 
-  const scrollY = useSharedValue(0);
-  const animatedPosition = useSharedValue(0);
+  // Stabilize shared values with useRef to prevent recreation on re-render
+  const scrollYRef = useRef(null);
+  if (!scrollYRef.current) scrollYRef.current = useSharedValue(0);
+  const scrollY = scrollYRef.current;
+
+  const animatedPositionRef = useRef(null);
+  if (!animatedPositionRef.current) animatedPositionRef.current = useSharedValue(0);
+  const animatedPosition = animatedPositionRef.current;
+
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
@@ -1008,19 +1015,22 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
-  // Track sheet position and update global store progress
-  // Note: Only JS values in deps - Reanimated tracks shared values automatically via Babel plugin
-  useAnimatedReaction(
-    () => (profileSheetProgress ? animatedPosition.value : null),
-    (current, previous) => {
-      'worklet';
-      if (!current || current === previous) return;
-      if (!profileSheetProgress) return; // Defensive null check
-      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-      profileSheetProgress.value = progress;
-    },
-    [screenHeight]
-  );
+  // Guard: Only set up reaction if profileSheetProgress exists
+  useEffect(() => {
+    if (!profileSheetProgress) return;
+
+    const cleanup = useAnimatedReaction(
+      () => animatedPosition.value,
+      (current, previous) => {
+        'worklet';
+        if (current === previous) return;
+        const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+        profileSheetProgress.value = progress;
+      }
+    );
+
+    return cleanup;
+  }, [profileSheetProgress, animatedPosition, screenHeight]);
 
   const canEdit = accessMode !== 'readonly';
 
@@ -1048,7 +1058,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           runOnJS(closeSheet)();
         }
       });
-  }, [mode, closeSheet]);
+  }, [mode]);
 
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
@@ -1086,7 +1096,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           runOnJS(closeSheet)();
         }
       });
-  }, [mode, form.isDirty, screenWidth, closeSheet]);
+  }, [mode, form.isDirty, screenWidth]);
 
   // Compose gestures - both can work simultaneously
   const composedGesture = useMemo(() => {
