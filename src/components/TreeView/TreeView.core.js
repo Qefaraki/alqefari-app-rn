@@ -1327,7 +1327,7 @@ const TreeViewCore = ({
       const parentY = conn.parent.y;
 
       // Use PathCalculator for bus line calculations
-      const busY = calculateBusY(conn.parent, conn.children);
+      const busY = calculateBusY(conn.parent, conn.children, showPhotos, nodeStyleValue);
       const shouldHaveBus = shouldRenderBusLine(conn.children, conn.parent);
 
       // Calculate horizontal span for viewport culling
@@ -2280,7 +2280,7 @@ const TreeViewCore = ({
     }
 
     // Use line styles system for unified path generation
-    // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+    // Route bezier mode to tidy bus curves (same geometry used by highlights)
     const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
 
     if (__DEV__) {

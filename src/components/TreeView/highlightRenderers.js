@@ -481,7 +481,7 @@ function HighlightSegment({ segment, highlight, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+      // Route bezier mode to tidy bus curves (reuse tree geometry)
       const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 
@@ -614,7 +614,7 @@ function OverlappingHighlightSegment({ segment, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+      // Route bezier mode to tidy bus curves (reuse tree geometry)
       const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 

@@ -45,6 +45,10 @@ export const BEZIER_CONFIG = {
   STROKE_COLOR: '#D1BBA3',   // Camel Hair Beige (greyish from design system)
 } as const;
 
+// Dev-only instrumentation to trace tidy curve geometry when needed
+const DEBUG_TIDY_CURVES = __DEV__ && false;
+let tidyCurveDebugSamples = 0;
+
 /**
  * Generate straight line paths (original system)
  * Uses the existing PathCalculator functions for elbow-style connections
@@ -62,7 +66,7 @@ export function generateStraightPaths(
   const paths: SkPath[] = [];
 
   // Use existing PathCalculator logic (now with circular node support)
-  const busY = calculateBusY(parent, children, showPhotos);
+  const busY = calculateBusY(parent, children, showPhotos, nodeStyle);
   const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos, nodeStyle);
 
   // Create Skia path for parent vertical line
@@ -276,7 +280,22 @@ export function generateTidyCurvePaths(
   const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
   const parentBottomY = parent.y + parentHeight / 2;
 
-  const busY = calculateBusY(parent, children, showPhotos);
+  const busY = calculateBusY(parent, children, showPhotos, nodeStyle);
+
+  const childXs = children.map(child => child.x);
+  const childYs = children.map(child => child.y);
+
+  if (DEBUG_TIDY_CURVES && tidyCurveDebugSamples < 5) {
+    console.log('[TidyCurves] geometry', {
+      parent: { id: parent.id, x: parent.x, y: parent.y },
+      childXs,
+      childYs,
+      parentBottomY,
+      busY,
+      nodeStyle,
+    });
+    tidyCurveDebugSamples += 1;
+  }
 
   pathBuilder.moveTo(parent.x, parentBottomY);
   pathBuilder.lineTo(parent.x, busY);
@@ -284,8 +303,21 @@ export function generateTidyCurvePaths(
   // Shared horizontal bus when needed (multiple or offset child)
   if (shouldRenderBusLine(children, parent)) {
     const busSegment = calculateBusLine(children, busY);
-    pathBuilder.moveTo(busSegment.startX, busSegment.startY);
-    pathBuilder.lineTo(busSegment.endX, busSegment.endY);
+    const minX = busSegment.startX;
+    const maxX = busSegment.endX;
+
+    // Connect parent stem to nearest bus edge so the lines are contiguous
+    const distanceToMin = Math.abs(parent.x - minX);
+    const distanceToMax = Math.abs(parent.x - maxX);
+    const targetEdge = distanceToMin <= distanceToMax ? minX : maxX;
+
+    if (parent.x !== targetEdge) {
+      pathBuilder.lineTo(targetEdge, busY);
+    }
+
+    // Draw the shared bus line spanning all children
+    pathBuilder.moveTo(minX, busY);
+    pathBuilder.lineTo(maxX, busY);
   }
 
   // Fan-out curves for each child – gentle easing with straight entry segment
@@ -315,17 +347,28 @@ export function generateTidyCurvePaths(
     // Horizontal influence based on parent-child offset (fallback to alternating bias)
     const rawDirection = Math.sign(child.x - parent.x);
     const direction = rawDirection !== 0 ? rawDirection : (index % 2 === 0 ? 1 : -1);
-    const horizontalSpan = Math.max(Math.abs(child.x - parent.x), 12);
-    const horizontalOffset = Math.min(horizontalSpan * 0.45, 72);
+    const horizontalSpan = Math.abs(child.x - parent.x);
+    const baseOffset = Math.min(Math.max(horizontalSpan * 0.45, 12), 72);
 
-    const tentativeCp1X = child.x - direction * horizontalOffset;
-    const cp1X = direction > 0
-      ? Math.max(tentativeCp1X, parent.x)
-      : Math.min(tentativeCp1X, parent.x);
+    let cp1X: number;
+    if (rawDirection === 0) {
+      cp1X = child.x + direction * baseOffset;
+    } else if (direction > 0) {
+      cp1X = Math.max(child.x - baseOffset, parent.x);
+    } else {
+      cp1X = Math.min(child.x + baseOffset, parent.x);
+    }
 
     const cp1Y = busY;
     const cp2YOffset = Math.min(clampedTail * 0.6, dropDistance * 0.5);
-    const cp2Y = Math.max(busY + 2, approachTargetY - cp2YOffset);
+    const cp2BaseY = Math.max(busY + 2, approachTargetY - cp2YOffset);
+    const cp2Y = Math.min(cp2BaseY, approachTargetY - 1);
+
+    if (cp2Y <= busY) {
+      pathBuilder.moveTo(child.x, busY);
+      pathBuilder.lineTo(child.x, childTopY);
+      return;
+    }
 
     pathBuilder.moveTo(child.x, busY);
     pathBuilder.cubicTo(

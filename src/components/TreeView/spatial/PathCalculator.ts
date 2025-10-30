@@ -158,7 +158,8 @@ export function getNodeEdgePoint(
 export function calculateBusY(
   parent: LayoutNode,
   children: LayoutNode[],
-  showPhotos: boolean = true
+  showPhotos: boolean = true,
+  nodeStyle: 'rectangular' | 'circular' = 'rectangular'
 ): number {
   if (children.length === 0) {
     throw new Error('calculateBusY requires at least one child node');
@@ -167,18 +168,27 @@ export function calculateBusY(
   // Unified PTS Architecture: node.y already includes all offsets (root + top-alignment)
   // Just use node.y directly to get parent and child positions
 
-  // Parent bottom edge
-  const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
-  const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-  const parentBottom = parent.y + parentHeight / 2;
+  // Parent bottom edge (circular-aware)
+  const parentBottom = getNodeEdgePoint(
+    parent,
+    parent.x,
+    parent.y + 1000, // Target far below to ensure bottom point
+    nodeStyle,
+    'bottom',
+    showPhotos
+  ).y;
 
-  // Nearest child top edge
-  const childTops = children.map(child => {
-    const isRootChild = !child.father_id;
-    const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
-    const childHeight = isRootChild ? 100 : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-    return child.y - childHeight / 2;
-  });
+  // Nearest child top edge (circular-aware)
+  const childTops = children.map(child =>
+    getNodeEdgePoint(
+      child,
+      child.x,
+      child.y - 1000, // Target far above to ensure top point
+      nodeStyle,
+      'top',
+      showPhotos
+    ).y
+  );
   const minChildTop = Math.min(...childTops);
 
   // Midpoint between parent bottom and nearest child top
@@ -327,7 +337,7 @@ export function calculateConnectionPaths(
   const segments: PathSegment[] = [];
 
   // Calculate bus line Y (accounting for node heights)
-  const busY = calculateBusY(parent, children, showPhotos);
+  const busY = calculateBusY(parent, children, showPhotos, nodeStyle);
 
   // Add parent vertical line
   segments.push(calculateParentVerticalPath(parent, busY, showPhotos, nodeStyle));

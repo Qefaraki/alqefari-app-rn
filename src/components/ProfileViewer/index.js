@@ -252,6 +252,9 @@ const EditModeContent = React.memo(({
   // Debounce tracking (prevents rapid scroll spam)
   const lastScrollTime = useRef(0);
 
+  // Animation tracking (prevents detection during programmatic scroll)
+  const isAnimatingToSection = useRef(false);
+
   // Measure section layout positions
   const handleSectionLayout = useCallback((index, event) => {
     const { y } = event.nativeEvent.layout;
@@ -272,6 +275,9 @@ const EditModeContent = React.memo(({
     }
     lastScrollTime.current = now;
 
+    // Set animation flag to prevent handleScroll from overriding
+    isAnimatingToSection.current = true;
+
     // IMMEDIATELY update active state before scrolling
     setScrollState(prev => ({
       ...prev,
@@ -288,6 +294,11 @@ const EditModeContent = React.memo(({
             animated: true
           });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+          // Clear animation flag after iOS scroll animation completes (~350ms)
+          setTimeout(() => {
+            isAnimatingToSection.current = false;
+          }, 350);
         },
         (error) => {
           console.warn('[EditMode] Failed to scroll to section:', sectionId, error);
@@ -297,9 +308,20 @@ const EditModeContent = React.memo(({
               y: sectionPositions[sectionIndex] - SCROLL_CONFIG.SECTION_SCROLL_OFFSET,
               animated: true
             });
+
+            // Clear animation flag after fallback scroll
+            setTimeout(() => {
+              isAnimatingToSection.current = false;
+            }, 350);
+          } else {
+            // Clear flag immediately if scroll failed completely
+            isAnimatingToSection.current = false;
           }
         }
       );
+    } else {
+      // Clear flag if section not found
+      isAnimatingToSection.current = false;
     }
   }, [scrollRef, sectionPositions]);
 
@@ -316,13 +338,29 @@ const EditModeContent = React.memo(({
     // Determine new state
     const newShowScrollTop = scrollY > SCROLL_CONFIG.SCROLL_TO_TOP_THRESHOLD;
 
+    // Skip detection if programmatic scroll is animating
+    if (isAnimatingToSection.current) {
+      setScrollState(prev => {
+        if (prev.showScrollTop === newShowScrollTop) {
+          return prev;
+        }
+        return { ...prev, showScrollTop: newShowScrollTop };
+      });
+      return;
+    }
+
     // Use dynamic section positions if available, fallback to general
     let newActiveSection = 'general';
     if (sectionPositions.length === SECTIONS.length) {
       // Find which section we're currently viewing
+      // Account for SECTION_SCROLL_OFFSET in threshold to match scroll-to position
       const activeIndex = sectionPositions.findIndex((pos, i) => {
         const nextPos = sectionPositions[i + 1];
-        return scrollY >= pos && (nextPos === undefined || scrollY < nextPos);
+        const adjustedPos = Math.max(0, pos - SCROLL_CONFIG.SECTION_SCROLL_OFFSET);
+        const adjustedNextPos = nextPos !== undefined
+          ? Math.max(0, nextPos - SCROLL_CONFIG.SECTION_SCROLL_OFFSET)
+          : undefined;
+        return scrollY >= adjustedPos && (adjustedNextPos === undefined || scrollY < adjustedNextPos);
       });
       if (activeIndex >= 0) {
         newActiveSection = SECTIONS[activeIndex].id;
