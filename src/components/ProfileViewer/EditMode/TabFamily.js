@@ -514,10 +514,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     }
   }, [person?.id]); // Single dependency, no callback chain
 
-  const handleRefresh = useCallback(() => {
-    loadFamilyData(true);
-  }, [loadFamilyData]);
-
   // Load family data on mount and when person.id changes
   useEffect(() => {
     if (person?.id) {
@@ -1115,24 +1111,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   return (
     <TabFamilyContext.Provider value={contextValue}>
       <View style={styles.container}>
-        <View style={styles.toolbar}>
-          <TouchableOpacity
-            style={[
-              styles.refreshButton,
-              state.refreshing && styles.refreshButtonDisabled,
-            ]}
-            onPress={handleRefresh}
-            disabled={state.refreshing}
-            activeOpacity={0.85}
-          >
-            {state.refreshing ? (
-              <ActivityIndicator size="small" color={tokens.colors.surface} />
-            ) : (
-              <Text style={styles.refreshButtonLabel}>تحديث العائلة</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.content}>
           {person?.hid !== null && (
             <SectionCard
@@ -1458,27 +1436,6 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xxl,
     gap: tokens.spacing.xl,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: tokens.spacing.lg,
-    paddingTop: tokens.spacing.md,
-    paddingBottom: tokens.spacing.sm,
-  },
-  refreshButton: {
-    backgroundColor: tokens.colors.najdi.primary,
-    borderRadius: tokens.radii.md,
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.sm,
-  },
-  refreshButtonDisabled: {
-    opacity: 0.5,
-  },
-  refreshButtonLabel: {
-    color: tokens.colors.surface,
-    fontSize: 14,
-    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
