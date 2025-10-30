@@ -124,7 +124,10 @@ const TabGeneral = ({ form, updateField, onCropPress, person, userProfile, acces
           <ProfileFormCard style={styles.card}>
             <PhotoEditor
               value={draft?.photo_url || ''}
-              onChange={(url) => updateField('photo_url', url)}
+              onChange={(url) => {
+                updateField('photo_url', url);
+                updateField('photo_url_cropped', null);  // Clear stale crop (Phase 3 fix)
+              }}
               currentPhotoUrl={draft?.photo_url}
               personName={draft?.name}
               profileId={profileId}
