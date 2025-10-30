@@ -272,7 +272,7 @@ const EditModeContent = React.memo(({
       )}
       scrollEventThrottle={16}
       ListHeaderComponent={
-        <View style={{ paddingHorizontal: 0, paddingTop: 8, paddingBottom: 12 }}>
+        <View style={{ paddingTop: 8, paddingBottom: 12 }}>
           <SegmentedControl
             options={enhancedTabs}
             value={activeTab}

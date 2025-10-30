@@ -243,42 +243,18 @@ export function renderLoadedImage(
   width: number,
   height: number,
   cornerRadius: number,
-  crop_top: number = 0,      // Keep params for backwards compat, but ignore
-  crop_bottom: number = 0,
-  crop_left: number = 0,
-  crop_right: number = 0,
   opacity?: any
 ): JSX.Element {
-  // Get image dimensions
-  const imageWidth = image.width();
-  const imageHeight = image.height();
-
-  // Standard cover behavior - scale to fill, center overflow (NO CROP LOGIC)
-  const scale = Math.max(width / imageWidth, height / imageHeight);
-  const scaledWidth = imageWidth * scale;
-  const scaledHeight = imageHeight * scale;
-
-  // Center the overflow
-  const offsetX = x - (scaledWidth - width) / 2;
-  const offsetY = y - (scaledHeight - height) / 2;
-
-  // Create clip path at node position (rounded rect)
-  const clipPath = rrect(
-    rect(x, y, width, height),
-    cornerRadius,
-    cornerRadius
-  );
-
-  // Render: Standard centered image (cropped variant already cropped at file level)
+  const clipPath = rrect(rect(x, y, width, height), cornerRadius, cornerRadius);
   return (
     <Group clip={clipPath} opacity={opacity}>
       <SkiaImage
         image={image}
-        x={offsetX}
-        y={offsetY}
-        width={scaledWidth}
-        height={scaledHeight}
-        fit="none"
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fit="cover"
       />
     </Group>
   );
