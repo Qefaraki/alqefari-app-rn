@@ -256,32 +256,22 @@ const EditModeContent = React.memo(({
   );
 
   return (
-    <>
-      {/* Sticky Header */}
-      <EditHeader
-        onCancel={handleCancel}
-        onSubmit={handleSubmit}
-        saving={saving}
-        canSubmit={form.isDirty}
-        accessMode={accessMode}
-      />
-      
-      <BottomSheetScrollView
-        ref={scrollRef}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 0,
-          paddingBottom: insets.bottom + 80,
-          gap: 20,
-        }}
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="interactive"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
-      >
+    <BottomSheetScrollView
+      ref={scrollRef}
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 8,
+        paddingBottom: insets.bottom + 80,
+        gap: 20,
+      }}
+      showsVerticalScrollIndicator={false}
+      keyboardDismissMode="interactive"
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false },
+      )}
+      scrollEventThrottle={16}
+    >
           {/* Tab Content */}
           <TabsHost
             tabs={enhancedTabs}
@@ -324,7 +314,6 @@ const EditModeContent = React.memo(({
           )}
         </TabsHost>
       </BottomSheetScrollView>
-    </>
   );
 });
 EditModeContent.displayName = 'EditModeContent';
@@ -449,14 +438,27 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   );
   const handleComponent = useCallback(
     (props) => {
-      // Default drag handle for both view and edit modes
+      // Edit mode: Use EditHeader as the draggable handle (supports buttons + drag)
+      if (mode === 'edit') {
+        return (
+          <EditHeader
+            onCancel={handleCancel}
+            onSubmit={handleSubmit}
+            saving={saving}
+            canSubmit={form.isDirty}
+            accessMode={accessMode}
+          />
+        );
+      }
+
+      // View mode: Standard drag bar
       return (
         <View style={styles.handleContainer}>
           <View style={styles.handleBar} />
         </View>
       );
     },
-    [mode],
+    [mode, handleCancel, handleSubmit, saving, form.isDirty, accessMode],
   );
 
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
