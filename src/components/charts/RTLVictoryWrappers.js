@@ -9,7 +9,7 @@
  *   <RTLVictoryPie data={myData} />
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { I18nManager, useWindowDimensions } from 'react-native';
 import {
   VictoryPie,
@@ -91,6 +91,15 @@ export const RTLVictoryBar = ({
   const isRTL = I18nManager.isRTL;
   const { width: windowWidth } = useWindowDimensions();
 
+  // CRITICAL FIX: Reverse data array for RTL list order
+  // In RTL mode, first generation (الأول) should appear at TOP of chart
+  // Memoized to prevent unnecessary recalculations on every render
+  // Only runs when isRTL flag or data array changes
+  const displayData = useMemo(() => {
+    if (!isRTL || !data) return data;
+    return [...data].reverse();
+  }, [isRTL, data]);
+
   // Extract label styles from barProps to merge with defaults
   const labelStyles = barProps?.style?.labels || {};
 
@@ -112,7 +121,7 @@ export const RTLVictoryBar = ({
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: Swap left/right padding for RTL
-      // RTL: 40px left (bars), 120px right (axis labels like "الجيل الأول")
+      // RTL: 40px left (bars), 120px right (axis labels like "الأول", "الثاني")
       // LTR: 120px left (axis labels), 40px right (bars)
       padding={{
         top: 20,
@@ -138,7 +147,7 @@ export const RTLVictoryBar = ({
         }}
       />
       <VictoryBar
-        data={data}
+        data={displayData}
         labelComponent={
           <VictoryLabel
             // CRITICAL FIX: Increased offset from ±8 to ±12 for better Arabic number spacing

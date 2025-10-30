@@ -519,7 +519,7 @@ const GenerationsSection = ({ stats }) => {
       <View style={styles.chartWrapper}>
         <RTLVictoryBar
           data={generations.map((g, idx) => ({
-            x: `الجيل ${getArabicOrdinal(g.generation)}`,
+            x: getArabicOrdinal(g.generation),
             y: g.count,
             label: formatNumber(g.count),
             fill: generationShades[idx] || generationShades[generationShades.length - 1],
@@ -547,7 +547,7 @@ const GenerationsSection = ({ stats }) => {
       </View>
 
       <Text style={styles.calloutText}>
-        الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
+        {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
       </Text>
     </View>
   );
