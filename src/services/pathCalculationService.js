@@ -242,8 +242,7 @@ export class PathCalculationService {
       // Get node data
       const node = this.nodesMap.get(current);
       if (!node) {
-        console.warn(`[PathCalculationService] Node not found: ${current}`);
-        break;
+        break; // Parent not enriched yet, return partial path
       }
 
       // Add to path

@@ -72,7 +72,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Observable Plot style: Moderate spacing for clean, compact layout
   // dx controls vertical spacing between siblings/cousins (breadth axis)
   // dy controls horizontal spacing between generations (depth axis)
-  const dx = 60;  // Moderate sibling/cousin spacing (reduced from 80px for tighter packing)
+  const dx = 40;  // Tight sibling spacing (reduced from 60px to match normal mode density)
   const dy = (viewportWidth / (root.height + 1)) * 1.5;  // 1.5x wider generation spacing
 
   // Create tree layout

@@ -38,10 +38,10 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
   const visibleNodeIds = useMemo(() => {
     return getVisibleNodeIds(
       nodes,
-      actualStage.value || { x: 0, y: 0, scale: 1 },
+      (actualStage?.value || actualStage) || { x: 0, y: 0, scale: 1 },
       actualDimensions,
       enrichedNodesRef.current,
-      200 // padding: preload nodes 200px outside viewport
+      500 // padding: preload nodes 500px outside viewport (increased for curves mode)
     );
   }, [nodes, actualStage, actualDimensions]);
 
@@ -102,7 +102,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       return;
     }
 
-    // Debounce: Wait for user to stop scrolling before loading (300ms)
+    // Debounce: Wait for user to stop scrolling before loading (100ms - reduced for faster response)
     enrichTimeoutRef.current = setTimeout(async () => {
       // Track concurrent requests to avoid applying stale data
       const requestId = ++currentRequestIdRef.current;
@@ -170,7 +170,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       } catch (err) {
         console.error('Enrichment exception:', err);
       }
-    }, 300);
+    }, 100);
 
     return () => {
       if (enrichTimeoutRef.current) {
