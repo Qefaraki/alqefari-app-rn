@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
-  TouchableOpacity,
   Platform,
   RefreshControl,
 } from 'react-native';
@@ -25,6 +24,7 @@ import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
   BottomSheetView,
+  TouchableOpacity,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
