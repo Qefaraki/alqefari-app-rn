@@ -672,14 +672,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     permissions: true,
   });
 
-  // Stabilize shared values with useRef to prevent recreation on re-render
-  const scrollYRef = useRef(null);
-  if (!scrollYRef.current) scrollYRef.current = useSharedValue(0);
-  const scrollY = scrollYRef.current;
-
-  const animatedPositionRef = useRef(null);
-  if (!animatedPositionRef.current) animatedPositionRef.current = useSharedValue(0);
-  const animatedPosition = animatedPositionRef.current;
+  // Shared values for scroll tracking and sheet animation
+  const scrollY = useSharedValue(0);
+  const animatedPosition = useSharedValue(0);
 
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
@@ -1015,22 +1010,21 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
-  // Guard: Only set up reaction if profileSheetProgress exists
-  useEffect(() => {
-    if (!profileSheetProgress) return;
-
-    const cleanup = useAnimatedReaction(
-      () => animatedPosition.value,
-      (current, previous) => {
-        'worklet';
-        if (current === previous) return;
-        const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-        profileSheetProgress.value = progress;
-      }
-    );
-
-    return cleanup;
-  }, [profileSheetProgress, animatedPosition, screenHeight]);
+  // Guard with conditional logic inside prepare function
+  useAnimatedReaction(
+    () => {
+      // Return null if profileSheetProgress doesn't exist (guard)
+      if (!profileSheetProgress) return null;
+      return animatedPosition.value;
+    },
+    (current, previous) => {
+      'worklet';
+      // Guard: Skip if no current value or profileSheetProgress is null
+      if (!current || current === previous || !profileSheetProgress) return;
+      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+      profileSheetProgress.value = progress;
+    }
+  );
 
   const canEdit = accessMode !== 'readonly';
 
