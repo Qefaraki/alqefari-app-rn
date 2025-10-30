@@ -10,6 +10,7 @@ import {
   Alert,
   Text,
   StyleSheet,
+  Dimensions,
   Platform,
   RefreshControl,
 } from 'react-native';
@@ -23,6 +24,7 @@ import BottomSheet, {
   BottomSheetBackdrop,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
+import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -649,6 +651,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     permissions: true,
   });
 
+  const animatedPosition = useSharedValue(0);
+  const screenHeight = useMemo(() => Dimensions.get('window').height, []);
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
+
   // Shared values for scroll tracking and sheet animation
   // ✅ FIX #1: Proper cleanup on unmount to prevent memory leaks
   useEffect(() => {
@@ -668,6 +674,19 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const { pending, refresh: refreshPending } = usePendingChanges(
     person?.id,
     accessMode,
+  );
+
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (current, previous) => {
+      'worklet';
+      if (current === previous || !profileSheetProgress) {
+        return;
+      }
+      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+      profileSheetProgress.value = progress;
+    },
+    [profileSheetProgress],
   );
   // Ensure profile has version field before allowing edits
   // Enriches non-enriched nodes (from structure-only progressive loading)
@@ -1674,6 +1693,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
       handleComponent={handleComponent}
+      animatedPosition={animatedPosition}
       animateOnMount={true}
       keyboardBehavior="fillParent"
       android_keyboardInputMode="adjustResize"

@@ -196,10 +196,12 @@ export function CircularNodeRenderer({
       );
     }
 
-    const ringWidth = tidyConfig.RING_WIDTH ?? 2.4;
-    const gapWidth = tidyConfig.PLACEHOLDER_GAP ?? 2;
-    const ringRadius = Math.max(radius - ringWidth / 2, 0);
-    const gapRadius = Math.max(radius - ringWidth, 0);
+    const placeholderInset = tidyConfig.PLACEHOLDER_INSET ?? 0;
+    const visualRadius = Math.max(radius - placeholderInset, 0);
+    const ringWidth = Math.min(visualRadius, tidyConfig.RING_WIDTH ?? 2.4);
+    const gapWidth = Math.min(visualRadius, tidyConfig.PLACEHOLDER_GAP ?? 2);
+    const ringRadius = Math.max(visualRadius - ringWidth / 2, 0);
+    const gapRadius = Math.max(visualRadius - ringWidth, 0);
     const innerRadius = Math.max(gapRadius - gapWidth, 0);
     const innerClipPath = innerRadius > 0
       ? (() => {
@@ -246,7 +248,7 @@ export function CircularNodeRenderer({
                   width={innerRadius * 2}
                   height={innerRadius * 2}
                   fit="cover"
-                  opacity={0.85}
+                  opacity={0.18}
                 />
               </Group>
             )}

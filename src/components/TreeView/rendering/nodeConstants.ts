@@ -143,42 +143,46 @@ export const D3_SIMPLE_CIRCLE = {
 // Tidy curve variant (for bezier/curves mode) - compact circles with dark ring aesthetic
 export const TIDY_CIRCLE = {
   STANDARD: {
-    DIAMETER: 31,
+    DIAMETER: 29,
     PHOTO_SIZE: 26,
     NAME_GAP: 4,
     NAME_HEIGHT: 16,
     FONT_SIZE: 11,
-    RING_WIDTH: 2.6,
+    RING_WIDTH: 1.2,
     GAP: 0,
-    PLACEHOLDER_GAP: 2.2,
+    PLACEHOLDER_GAP: 2.0,
+    PLACEHOLDER_INSET: 1.4,
     LABEL_PADDING: 12,
   },
   G2: {
-    DIAMETER: 39,
+    DIAMETER: 37,
     PHOTO_SIZE: 34,
     NAME_GAP: 5,
     NAME_HEIGHT: 18,
     FONT_SIZE: 12,
-    RING_WIDTH: 3.0,
+    RING_WIDTH: 1.6,
     GAP: 1.4,
-    PLACEHOLDER_GAP: 2.6,
+    PLACEHOLDER_GAP: 2.2,
+    PLACEHOLDER_INSET: 1.6,
     LABEL_PADDING: 14,
   },
   ROOT: {
-    DIAMETER: 47,
+    DIAMETER: 45,
     PHOTO_SIZE: 42,
     NAME_GAP: 7,
     NAME_HEIGHT: 21,
     FONT_SIZE: 12.5,
-    RING_WIDTH: 3.4,
+    RING_WIDTH: 2.0,
     GAP: 1.6,
-    PLACEHOLDER_GAP: 3.0,
+    PLACEHOLDER_GAP: 2.6,
+    PLACEHOLDER_INSET: 2.0,
     LABEL_PADDING: 18,
   },
   COLORS: {
-    OUTER_RING: '#1E1E1F',
+    OUTER_RING: '#E6DDD4',
     GAP_FILL: '#F7F4EF',
-    CENTER_FILL: '#3D3D3D',
+    CENTER_FILL: '#F0E4D8',
+    GLYPH_TINT: '#D4B79B',
     PHOTO_BACKDROP: '#F7F4EF',
     TEXT: '#5C5C5C',
   },
@@ -224,19 +228,19 @@ export const SHADOW_STYLES = {
   STANDARD_DX: 0,
   STANDARD_DY: 2,
   STANDARD_BLUR: 8,
-  STANDARD_COLOR: '#D1BBA370',  // Camel Hair Beige 25% opacity
+  STANDARD_COLOR: '#F7F4EF80',  // Camel Hair Beige 25% opacity
 
   T2_DX: 0,
   T2_DY: 1,
   T2_BLUR: 4,
-  T2_COLOR: '#D1BBA320',  // Camel Hair Beige 20% opacity
+  T2_COLOR: '#F7F4EF60',  // Camel Hair Beige 20% opacity
 } as const;
 
 // Color constants
 export const COLORS = {
   NODE_BACKGROUND: '#FFFFFF',
   SELECTION_BORDER: '#A13333',  // Najdi Crimson
-  SKELETON: '#D1BBA320',  // Camel Hair Beige 20%
+  SKELETON: '#F7F4EF60',  // Camel Hair Beige 20%
   TEXT: '#242121',  // Sadu Night
 } as const;
 
