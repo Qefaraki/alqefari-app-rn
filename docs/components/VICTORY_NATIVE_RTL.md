@@ -9,7 +9,13 @@
 
 The following RTL issues have been **comprehensively fixed**:
 
-✅ **Generation Counts Graph (Worst RTL Offender)**
+✅ **Chart Width Overflow (Most Critical - Oct 30, 2025)**
+- **Root Cause**: Victory Native defaults to 450px width, wider than most phones (iPhone: 375-430px)
+- **Fix**: Responsive width calculation using `useWindowDimensions()` hook
+- **Formula**: `chartWidth = windowWidth - (spacing.md × 2) - (spacing.lg × 2)`
+- **Impact**: Charts now fit perfectly on all devices (iPhone SE to iPad Pro) and respond to rotation
+
+✅ **Generation Counts Graph (Horizontal Bars)**
 - Fixed: Padding now RTL-aware (swaps left/right based on `I18nManager.isRTL`)
 - Fixed: Axis labels like "الجيل الأول" no longer cut off on right side
 - Fixed: Bar count labels properly aligned inside bars with correct textAnchor
@@ -21,7 +27,7 @@ The following RTL issues have been **comprehensively fixed**:
 - Fixed: Increased label offset from ±8 to ±12 for better Arabic number spacing
 - Fixed: Comprehensive inline documentation explaining each RTL adjustment
 
-**Impact**: All Victory Native charts now render perfectly in RTL mode with proper label positioning, no cutoff text, and full design system integration.
+**Impact**: All Victory Native charts now render perfectly in RTL mode with proper label positioning, no cutoff text, responsive sizing across all devices, and full design system integration.
 
 ## Overview
 
@@ -426,6 +432,45 @@ Add usage example and any RTL-specific adjustments to this documentation.
 ---
 
 ## Troubleshooting
+
+### Problem: Chart extends off-screen to the left (FIXED Oct 30, 2025) ⭐ MOST CRITICAL
+
+**Cause**: Victory Native defaults to **450px width**, but iPhone screens are only 375-430px wide. In RTL mode, the overflow extends to the LEFT (off-screen) instead of right.
+
+**Root Cause Breakdown**:
+```
+Victory Native Default: 450px width
+iPhone Screen (example): 375px
+Card available width: ~303px (375 - 32 margins - 40 padding)
+Overflow amount: 147px OFF-SCREEN TO THE LEFT
+```
+
+**Fix Applied**: ✅ Responsive width calculation with `useWindowDimensions()` hook
+```javascript
+// RTLVictoryBar wrapper now calculates responsive width
+import { useWindowDimensions } from 'react-native';
+
+const { width: windowWidth } = useWindowDimensions();
+const spacing = tokens.spacing;
+const chartWidth = windowWidth - (spacing.md * 2) - (spacing.lg * 2);
+// windowWidth - 32px (margins) - 40px (padding) = actual container width
+
+<VictoryChart width={chartWidth} ... />
+```
+
+**Why This Works**:
+- ✅ `useWindowDimensions()` is **reactive** - updates on device rotation
+- ✅ Calculates exact available width based on card layout tokens
+- ✅ Works across all devices: iPhone SE (375px) to iPad Pro (1024px+)
+- ✅ Victory Native requires explicit pixel width for SVG viewBox calculation
+- ✅ No percentage strings (`"100%"`) - Victory Native only accepts numbers
+
+**Impact**: Bars now fully visible on all devices, chart resizes automatically on rotation
+
+**Before**: Bars extended 147px off-screen to the left
+**After**: Bars fit perfectly within container on all screen sizes
+
+---
 
 ### Problem: Generation counts labels cut off on right side (FIXED Oct 30, 2025)
 

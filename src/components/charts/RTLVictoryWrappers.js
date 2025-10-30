@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, useWindowDimensions } from 'react-native';
 import {
   VictoryPie,
   VictoryBar,
@@ -89,12 +89,26 @@ export const RTLVictoryBar = ({
   ...chartProps
 }) => {
   const isRTL = I18nManager.isRTL;
+  const { width: windowWidth } = useWindowDimensions();
 
   // Extract label styles from barProps to merge with defaults
   const labelStyles = barProps?.style?.labels || {};
 
+  // CRITICAL FIX: Calculate responsive width to prevent overflow
+  // Victory Native defaults to 450px width, which is wider than most phone screens!
+  // We must explicitly calculate available width based on container layout:
+  // - Card margins: tokens.spacing.md (16px) × 2 = 32px
+  // - Card padding: tokens.spacing.lg (20px) × 2 = 40px
+  // - Total offset: 72px
+  // This ensures chart fits within container on all devices (iPhone SE to iPad Pro)
+  const spacing = tokens.spacing;
+  const cardMargins = spacing.md * 2;  // 32px total (16px each side)
+  const cardPadding = spacing.lg * 2;  // 40px total (20px each side)
+  const chartWidth = windowWidth - cardMargins - cardPadding;
+
   return (
     <VictoryChart
+      width={chartWidth}  // ✅ EXPLICIT WIDTH - fixes off-screen overflow in RTL
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: Swap left/right padding for RTL
