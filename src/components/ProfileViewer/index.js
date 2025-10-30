@@ -254,9 +254,6 @@ const EditModeContent = React.memo(({
   // Debounce tracking (prevents rapid scroll spam)
   const lastScrollTime = useRef(0);
 
-  // Animation tracking (prevents detection during programmatic scroll)
-  const isAnimatingToSection = useRef(false);
-
   // Measure section layout positions
   const handleSectionLayout = useCallback((index, event) => {
     const { y } = event.nativeEvent.layout;
@@ -1718,7 +1715,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={mode !== 'edit'}
           enableHandlePanningGesture={true}
-          activeOffsetY={mode === 'edit' ? [-20, 20] : [-10, 10]}
+          activeOffsetY={mode === 'edit' ? [-20, 20] : [-1, 10]}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
