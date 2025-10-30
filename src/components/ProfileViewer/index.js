@@ -47,7 +47,7 @@ import {
 import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
 import FamilyCardSkeleton from '../ui/skeletons/FamilyCardSkeleton';
 import GenericCardSkeleton from '../ui/skeletons/GenericCardSkeleton';
-import TabsHost from './EditMode/TabsHost';
+import SegmentedControl from '../ui/SegmentedControl';
 import TabGeneral from './EditMode/TabGeneral';
 import TabDetails from './EditMode/TabDetails';
 import TabFamily from './EditMode/TabFamily';
@@ -257,64 +257,68 @@ const EditModeContent = React.memo(({
   );
 
   return (
-    <BottomSheetScrollView
-      ref={scrollRef}
-      contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingTop: 8,
-        paddingBottom: insets.bottom + 80,
-        gap: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-      keyboardDismissMode="interactive"
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
-    >
-          {/* Tab Content */}
-          <TabsHost
-            tabs={enhancedTabs}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            dirtyByTab={dirtyByTab}
-          >
-          {/* Lazy load tabs - only render the active one */}
-          {activeTab === 'general' && (
-            <TabGeneral
-              form={form}
-              updateField={form.updateField}
-              onCropPress={handleCropPress}
-              person={person}
-              userProfile={userProfile}
-              accessMode={accessMode}
-            />
-          )}
-          {activeTab === 'details' && (
-            <TabDetails form={form} updateField={form.updateField} />
-          )}
-          {activeTab === 'family' && (
-            <TabFamily
-              person={person}
-              accessMode={accessMode}
-              onDataChanged={() => {
-                // Reload marriages data in parent
-                if (person?.id) {
-                  profilesService
-                    .getPersonMarriages(person.id)
-                    .then((data) => setMarriages(data || []))
-                    .catch((err) => console.warn('Failed to reload marriages:', err));
-                }
-              }}
-              onNavigateToProfile={onNavigateToProfile}
-            />
-          )}
-          {activeTab === 'contact' && (
-            <TabContact form={form} updateField={form.updateField} />
-          )}
-        </TabsHost>
+    <>
+      {/* Sticky Tabs - Outside scroll view */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
+        <SegmentedControl
+          options={enhancedTabs}
+          value={activeTab}
+          onChange={handleTabChange}
+        />
+      </View>
+
+      {/* Scrollable Content */}
+      <BottomSheetScrollView
+        ref={scrollRef}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 4,
+          paddingBottom: insets.bottom + 80,
+          gap: 20,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Lazy load tabs - only render the active one */}
+        {activeTab === 'general' && (
+          <TabGeneral
+            form={form}
+            updateField={form.updateField}
+            onCropPress={handleCropPress}
+            person={person}
+            userProfile={userProfile}
+            accessMode={accessMode}
+          />
+        )}
+        {activeTab === 'details' && (
+          <TabDetails form={form} updateField={form.updateField} />
+        )}
+        {activeTab === 'family' && (
+          <TabFamily
+            person={person}
+            accessMode={accessMode}
+            onDataChanged={() => {
+              // Reload marriages data in parent
+              if (person?.id) {
+                profilesService
+                  .getPersonMarriages(person.id)
+                  .then((data) => setMarriages(data || []))
+                  .catch((err) => console.warn('Failed to reload marriages:', err));
+              }
+            }}
+            onNavigateToProfile={onNavigateToProfile}
+          />
+        )}
+        {activeTab === 'contact' && (
+          <TabContact form={form} updateField={form.updateField} />
+        )}
       </BottomSheetScrollView>
+    </>
   );
 });
 EditModeContent.displayName = 'EditModeContent';
@@ -1600,7 +1604,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           snapPoints={snapPoints}
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={mode !== 'edit'}
-          enableHandlePanningGesture={true}
+          enableHandlePanningGesture={mode !== 'edit'}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
