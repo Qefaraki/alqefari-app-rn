@@ -120,15 +120,14 @@ export const RTLVictoryBar = ({
       width={chartWidth}  // ✅ EXPLICIT WIDTH - fixes off-screen overflow in RTL
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
-      // CRITICAL FIX: Swap left/right padding for RTL
-      // RTL: 20px left (bars get maximum space), 100px right (axis labels like "الأول", "الثاني")
-      // LTR: 100px left (axis labels), 20px right (bars)
-      // Prioritize label space - bars are secondary, labels must be fully readable
+      // CRITICAL FIX: In RTL horizontal bar charts, labels appear on the LEFT side!
+      // 120px left (axis labels like "الأول", "الثاني"), 40px right (bars + bar labels)
+      // Balanced to give labels breathing room without excessive empty space
       padding={{
         top: 20,
         bottom: 40,
-        left: isRTL ? 20 : 100,
-        right: isRTL ? 100 : 20
+        left: 120,
+        right: 40
       }}
       height={height}
       {...chartProps}
@@ -151,14 +150,14 @@ export const RTLVictoryBar = ({
         data={displayData}
         labelComponent={
           <VictoryLabel
-            // CRITICAL FIX: Increased offset from ±8 to ±12 for better Arabic number spacing
-            // RTL: -12 (shift left inside bar)
+            // CRITICAL FIX: Position labels inside bars, away from axis labels
+            // RTL: +20 (shift RIGHT away from left axis labels)
             // LTR: +12 (shift right inside bar)
-            dx={isRTL ? -12 : 12}
+            dx={isRTL ? 20 : 12}
             // CRITICAL FIX: Add textAnchor for proper label alignment
-            // RTL: 'end' (anchor to right side of number)
+            // RTL: 'start' (anchor to left side of number, positioned at right end)
             // LTR: 'start' (anchor to left side of number)
-            textAnchor={isRTL ? 'end' : 'start'}
+            textAnchor="start"
             style={{
               fontSize: 13,
               fontFamily: 'SFArabic-Semibold',

@@ -585,6 +585,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);
+  const closingRef = useRef(false);
+  const closeTimeoutRef = useRef(null);
   const snapPoints = useMemo(() => ['35%', '60%', '100%'], []);
 
   // Spring animation config for natural, responsive sheet movement
@@ -599,6 +601,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   const [mode, setMode] = useState('view');
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
+  const [pendingClose, setPendingClose] = useState(false);
 
   // Track previous person ID to prevent mode reset on first open (only on navigation between profiles)
   const prevPersonIdRef = useRef(null);
@@ -684,6 +687,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false; // Mark as unmounted
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
       console.log('[ProfileViewer] Component unmounted, cleanup triggered');
     };
   }, []);
@@ -1029,9 +1036,47 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const canEdit = accessMode !== 'readonly';
 
   const closeSheet = useCallback(() => {
-    setMode('view');
-    bottomSheetRef.current?.close?.();
+    if (!isMountedRef.current || closingRef.current) {
+      return;
+    }
+    setPendingClose(true);
   }, []);
+
+  useEffect(() => {
+    if (!pendingClose || closingRef.current) {
+      return;
+    }
+
+    closingRef.current = true;
+
+    closeTimeoutRef.current = setTimeout(() => {
+      closeTimeoutRef.current = null;
+
+      if (!isMountedRef.current) {
+        closingRef.current = false;
+        setPendingClose(false);
+        return;
+      }
+
+      try {
+        setMode('view');
+        bottomSheetRef.current?.close?.();
+      } catch (error) {
+        console.warn('[ProfileViewer] closeSheet failed:', error);
+      } finally {
+        closingRef.current = false;
+        setPendingClose(false);
+      }
+    }, 16); // allow current gesture/frame to settle
+
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+        closingRef.current = false;
+      }
+    };
+  }, [pendingClose]);
 
   // Momentum dismiss gesture - captures overscroll velocity for quick sheet dismissal
   const momentumDismissGesture = useMemo(() => {
@@ -1052,7 +1097,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           runOnJS(closeSheet)();
         }
       });
-  }, [mode]);
+  }, [mode, closeSheet]);
 
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
@@ -1090,7 +1135,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           runOnJS(closeSheet)();
         }
       });
-  }, [mode, form.isDirty, screenWidth]);
+  }, [mode, form.isDirty, screenWidth, closeSheet]);
 
   // Compose gestures - both can work simultaneously
   const composedGesture = useMemo(() => {

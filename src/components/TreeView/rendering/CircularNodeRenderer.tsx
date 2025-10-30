@@ -92,7 +92,7 @@ export function CircularNodeRenderer({
         : CIRCULAR_NODE.PHOTO_SIZE;
 
   const selectionStrokeWidth = isTidyVariant
-    ? 0.9
+    ? 1.2
     : isRoot
       ? CIRCULAR_NODE.ROOT_SELECTION_BORDER
       : CIRCULAR_NODE.SELECTION_BORDER;
@@ -130,8 +130,11 @@ export function CircularNodeRenderer({
   const hasPhoto = showPhotos && !!node.photo_url;
 
   // Text positioning (centered below circle)
+  const labelWidth = isTidyVariant
+    ? diameter + (tidyConfig.LABEL_PADDING ?? 0)
+    : diameter;
   const textY = centerY + radius + nameGap;
-  const textX = centerX - diameter / 2; // Left edge for centering
+  const textX = centerX - labelWidth / 2; // Left edge for centering
 
   // Create name paragraph (max 2 lines, ellipsis truncation)
   const nameParagraph = useMemo(
@@ -141,24 +144,28 @@ export function CircularNodeRenderer({
         'bold',
         nameFontSize,
         isTidyVariant ? TIDY_CIRCLE.COLORS.TEXT : COLORS.TEXT,
-        diameter, // Match node width for proper centering
-        2, // Max 2 lines
+        labelWidth, // Allow text to extend slightly beyond circle
+        isTidyVariant ? 1 : 2, // Keep tidy names single-line
       );
 
       // PHASE 1.1: Verification logging (REMOVED - too verbose)
 
       return paragraph;
     },
-    [node.name, diameter, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
+    [node.name, labelWidth, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
   );
 
   const baseLayer = useMemo(() => {
-    const tidyRingWidth = tidyConfig.RING_WIDTH;
-    const tidyGap = tidyConfig.GAP ?? 1.2;
-
-    if (hasPhoto) {
-      if (isTidyVariant) {
-        return null;
+    if (!isTidyVariant) {
+      if (hasPhoto) {
+        return (
+          <Circle
+            cx={centerX}
+            cy={centerY}
+            r={radius}
+            color={COLORS.NODE_BACKGROUND}
+          />
+        );
       }
 
       return (
@@ -166,54 +173,32 @@ export function CircularNodeRenderer({
           cx={centerX}
           cy={centerY}
           r={radius}
-          color={COLORS.NODE_BACKGROUND}
+          color={CIRCULAR_NODE.TEXT_ONLY_FILL}
         />
       );
     }
 
-    if (isTidyVariant) {
-      const ringRadius = radius;
-      const gapRadius = Math.max(ringRadius - tidyRingWidth / 2, 0);
-      const fillRadius = Math.max(gapRadius - tidyGap, 0);
+    if (hasPhoto) {
       return (
-        <>
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={ringRadius}
-            style="stroke"
-            strokeWidth={tidyRingWidth}
-            color={TIDY_CIRCLE.COLORS.OUTER_RING}
-          />
-          {gapRadius > 0 && tidyGap > 0 && (
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r={gapRadius}
-              color={TIDY_CIRCLE.COLORS.INNER_FILL}
-            />
-          )}
-          {fillRadius > 0 && (
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r={fillRadius}
-              color={TIDY_CIRCLE.COLORS.OUTER_RING}
-            />
-          )}
-        </>
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={radius}
+          color={TIDY_CIRCLE.COLORS.PHOTO_BACKDROP}
+        />
       );
     }
 
+    const outerRadius = radius * 0.88;
     return (
       <Circle
         cx={centerX}
         cy={centerY}
-        r={radius}
-        color={CIRCULAR_NODE.TEXT_ONLY_FILL}
+        r={outerRadius}
+        color={TIDY_CIRCLE.COLORS.CENTER_FILL}
       />
     );
-  }, [hasPhoto, isTidyVariant, centerX, centerY, radius, tidyConfig]);
+  }, [hasPhoto, isTidyVariant, centerX, centerY, radius]);
 
   const tidyOuterOffset = isTidyVariant
     ? (hasPhoto ? 0.4 : tidyConfig.RING_WIDTH + (tidyConfig.GAP ?? 1.2))
@@ -262,7 +247,7 @@ export function CircularNodeRenderer({
           paragraph={nameParagraph}
           x={textX}
           y={textY}
-          width={diameter}
+          width={labelWidth}
         />
       )}
     </Group>

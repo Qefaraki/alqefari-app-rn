@@ -7,7 +7,7 @@
  */
 
 import { hierarchy, tree } from "d3-hierarchy";
-import { STANDARD_NODE, ROOT_NODE, TIDY_RECT } from "../components/TreeView/rendering/nodeConstants";
+import { TIDY_RECT } from "../components/TreeView/rendering/nodeConstants";
 
 /**
  * Calculate D3 tidy tree layout with EXACT D3 code
@@ -73,13 +73,13 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Observable Plot style: Moderate spacing for clean, compact layout
   // dx controls vertical spacing between siblings/cousins (breadth axis)
   // dy controls horizontal spacing between generations (depth axis)
-  const dx = 26;  // Compact sibling spacing for tidy / bezier mode
-  const dy = (viewportWidth / (root.height + 1)) * 1.2;  // Slightly tighter generation spacing
+  const dx = 41;  // Increased to account for larger tidy nodes (extra sibling separation)
+  const dy = (viewportWidth / (root.height + 1)) * 1.56;  // Wider generation spacing for larger nodes
 
   // Create tree layout
   const treeLayout = tree()
     .nodeSize([dx, dy])
-    .separation((a, b) => (a.parent === b.parent ? 0.7 : 1));
+    .separation((a, b) => (a.parent === b.parent ? 0.8 : 1.2));
 
   // Sort by name (optional, D3 example does this)
   // We skip this since we already sorted by sibling_order above

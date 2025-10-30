@@ -18,7 +18,6 @@ import {
   type Connection,
 } from "../spatial/PathCalculator";
 import {
-  D3_SIMPLE_CIRCLE,
   STANDARD_NODE,
   ROOT_NODE,
   G2_NODE,
@@ -41,7 +40,7 @@ export type LineStyle = (typeof LINE_STYLES)[keyof typeof LINE_STYLES];
  */
 export const BEZIER_CONFIG = {
   CURVE_STRENGTH: 0.4, // Reduced from 0.50 - gentler curves
-  STROKE_WIDTH: 1.2, // Light but visible stroke
+  STROKE_WIDTH: 1.6, // Light but visible stroke (scaled 30%)
   STROKE_OPACITY: 0.45, // Allow overlap to build subtle spine
   STROKE_COLOR: "#BEBEBE", // Soft grey similar to D3 example
 } as const;
@@ -130,8 +129,6 @@ function calculateActualNodeHeight(
 
   const tidyCircular =
     nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
-  const tidyRect =
-    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
   const tidyRect =
     nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
 
@@ -247,7 +244,7 @@ function getLabelHeight(
         : node.generation === 2 && (node as any)._hasChildren
         ? TIDY_RECT.G2
         : TIDY_RECT.STANDARD;
-    return config.NAME_OFFSET_FROM_BOTTOM ?? 6;
+    return (config.NAME_OFFSET_FROM_BOTTOM ?? 6) + 2;
   }
 
   if (!tidyCircular) {
@@ -414,6 +411,8 @@ export function generateTidyCurvePaths(
 
   const tidyCircular =
     nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+  const tidyRect =
+    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
 
   // Parent stem – straight drop from the rendered bottom edge
   const parentHeight = calculateActualNodeHeight(
@@ -432,7 +431,7 @@ export function generateTidyCurvePaths(
   const parentLabelHeight = getLabelHeight(parent, nodeStyle, lineStyle);
 
   const stemAnchorY = parentBottom + parentLabelHeight;
-  const CHILD_ANCHOR_OFFSET = 12;
+  const BASE_CHILD_ANCHOR_OFFSET = 16;
 
   const childMetadata = children.map((child) => {
     const childHeight = calculateActualNodeHeight(
@@ -467,13 +466,13 @@ export function generateTidyCurvePaths(
   childMetadata.forEach(({ childCenterX, childTopY }) => {
     const startY = stemAnchorY;
     const anchorOffset = tidyCircular
-      ? CHILD_ANCHOR_OFFSET * 0.6
+      ? BASE_CHILD_ANCHOR_OFFSET * 0.65
       : tidyRect
-      ? CHILD_ANCHOR_OFFSET * 0.8
-      : CHILD_ANCHOR_OFFSET;
+      ? BASE_CHILD_ANCHOR_OFFSET * 1.0
+      : BASE_CHILD_ANCHOR_OFFSET;
     const desiredAnchor = childTopY - anchorOffset;
     const childAnchorY = Math.min(childTopY - 4, desiredAnchor);
-    const minimumGap = tidyCircular ? 2 : tidyRect ? 3 : 4;
+    const minimumGap = tidyCircular ? 2 : tidyRect ? 5 : 4;
     const safeAnchorY = childAnchorY <= startY ? startY + minimumGap : childAnchorY;
     const midY = startY + (safeAnchorY - startY) / 2;
 

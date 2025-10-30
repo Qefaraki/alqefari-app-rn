@@ -843,7 +843,7 @@ const TreeViewCore = ({
   // Traditional loading: Use full tree with real-time subscriptions
   // Use the standard layout for all modes; bezier reuses positions but swaps connection styling
   const layoutMode = useMemo(
-    () => (lineStyle === 'bezier' ? 'curves' : 'normal'),
+    () => ((lineStyle === 'bezier' || lineStyle === 'curves') ? 'curves' : 'normal'),
     [lineStyle],
   );
   const progressiveResult = USE_PROGRESSIVE_LOADING

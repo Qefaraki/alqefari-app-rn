@@ -635,6 +635,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               nameFontSize,
               COLORS.TEXT,
               width,
+              useTidyRect ? 1 : undefined,
             );
 
             if (!nameParagraph) return null;
@@ -657,6 +658,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               nameFontSize,
               COLORS.TEXT,
               width,
+              useTidyRect ? 1 : undefined,
             );
 
             if (!nameParagraph) return null;
