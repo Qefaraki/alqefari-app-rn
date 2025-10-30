@@ -273,7 +273,7 @@ export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
 
 // Connection line styling (Najdi Sadu palette)
 export const CONNECTION_STYLES = {
-  LINE_COLOR: '#A5A5A533',  // Soft mid-grey ~20% opacity for straight edges
+  LINE_COLOR: '#D4B79B33',  // Soft mid-grey ~20% opacity for straight edges
   LINE_WIDTH: 1.2,
   CORNER_RADIUS: 8,
 } as const;

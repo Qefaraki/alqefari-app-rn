@@ -64,6 +64,7 @@ git commit -m "type: Specific description of what was changed"
 - **[Migration Workflow](docs/development/MIGRATION_WORKFLOW_DETAILED.md)** - Step-by-step migration process
 
 ### Components
+- Sadu placeholders available as reusable component (see `src/components/TreeView/rendering/SaduPlaceholder.tsx`) for consistent non-photo avatars.
 - **[SegmentedControl](docs/components/SEGMENTED_CONTROL.md)** - iOS pill-style tabs
 - **[Victory Native RTL](docs/components/VICTORY_NATIVE_RTL.md)** - RTL wrappers for charts
 

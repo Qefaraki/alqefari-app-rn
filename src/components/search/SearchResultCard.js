@@ -1,14 +1,10 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Image,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { toArabicNumerals } from "../../utils/dateUtils";
 import useDynamicTypography from "../../hooks/useDynamicTypography";
+import { SaduPlaceholderCanvas, DEFAULT_GLYPH_OPACITY } from "../TreeView/rendering/SaduPlaceholder";
+import { TIDY_CIRCLE } from "../TreeView/rendering/nodeConstants";
 
 /**
  * SearchResultCard - Original simple card with desert Sadu colors
@@ -21,30 +17,10 @@ const SearchResultCard = ({
   onPress,
   isLast,
 }) => {
-  const initials = item.name ? item.name.charAt(0) : "؟";
   const getTypography = useDynamicTypography();
   const nameTypography = getTypography(16, 600);
   const generationTypography = getTypography('caption1', { fontWeight: '400' });
-  const avatarTypography = getTypography(18, 600);
-
-  // Premium desert palette - ultra-thin aesthetic
-  const getDesertColor = (index) => {
-    const desertPalette = [
-      "#A13333", // Najdi Crimson
-      "#D58C4A", // Desert Ochre
-      "#D1BBA3", // Camel Hair Beige
-      "#A13333CC", // Najdi Crimson 80%
-      "#D58C4ACC", // Desert Ochre 80%
-      "#D1BBA3CC", // Camel Hair Beige 80%
-      "#A1333399", // Najdi Crimson 60%
-      "#D58C4A99", // Desert Ochre 60%
-      "#D1BBA399", // Camel Hair Beige 60%
-      "#A13333", // Najdi Crimson (repeat)
-    ];
-    return desertPalette[index % desertPalette.length];
-  };
-
-  const desertColor = getDesertColor(index);
+  const accentColor = TIDY_CIRCLE.COLORS.OUTER_RING;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -70,18 +46,15 @@ const SearchResultCard = ({
               defaultSource={require("../../../assets/icon.png")}
             />
           ) : (
-            <View
-              style={[
-                styles.avatarCircle,
-                {
-                  backgroundColor: desertColor,
-                },
-              ]}
-            >
-              <Text style={[styles.avatarLetter, avatarTypography]} allowFontScaling>
-                {initials}
-              </Text>
-            </View>
+            <SaduPlaceholderCanvas
+              cx={18}
+              cy={18}
+              diameter={36}
+              parentKey={item.father_id ?? null}
+              fallbackKey={item.id ?? item.name ?? null}
+              siblingOffset={index}
+              glyphOpacity={DEFAULT_GLYPH_OPACITY}
+            />
           )}
         </View>
 
@@ -99,7 +72,7 @@ const SearchResultCard = ({
           {/* Generation with desert color */}
           <View style={styles.metaContainer}>
             <Text
-              style={[styles.generationText, generationTypography, { color: desertColor }]}
+            style={[styles.generationText, generationTypography]}
               allowFontScaling
             >
               الجيل {toArabicNumerals(item.generation?.toString() || "0")}
@@ -147,6 +120,10 @@ const styles = StyleSheet.create({
   avatarContainer: {
     marginLeft: 0,
     marginRight: 0,
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarPhoto: {
     width: 36, // iOS small avatar standard
@@ -154,18 +131,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
   },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarLetter: {
-    color: "#F9F7F3", // Al-Jass White
-    textAlign: "center",
-  },
-
   // Text styling - uses full width with forced RTL
   textContainer: {
     flex: 1,
@@ -189,7 +154,8 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   generationText: {
-    opacity: 0.6,
+    color: '#242121',
+    opacity: 0.5,
     textAlign: "left", // For proper display with row-reverse
     writingDirection: "rtl", // Force RTL writing direction
   },

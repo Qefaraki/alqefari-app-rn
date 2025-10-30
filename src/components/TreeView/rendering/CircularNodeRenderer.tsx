@@ -16,12 +16,12 @@
  */
 
 import React, { useMemo } from 'react';
-import { Circle, Group, Paragraph, Image, useImage, Skia } from '@shopify/react-native-skia';
+import { Circle, Group, Paragraph } from '@shopify/react-native-skia';
 
 // Import components
 import { ImageNode } from './ImageNode';
 import { CIRCULAR_NODE, COLORS, TIDY_CIRCLE } from './nodeConstants';
-import { getSaduGlyphSource } from './saduGlyphs';
+import { SaduPlaceholder, DEFAULT_GLYPH_OPACITY } from './SaduPlaceholder';
 import type { LayoutNode, LineStyleOption } from './NodeRenderer';
 
 export interface CircularNodeRendererProps {
@@ -156,13 +156,13 @@ export function CircularNodeRenderer({
     [node.name, labelWidth, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
   );
 
-  const glyphSource = useMemo(
-    () => (!hasPhoto && isTidyVariant ? getSaduGlyphSource(node.id) : null),
-    [hasPhoto, isTidyVariant, node.id],
-  );
-  const glyphImage = useImage(glyphSource ?? undefined);
+  const isTidyPlaceholder = isTidyVariant && !hasPhoto;
 
   const baseLayer = useMemo(() => {
+    if (isTidyPlaceholder) {
+      return null;
+    }
+
     if (!isTidyVariant) {
       if (hasPhoto) {
         return (
@@ -196,67 +196,28 @@ export function CircularNodeRenderer({
       );
     }
 
-    const placeholderInset = tidyConfig.PLACEHOLDER_INSET ?? 0;
-    const visualRadius = Math.max(radius - placeholderInset, 0);
-    const ringWidth = Math.min(visualRadius, tidyConfig.RING_WIDTH ?? 2.4);
-    const gapWidth = Math.min(visualRadius, tidyConfig.PLACEHOLDER_GAP ?? 2);
-    const ringRadius = Math.max(visualRadius - ringWidth / 2, 0);
-    const gapRadius = Math.max(visualRadius - ringWidth, 0);
-    const innerRadius = Math.max(gapRadius - gapWidth, 0);
-    const innerClipPath = innerRadius > 0
-      ? (() => {
-          const path = Skia.Path.Make();
-          path.addCircle(centerX, centerY, innerRadius);
-          return path;
-        })()
-      : null;
+    return null;
+  }, [isTidyPlaceholder, isTidyVariant, hasPhoto, centerX, centerY, radius]);
+
+  const placeholderElement = useMemo(() => {
+    if (!isTidyPlaceholder) {
+      return null;
+    }
+
+    const variantKey = isRoot ? 'root' : isG2Parent ? 'g2' : 'standard';
 
     return (
-      <>
-        {ringWidth > 0 && (
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={ringRadius}
-            style="stroke"
-            strokeWidth={ringWidth}
-            color={TIDY_CIRCLE.COLORS.OUTER_RING}
-          />
-        )}
-        {gapRadius > 0 && gapWidth > 0 && (
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={gapRadius}
-            color={TIDY_CIRCLE.COLORS.GAP_FILL}
-          />
-        )}
-        {innerRadius > 0 && (
-          <>
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r={innerRadius}
-              color={TIDY_CIRCLE.COLORS.CENTER_FILL}
-            />
-            {glyphImage && innerClipPath && (
-              <Group clip={innerClipPath}>
-                <Image
-                  image={glyphImage}
-                  x={centerX - innerRadius}
-                  y={centerY - innerRadius}
-                  width={innerRadius * 2}
-                  height={innerRadius * 2}
-                  fit="cover"
-                  opacity={0.18}
-                />
-              </Group>
-            )}
-          </>
-        )}
-      </>
+      <SaduPlaceholder
+        cx={centerX}
+        cy={centerY}
+        variant={variantKey}
+        parentKey={node.father_id}
+        fallbackKey={node.id}
+        siblingOffset={node.sibling_order ?? 0}
+        glyphOpacity={DEFAULT_GLYPH_OPACITY}
+      />
     );
-  }, [hasPhoto, isTidyVariant, centerX, centerY, radius, tidyConfig, glyphImage]);
+  }, [isTidyPlaceholder, isRoot, isG2Parent, centerX, centerY, node.father_id, node.id, node.sibling_order]);
 
   const tidyOuterOffset = 0;
   const selectionRadius =
@@ -275,7 +236,7 @@ export function CircularNodeRenderer({
 
   return (
     <Group>
-      {baseLayer}
+      {placeholderElement ?? baseLayer}
       {selectionElement}
 
       {hasPhoto && (
