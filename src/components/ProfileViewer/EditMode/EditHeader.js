@@ -2,10 +2,10 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { TouchableOpacity } from '@gorhom/bottom-sheet';
 import PropTypes from 'prop-types';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';

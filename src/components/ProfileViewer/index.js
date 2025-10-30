@@ -1596,7 +1596,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           snapPoints={snapPoints}
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={mode !== 'edit'}
-          enableHandlePanningGesture={mode !== 'edit'}
+          enableHandlePanningGesture={true}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
