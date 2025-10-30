@@ -12,12 +12,19 @@
 export function buildNameChain(profile, allProfiles = []) {
   if (!profile) return "";
 
-  // If full_chain already exists, use it
-  if (profile.full_chain) {
-    return profile.full_chain;
+  // CRITICAL FIX: RPC returns "full_name_chain" with gendered connectors already built
+  // Check correct field name (not "full_chain" which doesn't exist in profiles table)
+  if (profile.full_name_chain) {
+    return profile.full_name_chain;
   }
 
-  // Start with the person's name
+  // Fallback: search_name_chain RPC returns "name_chain"
+  if (profile.name_chain) {
+    return profile.name_chain;
+  }
+
+  // Fallback: Build manually if neither field exists
+  // (This code path should rarely execute now)
   let chain = profile.name || "";
 
   // Try to build from father chain if available
