@@ -968,7 +968,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             form.reset();
             setMode('edit');
-            setActiveTab('general');
           }, 50);
           return;
         }
@@ -983,7 +982,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     form.reset();
     setMode('edit');
-    setActiveTab('general');
     // Don't force snap - maintain current position
 
     // Start background download for instant crop opening
@@ -1011,7 +1009,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         mounted = false;
       };
     }
-  }, [form, person, setMode, setActiveTab, cachedPhotoPath, downloadId]);
+  }, [form, person, setMode, cachedPhotoPath, downloadId]);
 
   const handleEditPress = useCallback(async () => {
     // Check if user is online before allowing edit
@@ -1211,7 +1209,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   const exitEditMode = useCallback(() => {
     setMode('view');
-    setActiveTab('general');
     form.reset();
     // Don't force snap - maintain current position
   }, [form]);
