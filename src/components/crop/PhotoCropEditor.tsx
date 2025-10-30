@@ -116,10 +116,11 @@ export function PhotoCropEditor({
         const croppedFileName = `${profileId}_cropped_${Date.now()}.jpg`;
         console.log('[PhotoCrop] Uploading cropped file:', croppedFileName);
 
-        const { data: uploadData, error: uploadError } = await storageService.uploadPhoto(
-          result.path,  // Cropped image file path
-          croppedFileName,
-          'profile-photos'
+        const { url, error: uploadError } = await storageService.uploadProfilePhoto(
+          result.path,  // Cropped image file path (uri)
+          profileId,    // Profile ID
+          `profiles/${profileId}/${croppedFileName}`,  // Custom storage path
+          null          // No progress callback
         );
 
         if (uploadError) {
@@ -129,7 +130,7 @@ export function PhotoCropEditor({
           return;
         }
 
-        const croppedPhotoUrl = uploadData.publicUrl;
+        const croppedPhotoUrl = url;
         console.log('[PhotoCrop] Upload successful:', croppedPhotoUrl);
 
         // Update profile with cropped photo URL
