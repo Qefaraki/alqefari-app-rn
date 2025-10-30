@@ -143,31 +143,31 @@ export const D3_SIMPLE_CIRCLE = {
 // Tidy curve variant (for bezier/curves mode) - compact circles with dark ring aesthetic
 export const TIDY_CIRCLE = {
   STANDARD: {
-    DIAMETER: 28,
-    PHOTO_SIZE: 24,
-    NAME_GAP: 4,
-    NAME_HEIGHT: 16,
-    FONT_SIZE: 9,
-    RING_WIDTH: 1.6,
-    GAP: 1.2,
+    DIAMETER: 24,
+    PHOTO_SIZE: 20,
+    NAME_GAP: 3,
+    NAME_HEIGHT: 12,
+    FONT_SIZE: 8.5,
+    RING_WIDTH: 1.2,
+    GAP: 0.9,
   },
   G2: {
-    DIAMETER: 34,
-    PHOTO_SIZE: 30,
-    NAME_GAP: 5,
-    NAME_HEIGHT: 18,
-    FONT_SIZE: 9.5,
-    RING_WIDTH: 1.8,
-    GAP: 1.4,
+    DIAMETER: 30,
+    PHOTO_SIZE: 26,
+    NAME_GAP: 4,
+    NAME_HEIGHT: 14,
+    FONT_SIZE: 9,
+    RING_WIDTH: 1.4,
+    GAP: 1.1,
   },
   ROOT: {
-    DIAMETER: 42,
-    PHOTO_SIZE: 36,
-    NAME_GAP: 6,
-    NAME_HEIGHT: 20,
-    FONT_SIZE: 10,
-    RING_WIDTH: 2.2,
-    GAP: 1.6,
+    DIAMETER: 36,
+    PHOTO_SIZE: 32,
+    NAME_GAP: 5,
+    NAME_HEIGHT: 16,
+    FONT_SIZE: 9.5,
+    RING_WIDTH: 1.7,
+    GAP: 1.2,
   },
   COLORS: {
     OUTER_RING: '#1E1E1F',
@@ -175,6 +175,29 @@ export const TIDY_CIRCLE = {
     CENTER_FILL: '#141414',
     PHOTO_BACKDROP: '#F7F4EF',
     TEXT: '#5C5C5C',
+  },
+} as const;
+
+// Tidy rectangular variant for bezier mode (compact cards)
+export const TIDY_RECT = {
+  STANDARD: {
+    WIDTH: 46,
+    HEIGHT: 64,
+    WIDTH_TEXT_ONLY: 46,
+    HEIGHT_TEXT_ONLY: 28,
+    CORNER_RADIUS: 8,
+  },
+  G2: {
+    WIDTH_PHOTO: 60,
+    WIDTH_TEXT: 52,
+    HEIGHT_PHOTO: 66,
+    HEIGHT_TEXT: 30,
+    CORNER_RADIUS: 10,
+  },
+  ROOT: {
+    WIDTH: 90,
+    HEIGHT: 82,
+    BORDER_RADIUS: 16,
   },
 } as const;
 
@@ -209,6 +232,7 @@ export const NODE_CONSTANTS = {
   TEXT_PILL,
   CIRCULAR_NODE,
   TIDY_CIRCLE,
+  TIDY_RECT,
   SHADOW_STYLES,
   COLORS,
 } as const;

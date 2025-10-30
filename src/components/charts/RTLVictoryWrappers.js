@@ -107,12 +107,12 @@ export const RTLVictoryBar = ({
   // Victory Native defaults to 450px width, which is wider than most phone screens!
   // We must explicitly calculate available width based on container layout:
   // - Card margins: tokens.spacing.md (16px) × 2 = 32px
-  // - Card padding: tokens.spacing.lg (20px) × 2 = 40px
-  // - Total offset: 72px
+  // - Card padding: 12px × 2 = 24px (reduced from 40px for wider chart)
+  // - Total offset: 56px
   // This ensures chart fits within container on all devices (iPhone SE to iPad Pro)
   const spacing = tokens.spacing;
   const cardMargins = spacing.md * 2;  // 32px total (16px each side)
-  const cardPadding = spacing.lg * 2;  // 40px total (20px each side)
+  const cardPadding = 24;  // 24px total (12px each side) - reduced for wider chart
   const chartWidth = windowWidth - cardMargins - cardPadding;
 
   return (
@@ -121,15 +121,15 @@ export const RTLVictoryBar = ({
       horizontal={horizontal}
       domainPadding={{ x: 20, y: 10 }}
       // CRITICAL FIX: Swap left/right padding for RTL
-      // RTL: 40px left (bars), 200px right (axis labels like "الأول", "الثاني")
-      // LTR: 200px left (axis labels), 40px right (bars)
-      // Increased from 120px → 160px → 200px to accommodate full Arabic text without clipping
-      // Arabic text needs significantly more space than expected due to font rendering + RTL
+      // RTL: 40px left (bars), 140px right (axis labels like "الأول", "الثاني")
+      // LTR: 140px left (axis labels), 40px right (bars)
+      // Reduced from 200px to 140px for better bar/label balance (gives bars 120% more width)
+      // Combined with wider chart (24px card padding instead of 40px)
       padding={{
         top: 20,
         bottom: 40,
-        left: isRTL ? 40 : 200,
-        right: isRTL ? 200 : 40
+        left: isRTL ? 40 : 140,
+        right: isRTL ? 140 : 40
       }}
       height={height}
       {...chartProps}

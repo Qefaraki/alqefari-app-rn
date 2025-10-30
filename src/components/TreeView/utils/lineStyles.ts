@@ -24,6 +24,7 @@ import {
   G2_NODE,
   CIRCULAR_NODE,
   TIDY_CIRCLE,
+  TIDY_RECT,
 } from "../rendering/nodeConstants";
 
 export const LINE_STYLES = {
@@ -121,16 +122,41 @@ function calculateActualNodeHeight(
   },
   showPhotos: boolean,
   nodeStyle: "rectangular" | "circular",
+  lineStyle: LineStyle = LINE_STYLES.STRAIGHT,
 ): number {
   const isRoot = !node.father_id;
   const hasPhoto = showPhotos && !!node.photo_url;
   const isG2Parent = node.generation === 2 && node._hasChildren;
 
+  const tidyCircular =
+    nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+  const tidyRect =
+    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
+
   if (nodeStyle === "circular") {
+    if (tidyCircular) {
+      const config = isRoot
+        ? TIDY_CIRCLE.ROOT
+        : isG2Parent
+        ? TIDY_CIRCLE.G2
+        : TIDY_CIRCLE.STANDARD;
+
+      return config.DIAMETER;
+    }
+
     if (isRoot) return CIRCULAR_NODE.ROOT_DIAMETER;
     if (isG2Parent) return CIRCULAR_NODE.G2_DIAMETER;
     return CIRCULAR_NODE.DIAMETER;
   } else {
+    if (tidyRect) {
+      if (isRoot) return TIDY_RECT.ROOT.HEIGHT;
+      if (isG2Parent)
+        return hasPhoto ? TIDY_RECT.G2.HEIGHT_PHOTO : TIDY_RECT.G2.HEIGHT_TEXT;
+      return hasPhoto
+        ? TIDY_RECT.STANDARD.HEIGHT
+        : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY;
+    }
+
     // Rectangular mode
     if (isRoot) return ROOT_NODE.HEIGHT;
     if (isG2Parent)
@@ -159,17 +185,42 @@ function calculateActualNodeWidth(
   },
   showPhotos: boolean,
   nodeStyle: "rectangular" | "circular",
+  lineStyle: LineStyle = LINE_STYLES.STRAIGHT,
 ): number {
   const isRoot = !node.father_id;
   const hasPhoto = showPhotos && !!node.photo_url;
   const isG2Parent = node.generation === 2 && node._hasChildren;
 
+  const tidyCircular =
+    nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+  const tidyRect =
+    nodeStyle === "rectangular" && lineStyle === LINE_STYLES.CURVES;
+
   if (nodeStyle === "circular") {
+    if (tidyCircular) {
+      const config = isRoot
+        ? TIDY_CIRCLE.ROOT
+        : isG2Parent
+        ? TIDY_CIRCLE.G2
+        : TIDY_CIRCLE.STANDARD;
+
+      return config.DIAMETER;
+    }
+
     // Circles: width = height = diameter
     if (isRoot) return CIRCULAR_NODE.ROOT_DIAMETER;
     if (isG2Parent) return CIRCULAR_NODE.G2_DIAMETER;
     return CIRCULAR_NODE.DIAMETER;
   } else {
+    if (tidyRect) {
+      if (isRoot) return TIDY_RECT.ROOT.WIDTH;
+      if (isG2Parent)
+        return hasPhoto ? TIDY_RECT.G2.WIDTH_PHOTO : TIDY_RECT.G2.WIDTH_TEXT;
+      return hasPhoto
+        ? TIDY_RECT.STANDARD.WIDTH
+        : TIDY_RECT.STANDARD.WIDTH_TEXT_ONLY;
+    }
+
     // Rectangular mode - use WIDTH constants
     if (isRoot) return ROOT_NODE.WIDTH;
     if (isG2Parent) return hasPhoto ? G2_NODE.WIDTH_PHOTO : G2_NODE.WIDTH_TEXT;
@@ -179,9 +230,13 @@ function calculateActualNodeWidth(
 
 function getLabelHeight(
   node: LayoutNode,
-  nodeStyle: "rectangular" | "circular" = "rectangular"
+  nodeStyle: "rectangular" | "circular" = "rectangular",
+  lineStyle: LineStyle = LINE_STYLES.STRAIGHT,
 ): number {
-  if (nodeStyle !== "circular") {
+  const tidyCircular =
+    nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+
+  if (!tidyCircular) {
     return 0;
   }
 
@@ -210,19 +265,30 @@ export function generateBezierPaths(
   connection: Connection,
   showPhotos: boolean = true,
   nodeStyle: "rectangular" | "circular" = "rectangular",
+  lineStyle: LineStyle = LINE_STYLES.BEZIER,
 ): SkPath[] {
   const { parent, children } = connection;
   const paths: SkPath[] = [];
 
   // Calculate actual rendered dimensions (respects rectangular vs circular mode)
-  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
+  const parentHeight = calculateActualNodeHeight(
+    parent,
+    showPhotos,
+    nodeStyle,
+    lineStyle,
+  );
   const parentBottomY = parent.y + parentHeight / 2;
 
   // For multiple children, create a unified bezier approach
   if (children.length === 1) {
     // Single child - simple direct curve
     const child = children[0];
-    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
+    const childHeight = calculateActualNodeHeight(
+      child,
+      showPhotos,
+      nodeStyle,
+      lineStyle,
+    );
     const childTopY = child.y - childHeight / 2;
 
     const pathBuilder = Skia.Path.Make();
@@ -250,6 +316,7 @@ export function generateBezierPaths(
         child,
         showPhotos,
         nodeStyle,
+        lineStyle,
       );
       return {
         ...child,
@@ -321,6 +388,7 @@ export function generateTidyCurvePaths(
   connection: Connection,
   showPhotos: boolean = true,
   nodeStyle: "rectangular" | "circular" = "rectangular",
+  lineStyle: LineStyle = LINE_STYLES.CURVES,
 ): SkPath[] {
   const { parent, children } = connection;
 
@@ -330,8 +398,16 @@ export function generateTidyCurvePaths(
 
   const pathBuilder = Skia.Path.Make();
 
+  const tidyCircular =
+    nodeStyle === "circular" && lineStyle === LINE_STYLES.CURVES;
+
   // Parent stem – straight drop from the rendered bottom edge
-  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
+  const parentHeight = calculateActualNodeHeight(
+    parent,
+    showPhotos,
+    nodeStyle,
+    lineStyle,
+  );
   const parentBottomY = parent.y + parentHeight / 2;
 
   const childXs = children.map((child) => child.x);
@@ -339,13 +415,18 @@ export function generateTidyCurvePaths(
 
   const parentCenterX = parent.x;
   const parentBottom = parentBottomY;
-  const parentLabelHeight = getLabelHeight(parent, nodeStyle);
+  const parentLabelHeight = getLabelHeight(parent, nodeStyle, lineStyle);
 
   const stemAnchorY = parentBottom + parentLabelHeight;
   const CHILD_ANCHOR_OFFSET = 12;
 
   const childMetadata = children.map((child) => {
-    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
+    const childHeight = calculateActualNodeHeight(
+      child,
+      showPhotos,
+      nodeStyle,
+      lineStyle,
+    );
     const childTopY = child.y - childHeight / 2;
     return {
       childCenterX: child.x,
@@ -371,9 +452,11 @@ export function generateTidyCurvePaths(
   // Fan-out curves using single cubic Bezier per child (D3 linkVertical-style)
   childMetadata.forEach(({ childCenterX, childTopY }) => {
     const startY = stemAnchorY;
-    const desiredAnchor = childTopY - CHILD_ANCHOR_OFFSET;
+    const anchorOffset = tidyCircular ? CHILD_ANCHOR_OFFSET * 0.6 : CHILD_ANCHOR_OFFSET;
+    const desiredAnchor = childTopY - anchorOffset;
     const childAnchorY = Math.min(childTopY - 4, desiredAnchor);
-    const safeAnchorY = childAnchorY <= startY ? startY + 4 : childAnchorY;
+    const minimumGap = tidyCircular ? 2 : 4;
+    const safeAnchorY = childAnchorY <= startY ? startY + minimumGap : childAnchorY;
     const midY = startY + (safeAnchorY - startY) / 2;
 
     pathBuilder.moveTo(parentCenterX, startY);
@@ -413,11 +496,21 @@ export function generateLinePaths(
 ): SkPath[] {
   switch (lineStyle) {
     case LINE_STYLES.CURVES:
-      return generateTidyCurvePaths(connection, showPhotos, nodeStyle);
+      return generateTidyCurvePaths(
+        connection,
+        showPhotos,
+        nodeStyle,
+        lineStyle,
+      );
 
     case LINE_STYLES.BEZIER:
       // DEPRECATED: Use CURVES instead
-      return generateBezierPaths(connection, showPhotos, nodeStyle);
+      return generateBezierPaths(
+        connection,
+        showPhotos,
+        nodeStyle,
+        lineStyle,
+      );
 
     case LINE_STYLES.STRAIGHT:
     default:

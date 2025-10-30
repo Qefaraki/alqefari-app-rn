@@ -62,6 +62,7 @@ import {
   G2_NODE,
   CIRCULAR_NODE,
   TIDY_CIRCLE,
+  TIDY_RECT,
   PHOTO_SIZE,
   SHADOW_STYLES,
   COLORS,
@@ -230,18 +231,38 @@ export function calculateNodeDimensions(
   let height: number;
   let borderRadius: number;
 
+  const useTidyRect = lineStyle === 'bezier' || lineStyle === 'curves';
+
   if (isRoot) {
-    width = ROOT_NODE.WIDTH;
-    height = ROOT_NODE.HEIGHT;
-    borderRadius = ROOT_NODE.BORDER_RADIUS;
+    if (useTidyRect) {
+      width = TIDY_RECT.ROOT.WIDTH;
+      height = TIDY_RECT.ROOT.HEIGHT;
+      borderRadius = TIDY_RECT.ROOT.BORDER_RADIUS;
+    } else {
+      width = ROOT_NODE.WIDTH;
+      height = ROOT_NODE.HEIGHT;
+      borderRadius = ROOT_NODE.BORDER_RADIUS;
+    }
   } else if (isG2Parent) {
-    width = hasPhoto ? G2_NODE.WIDTH_PHOTO : G2_NODE.WIDTH_TEXT;
-    height = hasPhoto ? G2_NODE.HEIGHT_PHOTO : G2_NODE.HEIGHT_TEXT;
-    borderRadius = G2_NODE.BORDER_RADIUS;
+    if (useTidyRect) {
+      width = hasPhoto ? TIDY_RECT.G2.WIDTH_PHOTO : TIDY_RECT.G2.WIDTH_TEXT;
+      height = hasPhoto ? TIDY_RECT.G2.HEIGHT_PHOTO : TIDY_RECT.G2.HEIGHT_TEXT;
+      borderRadius = TIDY_RECT.G2.CORNER_RADIUS;
+    } else {
+      width = hasPhoto ? G2_NODE.WIDTH_PHOTO : G2_NODE.WIDTH_TEXT;
+      height = hasPhoto ? G2_NODE.HEIGHT_PHOTO : G2_NODE.HEIGHT_TEXT;
+      borderRadius = G2_NODE.BORDER_RADIUS;
+    }
   } else {
-    width = node.nodeWidth || (hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY);
-    height = hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
-    borderRadius = STANDARD_NODE.CORNER_RADIUS;
+    if (useTidyRect) {
+      width = hasPhoto ? TIDY_RECT.STANDARD.WIDTH : TIDY_RECT.STANDARD.WIDTH_TEXT_ONLY;
+      height = hasPhoto ? TIDY_RECT.STANDARD.HEIGHT : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY;
+      borderRadius = TIDY_RECT.STANDARD.CORNER_RADIUS;
+    } else {
+      width = node.nodeWidth || (hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY);
+      height = hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+      borderRadius = STANDARD_NODE.CORNER_RADIUS;
+    }
   }
 
   return {

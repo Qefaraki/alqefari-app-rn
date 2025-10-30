@@ -92,7 +92,7 @@ export function CircularNodeRenderer({
         : CIRCULAR_NODE.PHOTO_SIZE;
 
   const selectionStrokeWidth = isTidyVariant
-    ? 1.2
+    ? 0.9
     : isRoot
       ? CIRCULAR_NODE.ROOT_SELECTION_BORDER
       : CIRCULAR_NODE.SELECTION_BORDER;
@@ -216,7 +216,7 @@ export function CircularNodeRenderer({
   }, [hasPhoto, isTidyVariant, centerX, centerY, radius, tidyConfig]);
 
   const tidyOuterOffset = isTidyVariant
-    ? (hasPhoto ? 0.6 : tidyConfig.RING_WIDTH + (tidyConfig.GAP ?? 1.2))
+    ? (hasPhoto ? 0.4 : tidyConfig.RING_WIDTH + (tidyConfig.GAP ?? 1.2))
     : 0;
   const selectionRadius =
     radius + tidyOuterOffset + selectionStrokeWidth;
