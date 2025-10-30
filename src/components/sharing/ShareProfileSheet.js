@@ -26,7 +26,6 @@ import {
   ScrollView,
   Linking,
   Alert,
-  I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -146,8 +145,6 @@ export default function ShareProfileSheet({
       }
     };
   }, []);
-
-  const isRTL = I18nManager.isRTL;
 
   const nodesMap = useTreeStore((s) => s.nodesMap);
 
@@ -282,8 +279,6 @@ export default function ShareProfileSheet({
     <TouchableOpacity
       style={[
         styles.quickActionButton,
-        { flexDirection: isRTL ? 'row-reverse' : 'row' },
-        { writingDirection: isRTL ? 'rtl' : 'ltr' },
         disabled && styles.quickActionButtonDisabled,
       ]}
       activeOpacity={0.7}
@@ -298,32 +293,13 @@ export default function ShareProfileSheet({
       >
         <Ionicons name={icon} size={22} color={iconColor} />
       </View>
-      <View
-        style={[
-          styles.quickActionCopy,
-          { alignItems: isRTL ? 'flex-end' : 'flex-start' },
-        ]}
-      >
-        <Text
-          style={[
-            styles.quickActionLabel,
-            {
-              textAlign: isRTL ? 'right' : 'left',
-              writingDirection: isRTL ? 'rtl' : 'ltr',
-            },
-          ]}
-        >
+      <View style={styles.quickActionCopy}>
+        <Text style={styles.quickActionLabel}>
           {label}
         </Text>
         {detail ? (
           <Text
-            style={[
-              styles.quickActionDetail,
-              {
-                textAlign: isRTL ? 'right' : 'left',
-                writingDirection: isRTL ? 'rtl' : 'ltr',
-              },
-            ]}
+            style={styles.quickActionDetail}
             numberOfLines={2}
           >
             {detail}
@@ -332,7 +308,7 @@ export default function ShareProfileSheet({
       </View>
       {trailing || (
         <Ionicons
-          name={isRTL ? 'chevron-back' : 'chevron-forward'}
+          name="chevron-forward"
           size={18}
           color={COLORS.textSecondary}
         />
@@ -348,16 +324,8 @@ export default function ShareProfileSheet({
       onRequestClose={onClose}
       transparent={false}
     >
-      <SafeAreaView
-        style={[
-          styles.modalContainer,
-          isRTL ? styles.directionRTL : styles.directionLTR,
-        ]}
-      >
-        <LinearGradient
-          colors={['#F8F3EA', COLORS.background]}
-          style={styles.backgroundGradient}
-        />
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.backgroundGradient} />
 
         <Image
           source={EMBLEM_IMAGE}
@@ -365,7 +333,7 @@ export default function ShareProfileSheet({
           resizeMode="contain"
         />
 
-        <View style={[styles.header, isRTL && styles.headerRTL]}>
+        <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={onClose}
@@ -377,34 +345,18 @@ export default function ShareProfileSheet({
               color={COLORS.textPrimary}
             />
           </TouchableOpacity>
-          <Text
-            style={[
-              styles.headerTitle,
-              { writingDirection: isRTL ? 'rtl' : 'ltr' },
-            ]}
-          >
+          <Text style={styles.headerTitle}>
             شارك الملف
           </Text>
           <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView
-          style={[
-            styles.scrollContainer,
-            isRTL ? styles.directionRTL : styles.directionLTR,
-          ]}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isRTL ? styles.directionRTL : styles.directionLTR,
-          ]}
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.heroCard,
-              isRTL ? styles.directionRTL : styles.directionLTR,
-            ]}
-          >
+          <View style={styles.heroCard}>
             <View style={styles.avatarWrapper}>
               {hasValidPhoto ? (
                 <Image
@@ -419,10 +371,7 @@ export default function ShareProfileSheet({
             </View>
 
             <Text
-              style={[
-                styles.heroName,
-                { writingDirection: isRTL ? 'rtl' : 'ltr' },
-              ]}
+              style={styles.heroName}
               numberOfLines={1}
             >
               {displayName}
@@ -430,10 +379,7 @@ export default function ShareProfileSheet({
 
             {lineage ? (
               <Text
-                style={[
-                  styles.heroLineage,
-                  { writingDirection: isRTL ? 'rtl' : 'ltr' },
-                ]}
+                style={styles.heroLineage}
                 numberOfLines={2}
               >
                 {lineage}
@@ -442,10 +388,7 @@ export default function ShareProfileSheet({
 
             {metadata ? (
               <Text
-                style={[
-                  styles.heroMetadata,
-                  { writingDirection: isRTL ? 'rtl' : 'ltr' },
-                ]}
+                style={styles.heroMetadata}
                 numberOfLines={1}
               >
                 {metadata}
@@ -453,22 +396,8 @@ export default function ShareProfileSheet({
             ) : null}
           </View>
 
-          <View
-            style={[
-              styles.qrCard,
-              isRTL ? styles.directionRTL : styles.directionLTR,
-            ]}
-          >
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                {
-                  textAlign: isRTL ? 'right' : 'left',
-                  writingDirection: isRTL ? 'rtl' : 'ltr',
-                  alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                },
-              ]}
-            >
+          <View style={styles.qrCard}>
+            <Text style={styles.sectionSubtitle}>
               امسح الرمز للاطلاع على الملف مباشرة أو شاركه باستخدام الخيارات السريعة.
             </Text>
 
@@ -485,14 +414,7 @@ export default function ShareProfileSheet({
 
             {profileLink ? (
               <TouchableOpacity
-                style={[
-                  styles.linkChip,
-                  {
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    writingDirection: isRTL ? 'rtl' : 'ltr',
-                  },
-                  isRTL ? styles.linkChipRTL : styles.linkChipLTR,
-                ]}
+                style={styles.linkChip}
                 activeOpacity={0.7}
                 onPress={handleOpenLink}
               >
@@ -500,13 +422,9 @@ export default function ShareProfileSheet({
                   name="link-outline"
                   size={18}
                   color={COLORS.accent}
-                  style={isRTL ? styles.flipIconRTL : null}
                 />
                 <Text
-                  style={[
-                    styles.linkText,
-                    { textAlign: isRTL ? 'right' : 'left' },
-                  ]}
+                  style={styles.linkText}
                   numberOfLines={1}
                 >
                   {profileLink.replace(/^https?:\/\//, '')}
@@ -515,18 +433,12 @@ export default function ShareProfileSheet({
                   name="open-outline"
                   size={18}
                   color={COLORS.accent}
-                  style={isRTL ? styles.flipIconRTL : null}
                 />
               </TouchableOpacity>
             ) : null}
           </View>
 
-          <View
-            style={[
-              styles.quickActionsCard,
-              isRTL ? styles.directionRTL : styles.directionLTR,
-            ]}
-          >
+          <View style={styles.quickActionsCard}>
             <View style={styles.quickActionsList}>
               <QuickActionButton
                 icon="share-outline"
@@ -565,18 +477,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  directionRTL: {
-    direction: 'rtl',
-  },
-  directionLTR: {
-    direction: 'ltr',
-  },
   backgroundGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: COLORS.background,
   },
   emblemWatermark: {
     position: 'absolute',
@@ -594,9 +501,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
-  },
-  headerRTL: {
-    flexDirection: 'row-reverse',
   },
   headerButton: {
     width: 44,
@@ -697,6 +601,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.xl,
     lineHeight: 20,
+    textAlign: 'left',
+    alignSelf: 'flex-start',
   },
   qrWrapper: {
     alignItems: 'center',
@@ -705,20 +611,12 @@ const styles = StyleSheet.create({
   linkChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: SPACING.xs,
     borderRadius: 18,
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.lg,
     backgroundColor: COLORS.surfaceSubtle,
-  },
-  linkChipRTL: {
-    alignSelf: 'flex-end',
-  },
-  linkChipLTR: {
-    alignSelf: 'flex-start',
-  },
-  flipIconRTL: {
-    transform: [{ scaleX: -1 }],
   },
   linkText: {
     flex: 1,
@@ -742,6 +640,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   quickActionButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 18,
     paddingVertical: SPACING.sm,
@@ -762,15 +661,18 @@ const styles = StyleSheet.create({
   quickActionCopy: {
     flex: 1,
     gap: 4,
+    alignItems: 'flex-start',
   },
   quickActionLabel: {
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.textPrimary,
+    textAlign: 'left',
   },
   quickActionDetail: {
     fontSize: 13,
     color: COLORS.textSecondary,
     lineHeight: 18,
+    textAlign: 'left',
   },
 });
