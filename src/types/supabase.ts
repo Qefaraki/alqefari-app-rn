@@ -82,12 +82,7 @@ export interface Profile {
   phone?: string | null;
   email?: string | null;
   photo_url?: string | null;
-
-  // Photo Cropping (normalized 0.0-1.0)
-  crop_top?: number | null;
-  crop_bottom?: number | null;
-  crop_left?: number | null;
-  crop_right?: number | null;
+  photo_url_cropped?: string | null; // File-based cropped photo (replaces coordinate-based cropping)
 
   // Social Media (consolidated in v2)
   social_media_links: SocialMediaLinks;

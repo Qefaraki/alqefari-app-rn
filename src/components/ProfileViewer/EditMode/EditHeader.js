@@ -6,12 +6,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import { TouchableOpacity } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PropTypes from 'prop-types';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
 const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
+  const insets = useSafeAreaInsets();
   const submitLabel = accessMode === 'review' ? 'إرسال' : 'حفظ';
 
   const handleCancel = () => {
@@ -26,7 +28,7 @@ const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
   };
 
   return (
-    <View style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top + 8 }]}>
       <View style={styles.headerContainer}>
         {/* Cancel Button */}
         <TouchableOpacity
@@ -78,13 +80,12 @@ const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#f7f2ed', // Match BottomSheet sheetBackground
+    backgroundColor: tokens.colors.surface, // White background
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomWidth: 0.5,
-    borderBottomColor: `${tokens.colors.najdi.container  }40`,
+    borderBottomColor: `${tokens.colors.najdi.container}40`,
     overflow: 'hidden', // Ensure rounded corners clip properly
-    paddingTop: 8,
     paddingBottom: 4,
   },
   headerContainer: {

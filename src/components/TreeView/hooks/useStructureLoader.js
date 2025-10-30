@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '1.9.0'; // Bumped: Add deleted_at to both RPC overloads for validation
+const TREE_STRUCTURE_SCHEMA_VERSION = '2.0.0'; // Bumped: Removed crop fields (crop_top/bottom/left/right) from get_structure_only RPC
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

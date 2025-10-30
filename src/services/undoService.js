@@ -70,13 +70,6 @@ const ACTION_TYPE_CONFIG = {
     timeLimitDays: null,
     dangerous: false,
   },
-  'crop_update': {
-    rpcFunction: 'undo_crop_update',
-    description: 'تعديل اقتصاص الصورة',
-    requiresAdmin: false,
-    timeLimitDays: 30,
-    dangerous: false,
-  },
   'photo_delete': {
     rpcFunction: 'undo_photo_delete',
     description: 'حذف الصورة',

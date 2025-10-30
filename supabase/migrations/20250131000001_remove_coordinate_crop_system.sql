@@ -111,6 +111,9 @@ DROP FUNCTION IF EXISTS get_structure_only(
 -- Frontend uses this version: get_structure_only(p_hid TEXT, p_max_depth INT, p_limit INT)
 -- Remove 4 crop fields from RETURNS TABLE and all SELECT statements
 
+-- Must drop first because return type is changing
+DROP FUNCTION IF EXISTS get_structure_only(TEXT, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION get_structure_only(
   p_hid TEXT DEFAULT NULL,
   p_max_depth INTEGER DEFAULT 15,
@@ -312,8 +315,8 @@ COMMENT ON FUNCTION get_structure_only IS
 --
 -- Safety: Crop columns remain but are unused (frontend uses photo_url_cropped)
 
-RAISE NOTICE '✓ Migration 001 complete: Constraints, indexes, triggers, standalone RPCs removed';
-RAISE NOTICE '→ Next: Apply migration 002 to update remaining RPCs and drop columns';
+-- Migration 001 complete: Constraints, indexes, triggers, standalone RPCs removed
+-- Next: Apply migration 002 to update remaining RPCs and drop columns
 
 COMMIT;
 

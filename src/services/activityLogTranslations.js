@@ -50,12 +50,7 @@ export const FIELD_LABELS = {
 
   // Media
   photo_url: 'الصورة الشخصية',
-
-  // Photo Cropping
-  crop_top: 'اقتصاص من الأعلى',
-  crop_bottom: 'اقتصاص من الأسفل',
-  crop_left: 'اقتصاص من اليسار',
-  crop_right: 'اقتصاص من اليمين',
+  photo_url_cropped: 'الصورة المقصوصة',
 
   // Metadata
   created_at: 'تاريخ الإنشاء',
@@ -113,11 +108,7 @@ export const FIELD_CATEGORIES = {
   },
   media: {
     label: 'الوسائط',
-    fields: ['photo_url'],
-  },
-  photo_cropping: {
-    label: 'اقتصاص الصورة',
-    fields: ['crop_top', 'crop_bottom', 'crop_left', 'crop_right'],
+    fields: ['photo_url', 'photo_url_cropped'],
   },
   system: {
     label: 'معلومات النظام',
@@ -280,24 +271,6 @@ export const VALUE_FORMATTERS = {
     if (!value || value === null) return '—';
     // Don't show raw UUID, show update indicator
     return 'تم التحديث';
-  },
-
-  // Photo Cropping: Convert normalized 0.0-1.0 to percentages
-  crop_top: (value) => {
-    if (!value || value === 0) return '0%';
-    return `${(value * 100).toFixed(1)}%`;
-  },
-  crop_bottom: (value) => {
-    if (!value || value === 0) return '0%';
-    return `${(value * 100).toFixed(1)}%`;
-  },
-  crop_left: (value) => {
-    if (!value || value === 0) return '0%';
-    return `${(value * 100).toFixed(1)}%`;
-  },
-  crop_right: (value) => {
-    if (!value || value === 0) return '0%';
-    return `${(value * 100).toFixed(1)}%`;
   },
 };
 

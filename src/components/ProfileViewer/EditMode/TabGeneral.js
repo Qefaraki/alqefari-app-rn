@@ -134,10 +134,7 @@ const TabGeneral = ({ form, updateField, onCropPress, person, userProfile, acces
               accessMode={accessMode}
               onPhotoDeleted={(newVersion) => {
                 updateField('photo_url', null);
-                updateField('crop_top', 0);
-                updateField('crop_bottom', 0);
-                updateField('crop_left', 0);
-                updateField('crop_right', 0);
+                updateField('photo_url_cropped', null);
                 // DO NOT updateField('version') - version is metadata, not user data
                 // Version is managed separately via person prop and optimistic locking
               }}

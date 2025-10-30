@@ -348,39 +348,43 @@ const EditModeContent = React.memo(({
     <View style={{ flex: 1 }}>
       {/* Quick Jump Menu */}
       <View style={styles.quickJumpContainer}>
-        {SECTIONS.map((section) => (
-          <TouchableOpacity
-            key={section.id}
-            style={[
-              styles.quickJumpPill,
-              scrollState.activeSection === section.id && styles.quickJumpPillActive,
-            ]}
-            onPress={() => scrollToSection(section.id)}
-            activeOpacity={0.7}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={`الانتقال إلى قسم ${section.label}`}
-            accessibilityState={{ selected: scrollState.activeSection === section.id }}
-          >
-            <Text
+        <View style={styles.quickJumpControl}>
+          {SECTIONS.map((section) => (
+            <TouchableOpacity
+              key={section.id}
               style={[
-                styles.quickJumpText,
-                scrollState.activeSection === section.id && styles.quickJumpTextActive,
+                styles.quickJumpPill,
+                scrollState.activeSection === section.id && styles.quickJumpPillActive,
               ]}
+              onPress={() => scrollToSection(section.id)}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`الانتقال إلى قسم ${section.label}`}
+              accessibilityState={{ selected: scrollState.activeSection === section.id }}
             >
-              {section.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.quickJumpText,
+                  scrollState.activeSection === section.id && styles.quickJumpTextActive,
+                ]}
+              >
+                {section.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Single Scrolling Form */}
       <BottomSheetScrollView
         ref={scrollRef}
+        style={{ backgroundColor: tokens.colors.surface }}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 12,
           paddingBottom: insets.bottom + 80,
+          backgroundColor: tokens.colors.surface,
         }}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="interactive"
@@ -1784,7 +1788,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   sheetBackground: {
-    backgroundColor: '#f7f2ed',
+    backgroundColor: tokens.colors.surface, // White background
   },
   handleBar: {
     width: 48,
@@ -1802,35 +1806,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8c7780',
   },
-  // Quick Jump Menu styles
+  // Quick Jump Menu styles (inspired by SegmentedControl)
   quickJumpContainer: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+    backgroundColor: tokens.colors.surface, // White background
+  },
+  quickJumpControl: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: tokens.colors.najdi.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: `${tokens.colors.najdi.container}40`,
+    backgroundColor: `${tokens.colors.najdi.container}40`, // Camel Hair Beige 40%
+    borderRadius: 10,
+    padding: 2,
+    gap: 2,
   },
   quickJumpPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: `${tokens.colors.najdi.container}30`,
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
   },
   quickJumpPillActive: {
-    backgroundColor: `${tokens.colors.najdi.primary}20`,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: tokens.colors.surface, // White active state
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   quickJumpText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
+    textAlign: 'center',
   },
   quickJumpTextActive: {
-    color: tokens.colors.najdi.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
   },
   // Section styles
   section: {
@@ -1843,7 +1860,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionHeaderText: {
-    fontSize: 17,
+    fontSize: 22, // iOS Large Title
     fontWeight: '700',
     color: tokens.colors.najdi.text,
     fontFamily: 'SF Arabic',
