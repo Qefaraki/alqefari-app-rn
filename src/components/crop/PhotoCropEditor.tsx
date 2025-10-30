@@ -1,7 +1,7 @@
 /**
- * PhotoCropEditor - Professional crop interface using expo-dynamic-image-crop
+ * PhotoCropEditor - Professional crop interface using react-native-zoom-toolkit
  *
- * Uses a professional, battle-tested image cropping library with built-in UI.
+ * Uses CropZoom component which provides built-in UI AND returns crop coordinates.
  * Returns normalized crop coordinates (0.0-1.0) for database storage.
  *
  * Architecture:
@@ -16,6 +16,7 @@
  * - Supabase image transformations (1080px, 80% quality for instant loading)
  * - Najdi Sadu design tokens for header
  * - RTL-friendly
+ * - Returns actual crop coordinates (originX, originY, width, height)
  *
  * Performance:
  * - Uses Supabase Storage image transformations (?width=1080&quality=80)
@@ -23,12 +24,12 @@
  * - CDN-cached for instant subsequent loads
  * - Load time: <500ms vs 2-4 seconds for full resolution
  *
- * Library: expo-dynamic-image-crop
- * Documentation: https://github.com/nwabueze1/expo-dynamic-image-crop
- * Integrated: October 28, 2025
+ * Library: react-native-zoom-toolkit
+ * Documentation: https://glazzes.github.io/react-native-zoom-toolkit/
+ * Integrated: January 2025 (replaces expo-dynamic-image-crop)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -38,13 +39,18 @@ import {
   Text,
   ActivityIndicator,
   Image,
-  I18nManager,
+  Dimensions,
+  StatusBar,
+  Platform,
 } from 'react-native';
-import { ImageEditor } from 'expo-dynamic-image-crop';
+import { CropZoom, CropZoomType } from 'react-native-zoom-toolkit';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from '../ui/tokens';
 import { isValidCrop, clampCropCoordinates } from '../../utils/cropUtils';
 import { downloadImageForCrop } from '../../utils/imageCacheUtil';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CROP_SIZE = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) - 80; // Square crop area with padding
 
 interface PhotoCropEditorProps {
   visible: boolean;
@@ -69,8 +75,9 @@ interface PhotoCropEditorProps {
 /**
  * PhotoCropEditor Component
  *
- * Professional crop interface using expo-dynamic-image-crop with built-in UI.
+ * Professional crop interface using CropZoom from react-native-zoom-toolkit.
  * Provides pinch-to-zoom, pan, and rotate gestures with a polished interface.
+ * Returns actual crop coordinates for database storage.
  *
  * Pre-download Strategy:
  * - If cachedPhotoPath is provided (file://), use it for INSTANT opening (zero wait)
@@ -88,6 +95,7 @@ export function PhotoCropEditor({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
   const [localImagePath, setLocalImagePath] = useState<string | null>(null);
+  const cropRef = useRef<CropZoomType>(null);
 
   /**
    * Determine which image path to use: cached (instant) or download-on-demand
@@ -169,86 +177,72 @@ export function PhotoCropEditor({
   }, [visible, photoUrl, cachedPhotoPath, onCancel]);
 
   /**
-   * Handle crop completion from ImageEditor
-   *
-   * Note: expo-dynamic-image-crop returns the cropped image URI.
-   * For our coordinate-based architecture, we need to extract crop coordinates.
-   * The library exposes crop data in the result object.
+   * Handle crop save - extract coordinates from CropZoom
    */
-  const handleEditingComplete = (result: any) => {
+  const handleSave = () => {
     try {
-      console.log('Crop result:', result);
+      // Extract crop coordinates from CropZoom ref
+      const cropResult = cropRef.current?.crop();
 
-      // Check if result contains crop coordinates
-      if (result.cropRect) {
-        const { x, y, width, height } = result.cropRect;
-        const imageWidth = imageDimensions.width;
-        const imageHeight = imageDimensions.height;
-
-        // Convert pixel coordinates to normalized 0.0-1.0 coordinates
-        const crop_left = x / imageWidth;
-        const crop_top = y / imageHeight;
-        const crop_right = 1 - ((x + width) / imageWidth);
-        const crop_bottom = 1 - ((y + height) / imageHeight);
-
-        // Create crop object
-        const crop = {
-          crop_top,
-          crop_bottom,
-          crop_left,
-          crop_right,
-        };
-
-        // Clamp coordinates to prevent floating-point edge cases
-        const clampedCrop = clampCropCoordinates(crop);
-
-        // Validate crop
-        if (!isValidCrop(clampedCrop)) {
-          Alert.alert(
-            'خطأ',
-            'حجم المنطقة المحصورة صغير جداً. يجب أن تكون المنطقة المرئية على الأقل 10% من الصورة.'
-          );
-          return;
-        }
-
-        // Save crop coordinates
-        onSave(clampedCrop);
-      } else {
-        // Fallback: If library doesn't provide coordinates, save the cropped image URI
-        // Note: This means we'd need to update our architecture to support file-based crops
-        console.warn('No crop coordinates available, got cropped image instead:', result.uri);
-        Alert.alert(
-          'تنبيه',
-          'لم يتم العثور على إحداثيات القص. هل تريد استخدام الصورة المحصورة مباشرة؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            {
-              text: 'نعم',
-              onPress: () => {
-                // For now, save with no crop (full image)
-                // TODO: Consider updating architecture to support file-based crops
-                onSave({ crop_top: 0, crop_bottom: 0, crop_left: 0, crop_right: 0 });
-              },
-            },
-          ]
-        );
+      if (!cropResult || !cropResult.crop) {
+        Alert.alert('خطأ', 'فشل استخراج إحداثيات القص. يرجى المحاولة مرة أخرى.');
+        return;
       }
+
+      const { originX, originY, width, height } = cropResult.crop;
+      const imageWidth = imageDimensions.width;
+      const imageHeight = imageDimensions.height;
+
+      console.log('[PhotoCrop] Extracted crop coordinates:', {
+        originX,
+        originY,
+        width,
+        height,
+        imageDimensions,
+      });
+
+      // Convert pixel coordinates to normalized 0.0-1.0 coordinates
+      const crop = {
+        crop_left: originX / imageWidth,
+        crop_top: originY / imageHeight,
+        crop_right: 1 - ((originX + width) / imageWidth),
+        crop_bottom: 1 - ((originY + height) / imageHeight),
+      };
+
+      console.log('[PhotoCrop] Normalized crop coordinates:', crop);
+
+      // Clamp coordinates to prevent floating-point edge cases
+      const clampedCrop = clampCropCoordinates(crop);
+
+      // Validate crop
+      if (!isValidCrop(clampedCrop)) {
+        Alert.alert(
+          'خطأ',
+          'حجم المنطقة المحصورة صغير جداً. يجب أن تكون المنطقة المرئية على الأقل 10% من الصورة.'
+        );
+        return;
+      }
+
+      console.log('[PhotoCrop] Final clamped crop:', clampedCrop);
+
+      // Save crop coordinates
+      onSave(clampedCrop);
     } catch (error) {
-      console.error('Crop processing error:', error);
-      Alert.alert('خطأ', 'حدث خطأ أثناء معالجة القص');
+      console.error('[PhotoCrop] Crop save error:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء حفظ القص');
     }
   };
 
   /**
    * Handle editor close
    */
-  const handleCloseEditor = () => {
+  const handleCancel = () => {
     if (!saving) {
       onCancel();
     }
   };
 
-  if (!visible || !imageLoaded) {
+  if (!visible || !imageLoaded || !localImagePath) {
     return (
       <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
         <View style={styles.loadingContainer}>
@@ -261,31 +255,47 @@ export function PhotoCropEditor({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel} statusBarTranslucent>
-      {/* Force LTR layout for crop editor (expo-dynamic-image-crop not RTL-aware) */}
-      <View style={[styles.container, I18nManager.isRTL && { direction: 'ltr' }]}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.container}>
         {/* Custom Header (matching Najdi Sadu design) */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleCloseEditor} style={styles.headerButton} disabled={saving}>
+          <TouchableOpacity onPress={handleCancel} style={styles.headerButton} disabled={saving}>
             <Text style={styles.headerButtonText}>إلغاء</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>تعديل الصورة</Text>
-          <View style={styles.headerButton}>
-            {saving && <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />}
-          </View>
+          <TouchableOpacity onPress={handleSave} style={styles.headerButton} disabled={saving}>
+            {saving ? (
+              <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+            ) : (
+              <Text style={[styles.headerButtonText, styles.saveButton]}>حفظ</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Professional Crop Editor with Built-in UI */}
-        {localImagePath && (
-          <ImageEditor
-            isVisible={true}
-            imageUri={localImagePath} // Use pre-downloaded local file:// path (instant) or downloaded cache
-            onEditingComplete={handleEditingComplete}
-            onEditingCancel={handleCloseEditor}
-            fixedAspectRatio={1} // 1:1 square for profile photos
-            dynamicCrop={true} // Allow free-form cropping within square
-            mode="contain" // Fit entire image initially
-          />
-        )}
+        {/* CropZoom Component with Square Aspect Ratio */}
+        <View style={styles.cropContainer}>
+          <CropZoom
+            ref={cropRef}
+            cropSize={{ width: CROP_SIZE, height: CROP_SIZE }}
+            resolution={{ width: imageDimensions.width, height: imageDimensions.height }}
+          >
+            <Image
+              source={{ uri: localImagePath }}
+              style={{
+                width: imageDimensions.width,
+                height: imageDimensions.height,
+              }}
+              resizeMode="contain"
+            />
+          </CropZoom>
+        </View>
+
+        {/* Instructions */}
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructionsText}>
+            استخدم إيماءات القرص والتمرير لضبط المنطقة المحصورة
+          </Text>
+        </View>
       </View>
     </Modal>
   );
@@ -301,7 +311,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 16,
     backgroundColor: tokens.colors.najdi.background,
     borderBottomWidth: 1,
@@ -317,10 +327,33 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     fontWeight: '400',
   },
+  saveButton: {
+    color: tokens.colors.najdi.primary,
+    fontWeight: '600',
+  },
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
+  },
+  cropContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+  },
+  instructionsContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    backgroundColor: tokens.colors.najdi.background,
+    borderTopWidth: 1,
+    borderTopColor: tokens.colors.divider,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,

@@ -2094,13 +2094,8 @@ const TreeViewCore = ({
     (nodeId) => {
       // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
 
-      // Guard: Check if node data is loaded (progressive enrichment)
-      if (!store.state.nodesMap.has(nodeId)) {
-        if (__DEV__) {
-          console.log('[TreeView] Node data not loaded yet:', nodeId);
-        }
-        return; // Silently ignore (progressive enrichment in progress)
-      }
+      // Removed blocking guard (profile sheet handles loading independently)
+      // The guard was preventing ALL profile opens during progressive enrichment
 
       // Clear search highlight when tapping any node
       clearAllHighlights();
@@ -2109,7 +2104,7 @@ const TreeViewCore = ({
       setProfileEditMode(isAdminMode);
       // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
     },
-    [setSelectedPersonId, isAdminMode, clearAllHighlights, store.state.nodesMap],
+    [setSelectedPersonId, isAdminMode, clearAllHighlights],
   );
 
   // Tap gesture for selection with movement/time thresholds

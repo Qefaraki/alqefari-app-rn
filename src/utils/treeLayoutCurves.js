@@ -107,8 +107,8 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   root.each((d) => {
     nodes.push({
       ...d.data,
-      x: d.x,  // D3 breadth coordinate (vertical spread)
-      y: d.y,  // D3 depth coordinate (horizontal growth)
+      x: d.y,  // Swap: D3 depth becomes horizontal position
+      y: d.x,  // Swap: D3 breadth becomes vertical position
       depth: d.depth,
     });
   });
