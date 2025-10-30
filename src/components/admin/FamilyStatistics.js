@@ -29,6 +29,7 @@ import LargeTitleHeader from '../ios/LargeTitleHeader';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import tokens from '../ui/tokens';
 import { RTLVictoryPie, RTLVictoryBar } from '../charts/RTLVictoryWrappers';
+import { useAbsoluteDate } from '../../hooks/useFormattedDate';
 
 const palette = tokens.colors.najdi;
 const spacing = tokens.spacing;
@@ -52,21 +53,6 @@ const formatPercent = (value, total) => {
   }
   const percent = Math.round((numericValue / numericTotal) * 100);
   return `${percent}%`;
-};
-
-const formatDateTime = (isoString) => {
-  if (!isoString) return null;
-  const parsed = new Date(isoString);
-  if (Number.isNaN(parsed.getTime())) return null;
-
-  try {
-    return new Intl.DateTimeFormat('ar-SA', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(parsed);
-  } catch (error) {
-    return parsed.toLocaleString('ar-SA');
-  }
 };
 
 export default function FamilyStatistics({ onClose }) {
@@ -329,7 +315,6 @@ const IntroSurface = () => (
       ))}
     </View>
     <View style={styles.introContent}>
-      <Text style={styles.introTitle}>إحصائيات العائلة</Text>
       <Text style={styles.introSubtitle}>
         تعرّف على أرقام ومعلومات مفصلة عن العائلة عبر الأجيال
       </Text>
@@ -1092,3 +1077,554 @@ const ErrorSection = ({ title, message, onRetry, isRetrying = false }) => (
 // ============================================================================
 // STYLES
 // ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: palette.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xxl * 1.25,
+  },
+  closeButton: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skeletonContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  skeletonCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    padding: spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}0F`,
+  },
+  introSurface: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
+  },
+  patternRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    height: 32,
+    overflow: 'hidden',
+    borderTopLeftRadius: tokens.radii.lg,
+    borderTopRightRadius: tokens.radii.lg,
+  },
+  introPattern: {
+    width: 64,
+    height: 32,
+    tintColor: palette.primary,
+    opacity: 0.4,
+  },
+  introContent: {
+    paddingTop: spacing.lg + 20,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  introTitle: {
+    ...typography.title3,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '700',
+  },
+  introSubtitle: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}99`,
+    lineHeight: typography.subheadline.lineHeight,
+  },
+  card: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}0F`,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  cardEyebrow: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}80`,
+    fontWeight: '600',
+  },
+  cardSubtitle: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+    marginTop: spacing.xs / 2,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.primary}14`,
+    gap: spacing.xs,
+  },
+  badgeText: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: palette.primary,
+    fontWeight: '600',
+  },
+  heroNumber: {
+    fontSize: 44,
+    fontFamily: 'SF Arabic',
+    fontWeight: '700',
+    color: palette.text,
+    marginTop: spacing.xs,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  heroMeta: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  heroGenerations: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  heroGenerationsText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}90`,
+  },
+  heroChart: {
+    width: 220,
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    backgroundColor: `${palette.text}05`,
+    gap: spacing.sm,
+  },
+  metricBadgeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricBadgeTextGroup: {
+    flex: 1,
+  },
+  metricBadgeLabel: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}80`,
+    marginBottom: 2,
+  },
+  metricBadgeValue: {
+    ...typography.headline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '600',
+  },
+  metricBadgePercent: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  metricTile: {
+    flexBasis: '47%',
+    minWidth: 150,
+    padding: spacing.md,
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.text}03`,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}10`,
+    gap: spacing.xs,
+  },
+  metricTileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  metricTileLabel: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}80`,
+  },
+  metricTileValue: {
+    ...typography.title3,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '700',
+  },
+  metricTileCaption: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+  },
+  qualitySection: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: `${palette.text}0D`,
+    gap: spacing.md,
+  },
+  qualityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  qualityLabel: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '600',
+  },
+  qualityValue: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}80`,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: `${palette.text}0F`,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  chartWrapper: {
+    marginTop: spacing.sm,
+  },
+  calloutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.secondary}12`,
+  },
+  calloutText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+  },
+  statsStrip: {
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}12`,
+    backgroundColor: `${palette.text}03`,
+  },
+  statsStripItem: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  statsStripLabel: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+    marginBottom: spacing.xs / 2,
+  },
+  statsStripValue: {
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '600',
+  },
+  statsStripDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: `${palette.text}12`,
+    alignSelf: 'stretch',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.text}07`,
+    padding: spacing.xs / 2,
+    marginBottom: spacing.lg,
+  },
+  segmentOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: tokens.radii.md,
+    gap: spacing.xs,
+  },
+  segmentOptionActive: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
+  },
+  segmentLabel: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}90`,
+    fontWeight: '600',
+  },
+  segmentLabelActive: {
+    color: tokens.colors.surface,
+  },
+  segmentLabelDisabled: {
+    color: `${palette.text}40`,
+  },
+  namesList: {
+    gap: spacing.sm,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  rankBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${palette.text}08`,
+  },
+  rankBubbleGold: {
+    backgroundColor: '#F7E5B5',
+  },
+  rankBubbleSilver: {
+    backgroundColor: '#E0E5EC',
+  },
+  rankBubbleBronze: {
+    backgroundColor: '#E8C9AB',
+  },
+  rankBubbleText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '600',
+  },
+  rankBubbleTextEmphasis: {
+    color: '#85592B',
+  },
+  nameInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  namePrimary: {
+    ...typography.headline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+  },
+  nameSecondary: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+  },
+  progressColumn: {
+    width: 90,
+    alignItems: 'flex-end',
+  },
+  progressPercent: {
+    ...typography.caption2,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+    marginTop: spacing.xs / 2,
+  },
+  secondaryButton: {
+    marginTop: spacing.lg,
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: `${palette.primary}40`,
+    backgroundColor: `${palette.primary}08`,
+  },
+  secondaryButtonText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: palette.primary,
+    fontWeight: '600',
+  },
+  metricBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  metricBadgeRowSpacing: {
+    marginTop: spacing.sm,
+  },
+  metricBadgeBlock: {
+    flex: 1,
+  },
+  metricBadgeBlockSpacing: {
+    marginStart: spacing.sm / 2,
+  },
+  leaderboardList: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.text}03`,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}10`,
+  },
+  leaderboardInfo: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  familyName: {
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '600',
+  },
+  leaderboardHint: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+  },
+  leaderboardProgress: {
+    width: 90,
+  },
+  loadingCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+  },
+  errorCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  errorText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: tokens.radii.md,
+    backgroundColor: palette.primary,
+  },
+  retryButtonDisabled: {
+    opacity: 0.6,
+  },
+  retryButtonText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    fontWeight: '600',
+    color: tokens.colors.surface,
+  },
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  emptyChartText: {
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}66`,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    ...typography.callout,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}66`,
+    textAlign: 'center',
+    marginVertical: spacing.lg,
+  },
+});

@@ -841,8 +841,8 @@ const TreeViewCore = ({
   // Phase 2 Day 10a / Phase 3B: Tree data loading with progressive loading support
   // Progressive loading: Use two-phase strategy (structure + enrichment)
   // Traditional loading: Use full tree with real-time subscriptions
-  // Map lineStyle to layoutMode: bezier/curves → D3 tidy tree, straight → original algorithm
-  const layoutMode = (lineStyle === 'bezier' || lineStyle === 'curves') ? 'curves' : 'normal';
+  // Use the standard layout for all modes; bezier reuses positions but swaps connection styling
+  const layoutMode = 'normal';
   const progressiveResult = USE_PROGRESSIVE_LOADING
     ? useProgressiveTreeView(stage, dimensions, nodeStyleValue, layoutMode)
     : null;

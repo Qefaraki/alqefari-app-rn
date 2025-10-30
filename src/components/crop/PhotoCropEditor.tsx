@@ -112,6 +112,48 @@ export function PhotoCropEditor({
           path: result.path,
         });
 
+        // Validate user has permission to edit this profile
+        console.log('[PhotoCrop] Validating permissions...');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          Alert.alert('خطأ', 'يجب تسجيل الدخول أولاً');
+          onCancel();
+          return;
+        }
+
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !userProfile) {
+          console.error('[PhotoCrop] User profile not found:', profileError);
+          Alert.alert('خطأ', 'لم يتم العثور على ملفك الشخصي');
+          onCancel();
+          return;
+        }
+
+        const { data: permission, error: permError } = await supabase.rpc(
+          'check_family_permission_v4',
+          {
+            p_user_id: userProfile.id,
+            p_target_id: profileId
+          }
+        );
+
+        if (permError || !['admin', 'moderator', 'inner'].includes(permission)) {
+          console.error('[PhotoCrop] Permission denied:', { permission, permError });
+          Alert.alert(
+            'خطأ',
+            'ليس لديك صلاحية لتحرير هذه الصورة. يمكنك فقط تحرير صورك الخاصة أو صور أفراد عائلتك المباشرين.'
+          );
+          onCancel();
+          return;
+        }
+
+        console.log('[PhotoCrop] Permission validated:', permission);
+
         // Upload cropped image file to Supabase Storage
         const croppedFileName = `${profileId}_cropped_${Date.now()}.jpg`;
         console.log('[PhotoCrop] Uploading cropped file:', croppedFileName);

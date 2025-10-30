@@ -149,7 +149,7 @@ export const VALIDATION_RULES = {
  * RPC Function Names
  */
 export const RPC_FUNCTIONS = {
-  listRequests: 'list_pending_photo_requests',
+  listRequests: 'list_photo_change_requests',
   listTemplates: 'list_photo_rejection_templates',
   approve: 'approve_photo_change',
   reject: 'reject_photo_change',

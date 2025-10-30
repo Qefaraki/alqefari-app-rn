@@ -365,7 +365,7 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
             style={styles.backButton}
             hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
           >
-            <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
+            <Ionicons name="chevron-back" size={28} color={COLORS.text} />
           </TouchableOpacity>
         }
       />
