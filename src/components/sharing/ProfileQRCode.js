@@ -4,7 +4,7 @@
  * Generates and displays a QR code for profile sharing with smart logo fallback.
  * Includes deferred rendering to prevent UI blocking and loading skeleton.
  *
- * Logo Strategy: Profile photo → Emblem → Plain QR
+ * Logo Strategy: Profile photo → Minimal placeholder
  *
  * Usage:
  * <ProfileQRCode
@@ -21,7 +21,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { generateProfileLink } from '../../utils/deepLinking';
 import { isValidSupabasePhotoUrl } from '../../utils/urlValidation';
-import { getCachedLogo, cacheLogo, getEmblemAssetReference } from '../../utils/qrLogoCache';
+import { getCachedLogo, cacheLogo } from '../../utils/qrLogoCache';
 import tokens from '../ui/tokens';
 
 const COLORS = {
@@ -79,9 +79,8 @@ export default function ProfileQRCode({
           console.log('[QRCode] Logo cache hit');
 
           // Restore logoSource from cache
-          if (cached.logoSource === getEmblemAssetReference()) {
-            const emblemLogo = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
-            setLogoSource(emblemLogo);
+          if (cached.logoSource === 'placeholder') {
+            setLogoSource(null);
           } else if (cached.logoSource?.uri) {
             setLogoSource(cached.logoSource);
           } else {
@@ -103,7 +102,7 @@ export default function ProfileQRCode({
     checkCache();
   }, [profileId, photoUrl]);
 
-  // Smart logo fallback: profile photo → emblem → none
+  // Smart logo fallback: profile photo → placeholder
   useEffect(() => {
     // Guards to prevent race condition
     if (usedCache) return; // Skip if cache was used
@@ -130,25 +129,24 @@ export default function ProfileQRCode({
               .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
             return;
           } catch (error) {
-            console.log('[QRCode] ❌ Profile photo failed, trying emblem:', error);
+            console.log('[QRCode] ❌ Profile photo failed, using placeholder:', error);
           }
         } else {
-          console.warn('[QRCode] ❌ Invalid photo URL (not Supabase storage), using emblem:', photoUrl);
+          console.warn('[QRCode] ❌ Invalid photo URL (not Supabase storage), using placeholder:', photoUrl);
           console.warn('[QRCode] Expected format: https://<project>.supabase.co/storage/v1/object/...');
         }
       }
 
-      // Strategy 2: Fall back to emblem
+      // Strategy 2: Fall back to placeholder overlay
       try {
-        const emblemLogo = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
-        setLogoSource(emblemLogo);
-        console.log('[QRCode] ✅ Using emblem as logo');
+        console.log('[QRCode] ✅ Using placeholder overlay');
+        setLogoSource(null);
 
-        // Cache emblem as string reference (fire-and-forget)
-        cacheLogo(profileId, photoUrl, getEmblemAssetReference(), 'emblem')
+        // Cache placeholder decision (fire-and-forget)
+        cacheLogo(profileId, photoUrl, 'placeholder', 'placeholder')
           .catch(err => console.warn('[QRCode] Cache write failed:', err.message));
       } catch (error) {
-        console.error('[QRCode] ❌ Emblem not found, using plain QR:', error);
+        console.error('[QRCode] ❌ Placeholder decision failed, using plain QR:', error);
         setLogoSource(null);
 
         // Cache 'none' decision (fire-and-forget)
@@ -186,6 +184,11 @@ export default function ProfileQRCode({
   }
 
   // QR Code ready
+  const overlaySize = size * 0.26;
+  const overlayRadius = overlaySize * 0.33;
+  const isPhotoLogo = Boolean(logoSource && logoSource.uri);
+  const placeholderLabel = shareCode ? shareCode.toUpperCase().slice(0, 2) : 'QR';
+
   return (
     <View style={[styles.container, { width: size + 32, height: size + 32 }]}>
       <QRCode
@@ -193,15 +196,40 @@ export default function ProfileQRCode({
         size={size}
         color={COLORS.saduNight}           // Foreground: Sadu Night
         backgroundColor={COLORS.surface}    // Background: Pure white
-        ecl="M"                             // Error correction level: Medium (15%)
+        ecl="H"                             // Error correction level: High (30%) for center overlay
         enableLinearGradient={false}
         quietZone={0}                       // Padding handled by container
-        logo={logoSource}                   // Smart fallback: photo → emblem → none
-        logoSize={logoSource ? size * 0.25 : 0}  // 25% of QR size (70px for 280px QR)
-        logoBackgroundColor={COLORS.surface} // White background for logo
-        logoMargin={2}                       // Small margin around logo
-        logoBorderRadius={logoSource && logoSource.uri ? 12 : 0}  // Squircle for photos, square for emblem
       />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.centerOverlay,
+          {
+            width: overlaySize,
+            height: overlaySize,
+            borderRadius: overlayRadius,
+          },
+        ]}
+      >
+        <View style={[styles.centerGloss, { borderRadius: overlayRadius }]}>
+          {isPhotoLogo ? (
+            <Image
+              source={logoSource}
+              style={[
+                styles.centerImage,
+                {
+                  borderRadius: overlayRadius * 0.82,
+                },
+              ]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.centerPlaceholder}>
+              <Text style={styles.centerPlaceholderLabel}>{placeholderLabel}</Text>
+            </View>
+          )}
+        </View>
+      </View>
     </View>
   );
 }
@@ -209,8 +237,8 @@ export default function ProfileQRCode({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 24,
+    padding: 18,
     justifyContent: 'center',
     alignItems: 'center',
     // Layered shadow (iOS-style depth)
@@ -219,6 +247,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
+  },
+  centerOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+  },
+  centerGloss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  centerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  centerPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  centerPlaceholderLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: COLORS.saduNight,
   },
   loadingContainer: {
     flex: 1,

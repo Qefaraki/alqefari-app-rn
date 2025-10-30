@@ -12,7 +12,6 @@ import { Skia, SkPath } from "@shopify/react-native-skia";
 import {
   calculateBusY,
   calculateParentVerticalPath,
-  calculateBusLine,
   calculateChildVerticalPaths,
   shouldRenderBusLine,
   type LayoutNode,
@@ -300,26 +299,6 @@ export function generateTidyCurvePaths(
   pathBuilder.moveTo(parent.x, parentBottomY);
   pathBuilder.lineTo(parent.x, busY);
 
-  // Shared horizontal bus when needed (multiple or offset child)
-  if (shouldRenderBusLine(children, parent)) {
-    const busSegment = calculateBusLine(children, busY);
-    const minX = busSegment.startX;
-    const maxX = busSegment.endX;
-
-    // Connect parent stem to nearest bus edge so the lines are contiguous
-    const distanceToMin = Math.abs(parent.x - minX);
-    const distanceToMax = Math.abs(parent.x - maxX);
-    const targetEdge = distanceToMin <= distanceToMax ? minX : maxX;
-
-    if (parent.x !== targetEdge) {
-      pathBuilder.lineTo(targetEdge, busY);
-    }
-
-    // Draw the shared bus line spanning all children
-    pathBuilder.moveTo(minX, busY);
-    pathBuilder.lineTo(maxX, busY);
-  }
-
   // Fan-out curves for each child – gentle easing with straight entry segment
   children.forEach((child, index) => {
     const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
@@ -328,7 +307,10 @@ export function generateTidyCurvePaths(
     const dropDistance = childTopY - busY;
     if (dropDistance <= 2) {
       // Child almost aligned with bus → fall back to straight line
-      pathBuilder.moveTo(child.x, busY);
+      pathBuilder.moveTo(parent.x, busY);
+      if (parent.x !== child.x) {
+        pathBuilder.lineTo(child.x, busY);
+      }
       pathBuilder.lineTo(child.x, childTopY);
       return;
     }
@@ -338,43 +320,23 @@ export function generateTidyCurvePaths(
     const clampedTail = Math.min(straightTail, dropDistance - 2);
     const approachTargetY = childTopY - clampedTail;
 
-    if (approachTargetY <= busY) {
-      pathBuilder.moveTo(child.x, busY);
-      pathBuilder.lineTo(child.x, childTopY);
-      return;
-    }
-
-    // Horizontal influence based on parent-child offset (fallback to alternating bias)
     const rawDirection = Math.sign(child.x - parent.x);
     const direction = rawDirection !== 0 ? rawDirection : (index % 2 === 0 ? 1 : -1);
     const horizontalSpan = Math.abs(child.x - parent.x);
-    const baseOffset = Math.min(Math.max(horizontalSpan * 0.45, 12), 72);
 
-    let cp1X: number;
-    if (rawDirection === 0) {
-      cp1X = child.x + direction * baseOffset;
-    } else if (direction > 0) {
-      cp1X = Math.max(child.x - baseOffset, parent.x);
-    } else {
-      cp1X = Math.min(child.x + baseOffset, parent.x);
-    }
+    const cp1Y = busY + Math.min(dropDistance * 0.4, 60);
+    const cp2Y = Math.max(busY + 4, approachTargetY - Math.min(dropDistance * 0.45, 60));
 
-    const cp1Y = busY;
-    const cp2YOffset = Math.min(clampedTail * 0.6, dropDistance * 0.5);
-    const cp2BaseY = Math.max(busY + 2, approachTargetY - cp2YOffset);
-    const cp2Y = Math.min(cp2BaseY, approachTargetY - 1);
+    // Small horizontal kick so curves peel away from the stem
+    const lateralKick = Math.max(Math.min(horizontalSpan * 0.25, 60), 12);
+    const cp1X = parent.x + direction * lateralKick * 0.2;
+    const cp2X = child.x - direction * Math.min(lateralKick, Math.abs(child.x - parent.x));
 
-    if (cp2Y <= busY) {
-      pathBuilder.moveTo(child.x, busY);
-      pathBuilder.lineTo(child.x, childTopY);
-      return;
-    }
-
-    pathBuilder.moveTo(child.x, busY);
+    pathBuilder.moveTo(parent.x, busY);
     pathBuilder.cubicTo(
       cp1X,
       cp1Y,
-      child.x,
+      cp2X,
       cp2Y,
       child.x,
       approachTargetY,

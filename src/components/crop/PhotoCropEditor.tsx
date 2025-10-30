@@ -187,6 +187,29 @@ export function PhotoCropEditor({
 
         if (updateError) {
           console.error('[PhotoCrop] DB update error:', updateError);
+
+          // CRITICAL FIX: Rollback storage upload to prevent orphaned files
+          // Issue: Upload succeeded but DB update failed → file stuck in storage
+          // Solution: Delete uploaded file to maintain transactional consistency
+          console.log('[PhotoCrop] Rolling back storage upload...');
+
+          try {
+            const { success } = await storageService.deleteProfilePhoto(croppedPhotoUrl);
+
+            if (success) {
+              console.log('[PhotoCrop] ✅ Rollback successful - deleted orphaned file');
+            } else {
+              console.error('[PhotoCrop] ❌ Rollback failed - orphaned file remains:', croppedPhotoUrl);
+              // TODO: Add to cleanup queue for manual intervention
+              // File path: croppedPhotoUrl
+              // Reason: DB update failed, storage deletion failed
+            }
+          } catch (cleanupError) {
+            console.error('[PhotoCrop] ❌ Rollback exception:', cleanupError);
+            console.error('[PhotoCrop] Orphaned file requires manual cleanup:', croppedPhotoUrl);
+            // TODO: Send to error monitoring service (Sentry, etc.)
+          }
+
           Alert.alert('خطأ', 'فشل حفظ الصورة المقصوصة في قاعدة البيانات.');
           onCancel();
           return;

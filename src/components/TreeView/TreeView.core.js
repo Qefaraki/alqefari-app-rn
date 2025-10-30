@@ -2462,6 +2462,7 @@ const TreeViewCore = ({
           useBatchedSkiaImage={useBatchedSkiaImageWithMorph}
           nodeFramesRef={nodeFramesRef}
           nodeStyle={nodeStyleValue}
+          lineStyle={lineStyle}
         />
       );
     },

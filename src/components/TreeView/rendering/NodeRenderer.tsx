@@ -61,10 +61,13 @@ import {
   ROOT_NODE,
   G2_NODE,
   CIRCULAR_NODE,
+  TIDY_CIRCLE,
   PHOTO_SIZE,
   SHADOW_STYLES,
   COLORS,
 } from './nodeConstants';
+
+export type LineStyleOption = 'straight' | 'bezier' | 'curves';
 
 export interface LayoutNode {
   id: string;
@@ -117,6 +120,9 @@ export interface NodeRendererProps {
 
   // Frame tracking ref (mutated)
   nodeFramesRef: React.MutableRefObject<Map<string, any>>;
+
+  // Connection line style (affects bezier-specific visuals)
+  lineStyle?: LineStyleOption;
 }
 
 /**
@@ -137,6 +143,7 @@ export function calculateNodeDimensions(
   showPhotos: boolean,
   hasChildren: boolean,
   nodeStyle: 'rectangular' | 'circular' = 'rectangular',
+  lineStyle: LineStyleOption = 'straight',
 ): {
   width: number;
   height: number;
@@ -152,6 +159,40 @@ export function calculateNodeDimensions(
 
   // Circular node dimensions
   if (nodeStyle === 'circular') {
+    const useTidyVariant = lineStyle === 'bezier' || lineStyle === 'curves';
+    if (useTidyVariant) {
+      if (isRoot) {
+        const config = TIDY_CIRCLE.ROOT;
+        return {
+          width: config.DIAMETER,
+          height: config.DIAMETER + config.NAME_GAP + config.NAME_HEIGHT,
+          borderRadius: config.DIAMETER / 2,
+          shape: 'circular',
+          diameter: config.DIAMETER,
+        };
+      }
+
+      if (isG2Parent) {
+        const config = TIDY_CIRCLE.G2;
+        return {
+          width: config.DIAMETER,
+          height: config.DIAMETER + config.NAME_GAP + config.NAME_HEIGHT,
+          borderRadius: config.DIAMETER / 2,
+          shape: 'circular',
+          diameter: config.DIAMETER,
+        };
+      }
+
+      const config = TIDY_CIRCLE.STANDARD;
+      return {
+        width: config.DIAMETER,
+        height: config.DIAMETER + config.NAME_GAP + config.NAME_HEIGHT,
+        borderRadius: config.DIAMETER / 2,
+        shape: 'circular',
+        diameter: config.DIAMETER,
+      };
+    }
+
     if (isRoot) {
       const totalHeight = CIRCULAR_NODE.ROOT_DIAMETER + CIRCULAR_NODE.NAME_GAP + CIRCULAR_NODE.ROOT_NAME_HEIGHT;
       return {
@@ -434,6 +475,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   showPhotos,
   selectedPersonId,
   nodeStyle = 'rectangular', // Default to rectangular for backwards compatibility
+  lineStyle = 'straight',
   heroNodes,
   searchTiers,
   getCachedParagraph,
@@ -458,6 +500,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     showPhotos,
     node._hasChildren || false,
     nodeStyle,
+    lineStyle,
   );
 
   // Conditional rendering: Use CircularNodeRenderer for circular nodes
@@ -470,6 +513,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         dimensions={dimensions}
         getCachedParagraph={getCachedParagraph}
         useBatchedSkiaImage={useBatchedSkiaImage}
+        lineStyle={lineStyle}
       />
     );
   }

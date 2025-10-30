@@ -20,8 +20,8 @@ import { Circle, Group, Paragraph } from '@shopify/react-native-skia';
 
 // Import components
 import { ImageNode } from './ImageNode';
-import { CIRCULAR_NODE, COLORS } from './nodeConstants';
-import type { LayoutNode } from './NodeRenderer';
+import { CIRCULAR_NODE, COLORS, TIDY_CIRCLE } from './nodeConstants';
+import type { LayoutNode, LineStyleOption } from './NodeRenderer';
 
 export interface CircularNodeRendererProps {
   // Node data
@@ -52,6 +52,9 @@ export interface CircularNodeRendererProps {
 
   // Image rendering (required for ImageNode component)
   useBatchedSkiaImage: (url: string, bucket: number, priority: string) => any;
+
+  // Connection style (enables D3 tidy styling tweaks)
+  lineStyle?: LineStyleOption;
 }
 
 /**
@@ -64,34 +67,59 @@ export function CircularNodeRenderer({
   dimensions,
   getCachedParagraph,
   useBatchedSkiaImage,
+  lineStyle = 'straight',
 }: CircularNodeRendererProps): JSX.Element {
   // Determine node type
   const isRoot = !node.father_id;
   const isG2Parent = node.generation === 2 && !!node._hasChildren;
+  const isTidyVariant = lineStyle === 'bezier' || lineStyle === 'curves';
 
   // Get size-specific constants
   const diameter = dimensions.diameter;
   const radius = diameter / 2;
-
-  const photoSize = isRoot
-    ? CIRCULAR_NODE.ROOT_PHOTO_SIZE
+  const tidyConfig = isRoot
+    ? TIDY_CIRCLE.ROOT
     : isG2Parent
-      ? CIRCULAR_NODE.G2_PHOTO_SIZE
-      : CIRCULAR_NODE.PHOTO_SIZE;
+      ? TIDY_CIRCLE.G2
+      : TIDY_CIRCLE.STANDARD;
 
-  const selectionBorder = isRoot
-    ? CIRCULAR_NODE.ROOT_SELECTION_BORDER
-    : CIRCULAR_NODE.SELECTION_BORDER;
+  const photoSize = isTidyVariant
+    ? tidyConfig.PHOTO_SIZE
+    : isRoot
+      ? CIRCULAR_NODE.ROOT_PHOTO_SIZE
+      : isG2Parent
+        ? CIRCULAR_NODE.G2_PHOTO_SIZE
+        : CIRCULAR_NODE.PHOTO_SIZE;
 
-  const imageBucket = isRoot
-    ? CIRCULAR_NODE.ROOT_IMAGE_BUCKET
-    : isG2Parent
-      ? CIRCULAR_NODE.G2_IMAGE_BUCKET
-      : CIRCULAR_NODE.IMAGE_BUCKET;
+  const baseRingWidth = isTidyVariant ? tidyConfig.RING_WIDTH : 0;
 
-  const nameHeight = isRoot
-    ? CIRCULAR_NODE.ROOT_NAME_HEIGHT
-    : CIRCULAR_NODE.NAME_HEIGHT;
+  const selectionStrokeWidth = isTidyVariant
+    ? tidyConfig.RING_WIDTH
+    : isRoot
+      ? CIRCULAR_NODE.ROOT_SELECTION_BORDER
+      : CIRCULAR_NODE.SELECTION_BORDER;
+
+  const imageBucket = isTidyVariant
+    ? photoSize
+    : isRoot
+      ? CIRCULAR_NODE.ROOT_IMAGE_BUCKET
+      : isG2Parent
+        ? CIRCULAR_NODE.G2_IMAGE_BUCKET
+        : CIRCULAR_NODE.IMAGE_BUCKET;
+
+  const nameGap = isTidyVariant
+    ? tidyConfig.NAME_GAP
+    : isRoot
+      ? CIRCULAR_NODE.NAME_GAP
+      : CIRCULAR_NODE.NAME_GAP;
+
+  const nameHeight = isTidyVariant
+    ? tidyConfig.NAME_HEIGHT
+    : isRoot
+      ? CIRCULAR_NODE.ROOT_NAME_HEIGHT
+      : CIRCULAR_NODE.NAME_HEIGHT;
+
+  const nameFontSize = isTidyVariant ? tidyConfig.FONT_SIZE : 11;
 
   // Node center position
   const centerX = node.x;
@@ -104,7 +132,7 @@ export function CircularNodeRenderer({
   const hasPhoto = showPhotos && !!node.photo_url;
 
   // Text positioning (centered below circle)
-  const textY = centerY + radius + CIRCULAR_NODE.NAME_GAP;
+  const textY = centerY + radius + nameGap;
   const textX = centerX - diameter / 2; // Left edge for centering
 
   // Create name paragraph (max 2 lines, ellipsis truncation)
@@ -113,8 +141,8 @@ export function CircularNodeRenderer({
       const paragraph = getCachedParagraph(
         node.name || '',
         'bold',
-        11, // Standard font size
-        COLORS.TEXT,
+        nameFontSize,
+        isTidyVariant ? TIDY_CIRCLE.COLORS.TEXT : COLORS.TEXT,
         diameter, // Match node width for proper centering
         2, // Max 2 lines
       );
@@ -123,33 +151,65 @@ export function CircularNodeRenderer({
 
       return paragraph;
     },
-    [node.name, diameter, getCachedParagraph, textX, textY],
+    [node.name, diameter, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
   );
 
-  return (
-    <Group>
-      {/* Selection border (outer circle) */}
-      {isSelected && (
+  const renderTidyBase = () => {
+    if (!isTidyVariant) return null;
+
+    return (
+      <>
         <Circle
           cx={centerX}
           cy={centerY}
-          r={radius + selectionBorder}
+          r={radius}
           style="stroke"
-          strokeWidth={selectionBorder}
-          color={COLORS.SELECTION_BORDER}
+          strokeWidth={baseRingWidth}
+          color={TIDY_CIRCLE.COLORS.OUTER_RING}
         />
-      )}
+        <Circle
+          cx={centerX}
+          cy={centerY}
+          r={radius - baseRingWidth / 2}
+          color={TIDY_CIRCLE.COLORS.INNER_FILL}
+        />
+      </>
+    );
+  };
+
+  const renderSelection = () => {
+    if (!isSelected) return null;
+
+    const extraOffset = isTidyVariant ? baseRingWidth : 0;
+
+    return (
+      <Circle
+        cx={centerX}
+        cy={centerY}
+        r={radius + extraOffset + selectionStrokeWidth}
+        style="stroke"
+        strokeWidth={selectionStrokeWidth}
+        color={COLORS.SELECTION_BORDER}
+      />
+    );
+  };
+
+  return (
+    <Group>
+      {renderTidyBase()}
+      {renderSelection()}
 
       {hasPhoto ? (
         /* Photo node with circular clipping */
         <>
-          {/* Background circle */}
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={radius}
-            color={COLORS.NODE_BACKGROUND}
-          />
+          {!isTidyVariant && (
+            <Circle
+              cx={centerX}
+              cy={centerY}
+              r={radius}
+              color={COLORS.NODE_BACKGROUND}
+            />
+          )}
 
           {/* Photo with circular clipping via cornerRadius */}
           <ImageNode
@@ -174,8 +234,8 @@ export function CircularNodeRenderer({
         <Circle
           cx={centerX}
           cy={centerY}
-          r={radius}
-          color={CIRCULAR_NODE.TEXT_ONLY_FILL}
+          r={isTidyVariant ? Math.max(radius - baseRingWidth, 0) : radius}
+          color={isTidyVariant ? TIDY_CIRCLE.COLORS.LEAF_FILL : CIRCULAR_NODE.TEXT_ONLY_FILL}
         />
       )}
 

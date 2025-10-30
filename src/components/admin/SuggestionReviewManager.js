@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import tokens from "../../components/ui/tokens";
 import SegmentedControl from "../ui/SegmentedControl";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import { useNetworkGuard } from "../../hooks/useNetworkGuard";
+import { useSettings } from "../../contexts/SettingsContext";
 
 // Najdi Sadu Design System Colors
 const COLORS = {
@@ -76,6 +77,23 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
 
   // Network guard for offline protection
   const { checkBeforeAction } = useNetworkGuard();
+  const { settings } = useSettings();
+
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(settings?.arabicNumerals ? "ar-SA" : "en-US"),
+    [settings?.arabicNumerals]
+  );
+
+  const formatNumber = useCallback(
+    (value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return numberFormatter.format(0);
+      }
+      return numberFormatter.format(numeric);
+    },
+    [numberFormatter]
+  );
 
   useEffect(() => {
     loadSuggestions({ useOverlay: !initialLoading });
@@ -383,15 +401,15 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
       <View style={styles.statsRow}>
         <View style={styles.statChip}>
           <Text style={styles.statLabel}>قيد المراجعة</Text>
-          <Text style={styles.statValue}>{stats.pending}</Text>
+          <Text style={styles.statValue}>{formatNumber(stats.pending)}</Text>
         </View>
         <View style={styles.statChip}>
           <Text style={styles.statLabel}>مقبولة</Text>
-          <Text style={styles.statValue}>{stats.approved}</Text>
+          <Text style={styles.statValue}>{formatNumber(stats.approved)}</Text>
         </View>
         <View style={styles.statChip}>
           <Text style={styles.statLabel}>مرفوضة</Text>
-          <Text style={styles.statValue}>{stats.rejected}</Text>
+          <Text style={styles.statValue}>{formatNumber(stats.rejected)}</Text>
         </View>
       </View>
 

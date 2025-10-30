@@ -140,6 +140,40 @@ export const D3_SIMPLE_CIRCLE = {
   EMPTY_FILL: '#D1BBA3', // Camel Hair Beige for nodes without photos
 } as const;
 
+// Tidy curve variant (for bezier/curves mode) - compact circles with dark ring aesthetic
+export const TIDY_CIRCLE = {
+  STANDARD: {
+    DIAMETER: 34,
+    PHOTO_SIZE: 30,
+    NAME_GAP: 5,
+    NAME_HEIGHT: 18,
+    FONT_SIZE: 9,
+    RING_WIDTH: 1.6,
+  },
+  G2: {
+    DIAMETER: 42,
+    PHOTO_SIZE: 36,
+    NAME_GAP: 6,
+    NAME_HEIGHT: 20,
+    FONT_SIZE: 10,
+    RING_WIDTH: 1.8,
+  },
+  ROOT: {
+    DIAMETER: 64,
+    PHOTO_SIZE: 56,
+    NAME_GAP: 8,
+    NAME_HEIGHT: 24,
+    FONT_SIZE: 11,
+    RING_WIDTH: 2.2,
+  },
+  COLORS: {
+    OUTER_RING: '#1E1E1F',
+    INNER_FILL: '#F7F4EF',
+    TEXT: '#1F1F1F',
+    LEAF_FILL: '#1E1E1F',
+  },
+} as const;
+
 // Shadow styling (Najdi Sadu palette)
 export const SHADOW_STYLES = {
   STANDARD_DX: 0,
@@ -170,6 +204,7 @@ export const NODE_CONSTANTS = {
   G2_NODE,
   TEXT_PILL,
   CIRCULAR_NODE,
+  TIDY_CIRCLE,
   SHADOW_STYLES,
   COLORS,
 } as const;

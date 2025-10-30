@@ -4,7 +4,7 @@
  * Provides segmented browsing, status insights, and refreshed Najdi Sadu styling.
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,7 @@ import LargeTitleHeader from '../ios/LargeTitleHeader';
 import SegmentedControl from '../ui/SegmentedControl';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
+import { useSettings } from '../../contexts/SettingsContext';
 
 const COLORS = {
   background: tokens.colors.najdi.background,
@@ -151,16 +152,36 @@ export default function PhotoApprovalManager({ visible, onClose }) {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
 
   const { checkBeforeAction } = useNetworkGuard();
+  const { settings } = useSettings();
   const listRef = useRef(null);
+
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(settings?.arabicNumerals ? 'ar-SA' : 'en-US'),
+    [settings?.arabicNumerals]
+  );
+
+  const formatNumber = useCallback(
+    (value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return numberFormatter.format(0);
+      }
+      return numberFormatter.format(numeric);
+    },
+    [numberFormatter]
+  );
 
   useEffect(() => {
     if (!visible) {
       setActiveTab(REQUEST_STATUS.pending);
-      return;
-    }
+      setFilterModalVisible(false);
+      setSearchQuery('');
+    setSortOption('newest');
+    return;
+  }
 
-    setImageErrors({});
-    setInitialLoading(true);
+  setImageErrors({});
+  setInitialLoading(true);
     loadTemplates();
     loadStats();
     loadRequests({ status: activeTab, useOverlay: false });
@@ -290,12 +311,14 @@ export default function PhotoApprovalManager({ visible, onClose }) {
       return sortOption === 'newest' ? bDate - aDate : aDate - bDate;
     });
 
-  return sorted;
-}, [requests, searchQuery, sortOption]);
+    return sorted;
+  }, [requests, searchQuery, sortOption]);
 
-const hasSearchQuery = searchQuery.trim().length > 0;
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const isDefaultSort = sortOption === 'newest';
+  const sortLabel = isDefaultSort ? 'الأحدث أولاً' : 'الأقدم أولاً';
 
-const renderHighlightedText = (value) => {
+  const renderHighlightedText = (value) => {
   const safeValue = value ?? '—';
   const trimmed = searchQuery.trim();
   if (!trimmed) {
@@ -502,12 +525,14 @@ const renderHighlightedText = (value) => {
         <View style={styles.cardHeader}>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName} numberOfLines={1}>
-              {request.profile_name || '—'}
+              {renderHighlightedText(request.profile_name || '—')}
             </Text>
-            <Text style={styles.profileMeta}>
-              {request.profile_hid
-                ? `ملف #${request.profile_hid}`
-                : `الجيل ${request.profile_generation ?? '—'}`}
+            <Text style={styles.profileMeta} numberOfLines={1}>
+              {renderHighlightedText(
+                request.profile_hid
+                  ? `ملف #${request.profile_hid}`
+                  : `الجيل ${request.profile_generation ?? '—'}`
+              )}
             </Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: statusMeta.background }]}>
@@ -783,6 +808,69 @@ const renderHighlightedText = (value) => {
     </Modal>
   );
 
+  const renderFilterModal = () => (
+    <Modal
+      visible={filterModalVisible}
+      animationType="fade"
+      transparent
+      onRequestClose={() => setFilterModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterCard}>
+          <Text style={styles.filterTitle}>ترتيب الطلبات</Text>
+          <Text style={styles.filterSubtitle}>اختر كيفية عرض النتائج داخل القائمة</Text>
+          {SORT_OPTIONS.map((option) => {
+            const isActive = sortOption === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                style={({ pressed }) => [
+                  styles.filterOption,
+                  isActive && styles.filterOptionActive,
+                  pressed && styles.filterOptionPressed,
+                ]}
+                onPress={() => {
+                  setSortOption(option.id);
+                  setFilterModalVisible(false);
+                }}
+              >
+                <View style={styles.filterOptionText}>
+                  <Text
+                    style={[
+                      styles.filterOptionLabel,
+                      isActive && styles.filterOptionLabelActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text style={styles.filterOptionHint}>
+                    {option.id === 'newest'
+                      ? 'أحدث الطلبات تظهر أولاً'
+                      : 'أقدم الطلبات تظهر أولاً'}
+                  </Text>
+                </View>
+                {isActive ? (
+                  <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                ) : (
+                  <Ionicons name="ellipse-outline" size={22} color={`${COLORS.textMuted}AA`} />
+                )}
+              </Pressable>
+            );
+          })}
+          <Pressable
+            style={({ pressed }) => [
+              styles.filterClose,
+              pressed && styles.filterClosePressed,
+            ]}
+            onPress={() => setFilterModalVisible(false)}
+          >
+            <Text style={styles.filterCloseText}>إغلاق</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <>
       <Modal
@@ -818,19 +906,19 @@ const renderHighlightedText = (value) => {
             <View style={styles.statChip}>
               <Text style={styles.statLabel}>قيد المراجعة</Text>
               <Text style={styles.statValue}>
-                {(stats[REQUEST_STATUS.pending] ?? 0).toLocaleString('ar-SA')}
+                {formatNumber(stats[REQUEST_STATUS.pending] ?? 0)}
               </Text>
             </View>
             <View style={styles.statChip}>
               <Text style={styles.statLabel}>مقبولة</Text>
               <Text style={styles.statValue}>
-                {(stats[REQUEST_STATUS.approved] ?? 0).toLocaleString('ar-SA')}
+                {formatNumber(stats[REQUEST_STATUS.approved] ?? 0)}
               </Text>
             </View>
             <View style={styles.statChip}>
               <Text style={styles.statLabel}>مرفوضة</Text>
               <Text style={styles.statValue}>
-                {(stats[REQUEST_STATUS.rejected] ?? 0).toLocaleString('ar-SA')}
+                {formatNumber(stats[REQUEST_STATUS.rejected] ?? 0)}
               </Text>
             </View>
           </View>
@@ -846,6 +934,7 @@ const renderHighlightedText = (value) => {
                 style={styles.searchInput}
                 selectionColor={COLORS.primary}
                 returnKeyType="search"
+                autoCorrect={false}
               />
               {searchQuery.length > 0 ? (
                 <Pressable
@@ -858,31 +947,35 @@ const renderHighlightedText = (value) => {
               ) : null}
             </View>
 
-            <View style={styles.sortChips}>
-              {SORT_OPTIONS.map((option) => {
-                const isActive = sortOption === option.id;
-                return (
-                  <Pressable
-                    key={option.id}
-                    style={({ pressed }) => [
-                      styles.sortChip,
-                      isActive && styles.sortChipActive,
-                      pressed && styles.sortChipPressed,
-                    ]}
-                    onPress={() => setSortOption(option.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.sortChipLabel,
-                        isActive && styles.sortChipLabelActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <Pressable
+              style={({ pressed }) => [
+                styles.filterButton,
+                !isDefaultSort && styles.filterButtonActive,
+                pressed && styles.filterButtonPressed,
+              ]}
+              onPress={() => setFilterModalVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="تغيير ترتيب الطلبات"
+              accessibilityHint="يفتح خيارات الفرز بالأحدث أو الأقدم"
+            >
+              <Ionicons name="options-outline" size={20} color={COLORS.text} />
+            </Pressable>
+          </View>
+
+          <View style={styles.utilityMetaRow}>
+            <View style={styles.utilityMetaLeft}>
+              {hasSearchQuery ? (
+                <Text style={styles.searchSummary}>
+                  {filteredRequests.length === 0
+                    ? 'لا توجد نتائج مطابقة للبحث'
+                    : `تم العثور على ${formatNumber(filteredRequests.length)} نتيجة`}
+                </Text>
+              ) : null}
             </View>
+            <Text style={styles.sortSummary}>
+              {`ترتيب: ${sortLabel}`}
+            </Text>
           </View>
 
           <View style={styles.listWrapper}>
@@ -893,6 +986,7 @@ const renderHighlightedText = (value) => {
 
       {renderTemplateModal()}
       {renderConfirmModal()}
+      {renderFilterModal()}
     </>
   );
 }
@@ -970,33 +1064,44 @@ const styles = StyleSheet.create({
   clearSearch: {
     marginStart: spacing.xs / 2,
   },
-  sortChips: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  sortChip: {
-    borderRadius: tokens.radii.full,
+  filterButton: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    borderRadius: tokens.touchTarget.minimum / 2,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
     backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sortChipPressed: {
-    opacity: 0.8,
+  filterButtonPressed: {
+    backgroundColor: `${COLORS.container}26`,
   },
-  sortChipActive: {
-    backgroundColor: `${COLORS.primary}15`,
+  filterButtonActive: {
     borderColor: `${COLORS.primary}66`,
+    backgroundColor: `${COLORS.primary}12`,
   },
-  sortChipLabel: {
-    ...typography.caption1,
+  utilityMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  utilityMetaLeft: {
+    flex: 1,
+    minHeight: typography.footnote.lineHeight,
+  },
+  searchSummary: {
+    ...typography.footnote,
     fontFamily: 'SF Arabic',
     color: COLORS.textMuted,
-    fontWeight: '600',
   },
-  sortChipLabelActive: {
-    color: COLORS.primary,
+  sortSummary: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${COLORS.text}99`,
+    textAlign: 'right',
   },
   listWrapper: {
     flex: 1,
@@ -1043,6 +1148,9 @@ const styles = StyleSheet.create({
     fontFamily: 'SF Arabic',
     color: COLORS.text,
     fontWeight: '600',
+  },
+  highlightMatch: {
+    color: COLORS.primary,
   },
   profileMeta: {
     ...typography.footnote,
@@ -1411,6 +1519,85 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignSelf: 'stretch',
     marginTop: spacing.sm,
+  },
+  filterCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xl,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+  },
+  filterTitle: {
+    ...typography.title3,
+    fontFamily: 'SF Arabic',
+    color: COLORS.text,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  filterSubtitle: {
+    ...typography.footnote,
+    fontFamily: 'SF Arabic',
+    color: COLORS.textMuted,
+    textAlign: 'center',
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: tokens.radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
+    backgroundColor: COLORS.background,
+    marginTop: spacing.xs,
+  },
+  filterOptionActive: {
+    borderColor: `${COLORS.primary}66`,
+    backgroundColor: `${COLORS.primary}12`,
+  },
+  filterOptionPressed: {
+    backgroundColor: `${COLORS.container}26`,
+  },
+  filterOptionText: {
+    flex: 1,
+    marginEnd: spacing.sm,
+  },
+  filterOptionLabel: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  filterOptionLabelActive: {
+    color: COLORS.primary,
+  },
+  filterOptionHint: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: COLORS.textMuted,
+    marginTop: spacing.xs / 2,
+  },
+  filterClose: {
+    borderRadius: tokens.radii.full,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  filterClosePressed: {
+    backgroundColor: `${COLORS.container}24`,
+  },
+  filterCloseText: {
+    ...typography.subheadline,
+    fontFamily: 'SF Arabic',
+    color: COLORS.text,
+    fontWeight: '600',
   },
   secondaryButtonModal: {
     flex: 1,

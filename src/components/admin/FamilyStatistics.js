@@ -325,6 +325,7 @@ const IntroSurface = () => (
 // Hero Section: Total members + Gender donut chart
 const HeroSection = ({ stats }) => {
   const gender = stats?.gender;
+  const formattedDate = useAbsoluteDate(stats?.calculated_at);
 
   if (!gender || gender.total === 0) {
     return (
@@ -337,8 +338,6 @@ const HeroSection = ({ stats }) => {
   const maleCount = gender.male ?? 0;
   const femaleCount = gender.female ?? 0;
   const totalCount = gender.total ?? maleCount + femaleCount;
-  const generationsCount = stats?.generations?.length ?? 0;
-  const lastUpdated = formatDateTime(stats?.calculated_at);
 
   return (
     <View style={styles.card}>
@@ -346,40 +345,28 @@ const HeroSection = ({ stats }) => {
         <View>
           <Text style={styles.cardEyebrow}>إجمالي أفراد العائلة</Text>
           <Text style={styles.heroNumber}>{formatNumber(totalCount)}</Text>
-          <Text style={styles.cardSubtitle}>توزيع الأعضاء حسب الجنس عبر الأجيال</Text>
+          <Text style={styles.cardSubtitle}>التوزيع حسب الجنس</Text>
         </View>
-        {lastUpdated && (
+        {formattedDate ? (
           <View style={styles.badge}>
-            <Ionicons name="time-outline" size={16} color={palette.primary} />
-            <Text style={styles.badgeText}>{lastUpdated}</Text>
+            <Text style={styles.badgeHint}>آخر تحديث</Text>
+            <Text style={styles.badgeText}>{formattedDate}</Text>
           </View>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.heroContent}>
-        <View style={styles.heroMeta}>
-          <MetricBadge
-            tone="primary"
-            icon="man-outline"
+        <View style={styles.heroStats}>
+          <HeroStat
             label="ذكور"
             value={formatNumber(maleCount)}
             percent={formatPercent(maleCount, totalCount)}
           />
-          <MetricBadge
-            tone="secondary"
-            icon="woman-outline"
+          <HeroStat
             label="إناث"
             value={formatNumber(femaleCount)}
             percent={formatPercent(femaleCount, totalCount)}
           />
-          {generationsCount > 0 && (
-            <View style={styles.heroGenerations}>
-              <Ionicons name="layers-outline" size={18} color={palette.primary} />
-              <Text style={styles.heroGenerationsText}>
-                يغطي {generationsCount} أجيال متصلة
-              </Text>
-            </View>
-          )}
         </View>
 
         <View
@@ -411,158 +398,65 @@ const HeroSection = ({ stats }) => {
   );
 };
 
-const MetricBadge = ({ tone = 'primary', icon, label, value, percent, style }) => {
-  const toneColor =
-    tone === 'secondary'
-      ? palette.secondary
-      : tone === 'neutral'
-      ? `${palette.text}`
-      : palette.primary;
-
-  return (
-    <View style={[styles.metricBadge, style]}>
-      <View style={[styles.metricBadgeIcon, { backgroundColor: `${toneColor}16` }]}>
-        <Ionicons name={icon} size={18} color={toneColor} />
-      </View>
-      <View style={styles.metricBadgeTextGroup}>
-        <Text style={styles.metricBadgeLabel}>{label}</Text>
-        <Text style={styles.metricBadgeValue}>{value}</Text>
-      </View>
-      {percent && <Text style={[styles.metricBadgePercent, { color: toneColor }]}>{percent}</Text>}
-    </View>
-  );
-};
+const HeroStat = ({ label, value, percent }) => (
+  <View style={styles.heroStat}>
+    <Text style={styles.heroStatLabel}>{label}</Text>
+    <Text style={styles.heroStatValue}>{value}</Text>
+    {percent ? <Text style={styles.heroStatCaption}>{percent}</Text> : null}
+  </View>
+);
 
 const OperationalSnapshot = ({ stats }) => {
   const vital = stats?.vital_status;
-  const quality = stats?.data_quality;
-  const totalProfiles = quality?.total_profiles ?? stats?.gender?.total ?? 0;
+  const living = typeof vital?.living === 'number' ? vital.living : null;
+  const deceased = typeof vital?.deceased === 'number' ? vital.deceased : null;
 
-  const tiles = useMemo(() => {
-    const items = [];
-    if (typeof vital?.living === 'number') {
-      items.push({
-        key: 'living',
-        label: 'أعضاء على قيد الحياة',
-        value: formatNumber(vital.living),
-        caption: totalProfiles ? formatPercent(vital.living, totalProfiles) : null,
-        icon: 'heart-outline',
-        iconColor: palette.primary,
-        tint: `${palette.primary}12`,
-      });
-    }
-    if (typeof vital?.deceased === 'number') {
-      items.push({
-        key: 'deceased',
-        label: 'أعضاء متوفون',
-        value: formatNumber(vital.deceased),
-        caption: totalProfiles ? formatPercent(vital.deceased, totalProfiles) : null,
-        icon: 'flower-outline',
-        iconColor: palette.secondary,
-        tint: `${palette.secondary}12`,
-      });
-    }
-    if (quality?.total_profiles && typeof quality.with_photos === 'number') {
-      items.push({
-        key: 'photos',
-        label: 'ملفات مع صور',
-        value: formatNumber(quality.with_photos),
-        caption: formatPercent(quality.with_photos, quality.total_profiles),
-        icon: 'image-outline',
-        iconColor: palette.primary,
-        tint: `${palette.primary}0F`,
-      });
-    }
-    if (quality?.total_profiles && typeof quality.with_birthdates === 'number') {
-      items.push({
-        key: 'birthdates',
-        label: 'تواريخ ميلاد مسجلة',
-        value: formatNumber(quality.with_birthdates),
-        caption: formatPercent(quality.with_birthdates, quality.total_profiles),
-        icon: 'calendar-outline',
-        iconColor: palette.secondary,
-        tint: `${palette.secondary}0F`,
-      });
-    }
-    return items;
-  }, [quality, totalProfiles, vital]);
-
-  if (!tiles.length && !(quality?.total_profiles > 0)) {
+  if (living === null && deceased === null) {
     return null;
   }
+
+  const totalPool =
+    stats?.gender?.total ??
+    [living, deceased].filter((value) => typeof value === 'number').reduce((sum, value) => sum + (value || 0), 0);
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHeaderRow}>
         <View>
           <Text style={styles.cardEyebrow}>نظرة تشغيلية</Text>
-          <Text style={styles.cardSubtitle}>حالة الأعضاء وجودة البيانات الحالية</Text>
+          <Text style={styles.cardSubtitle}>حالة أعضاء العائلة الآن</Text>
         </View>
       </View>
 
-      {tiles.length > 0 && (
-        <View style={styles.metricsGrid}>
-          {tiles.map((tile) => (
-            <View key={tile.key} style={styles.metricTile}>
-              <View style={[styles.metricTileIcon, { backgroundColor: tile.tint }]}>
-                <Ionicons name={tile.icon} size={18} color={tile.iconColor} />
-              </View>
-              <Text style={styles.metricTileLabel}>{tile.label}</Text>
-              <Text style={styles.metricTileValue}>{tile.value}</Text>
-              {tile.caption && <Text style={styles.metricTileCaption}>{tile.caption}</Text>}
-            </View>
-          ))}
-        </View>
-      )}
-
-      {quality?.total_profiles ? (
-        <View style={styles.qualitySection}>
-          <View style={styles.qualityRow}>
-            <Text style={styles.qualityLabel}>تغطية الصور</Text>
-            <Text style={styles.qualityValue}>
-              {formatNumber(quality.with_photos)} • {formatPercent(quality.with_photos, quality.total_profiles)}
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.min(
-                    100,
-                    Math.round((quality.with_photos / quality.total_profiles) * 100)
-                  )}%`,
-                  backgroundColor: palette.primary,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={[styles.qualityRow, { marginTop: spacing.md }]}>
-            <Text style={styles.qualityLabel}>تواريخ الميلاد الموثقة</Text>
-            <Text style={styles.qualityValue}>
-              {formatNumber(quality.with_birthdates)} • {formatPercent(quality.with_birthdates, quality.total_profiles)}
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.min(
-                    100,
-                    Math.round((quality.with_birthdates / quality.total_profiles) * 100)
-                  )}%`,
-                  backgroundColor: palette.secondary,
-                },
-              ]}
-            />
-          </View>
-        </View>
-      ) : null}
+      <View style={styles.snapshotGroup}>
+        {living !== null && (
+          <SnapshotRow
+            label="أحياء"
+            value={formatNumber(living)}
+            percent={totalPool ? formatPercent(living, totalPool) : null}
+          />
+        )}
+        {deceased !== null && (
+          <SnapshotRow
+            label="رحمهم الله"
+            value={formatNumber(deceased)}
+            percent={totalPool ? formatPercent(deceased, totalPool) : null}
+          />
+        )}
+      </View>
     </View>
   );
 };
+
+const SnapshotRow = ({ label, value, percent }) => (
+  <View style={styles.snapshotRow}>
+    <Text style={styles.snapshotLabel}>{label}</Text>
+    <View style={styles.snapshotValueGroup}>
+      <Text style={styles.snapshotValue}>{value}</Text>
+      {percent ? <Text style={styles.snapshotPercent}>{percent}</Text> : null}
+    </View>
+  </View>
+);
 
 // Generations Section: Horizontal bar chart
 const GenerationsSection = ({ stats }) => {
@@ -587,8 +481,6 @@ const GenerationsSection = ({ stats }) => {
 
   const maxCount = Math.max(...generations.map((g) => g.count || 0));
   const largestGen = generations.reduce((max, g) => (g.count > max.count ? g : max), generations[0]);
-  const firstGen = generations[0];
-  const latestGen = generations[generations.length - 1];
 
   const getArabicOrdinal = (num) => {
     const ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
@@ -654,28 +546,9 @@ const GenerationsSection = ({ stats }) => {
         />
       </View>
 
-      <View style={styles.calloutRow}>
-        <Ionicons name="sparkles-outline" size={18} color={palette.secondary} />
-        <Text style={styles.calloutText}>
-          الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
-        </Text>
-      </View>
-
-      <View style={styles.statsStrip}>
-        <View style={styles.statsStripItem}>
-          <Text style={styles.statsStripLabel}>أقدم جيل</Text>
-          <Text style={styles.statsStripValue}>
-            الجيل {getArabicOrdinal(firstGen.generation)}
-          </Text>
-        </View>
-        <View style={styles.statsStripDivider} />
-        <View style={styles.statsStripItem}>
-          <Text style={styles.statsStripLabel}>أحدث جيل</Text>
-          <Text style={styles.statsStripValue}>
-            الجيل {getArabicOrdinal(latestGen.generation)}
-          </Text>
-        </View>
-      </View>
+      <Text style={styles.calloutText}>
+        الجيل {getArabicOrdinal(largestGen.generation)} هو الأكبر بـ {formatNumber(largestGen.count)} فرد
+      </Text>
     </View>
   );
 };
@@ -693,14 +566,12 @@ const NamesSection = ({ stats }) => {
       {
         key: 'male',
         label: 'أسماء الذكور',
-        icon: 'man-outline',
         color: palette.primary,
         data: Array.isArray(topMale) ? topMale : [],
       },
       {
         key: 'female',
         label: 'أسماء الإناث',
-        icon: 'woman-outline',
         color: palette.secondary,
         data: Array.isArray(topFemale) ? topFemale : [],
       },
@@ -774,11 +645,6 @@ const NamesSection = ({ stats }) => {
               }}
               disabled={segment.data.length === 0}
             >
-              <Ionicons
-                name={segment.icon}
-                size={18}
-                color={isActive ? palette.background : `${palette.text}99`}
-              />
               <Text
                 style={[
                   styles.segmentLabel,
@@ -821,7 +687,7 @@ const NamesSection = ({ stats }) => {
               <View style={styles.nameInfo}>
                 <Text style={styles.namePrimary}>{item.name}</Text>
                 <Text style={styles.nameSecondary}>
-                  {formatNumber(item.count)} تكرارات
+                  {formatNumber(item.count)} مرة
                 </Text>
               </View>
               <View style={styles.progressColumn}>
@@ -844,18 +710,10 @@ const NamesSection = ({ stats }) => {
       </View>
 
       {names.length > 5 && (
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => setShowAll((prev) => !prev)}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {showAll ? 'عرض الأقل' : 'عرض القائمة الكاملة'}
+        <TouchableOpacity style={styles.linkButton} onPress={() => setShowAll((prev) => !prev)}>
+          <Text style={styles.linkButtonText}>
+            {showAll ? 'عرض عناصر أقل' : 'عرض القائمة الكاملة'}
           </Text>
-          <Ionicons
-            name={showAll ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={palette.primary}
-          />
         </TouchableOpacity>
       )}
     </View>
@@ -869,7 +727,6 @@ const MunasibSection = ({ stats }) => {
     : [];
   const totals = stats?.munasib_totals ?? {};
   const marriageStats = stats?.marriage_stats ?? {};
-
   const [showAll, setShowAll] = useState(false);
 
   if (!families.length) {
@@ -890,7 +747,23 @@ const MunasibSection = ({ stats }) => {
   }
 
   const displayFamilies = showAll ? families : families.slice(0, 6);
-  const maxCount = families[0]?.count || 1;
+  const topMetrics = [
+    {
+      key: 'total',
+      label: 'إجمالي الأنساب',
+      value: formatNumber(marriageStats.total_marriages ?? totals.total_munasib),
+    },
+    {
+      key: 'wives',
+      label: 'الزوجات',
+      value: formatNumber(totals.female_munasib),
+    },
+    {
+      key: 'husbands',
+      label: 'الأزواج',
+      value: formatNumber(totals.male_munasib),
+    },
+  ].filter((item) => item.value !== '—');
 
   return (
     <View style={styles.card}>
@@ -901,47 +774,10 @@ const MunasibSection = ({ stats }) => {
         </View>
       </View>
 
-      <View style={styles.metricBadgeRow}>
-        <MetricBadge
-          tone="primary"
-          icon="git-network-outline"
-          label="إجمالي الزيجات"
-          value={formatNumber(marriageStats.total_marriages ?? totals.total_munasib)}
-          percent={
-            marriageStats.total_marriages
-              ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
-              : undefined
-          }
-          style={styles.metricBadgeBlock}
-        />
-        <MetricBadge
-          tone="secondary"
-          icon="man-outline"
-          label="زيجات الذكور"
-          value={formatNumber(totals.male_munasib)}
-          style={[styles.metricBadgeBlock, styles.metricBadgeBlockSpacing]}
-        />
-      </View>
-      <View style={[styles.metricBadgeRow, styles.metricBadgeRowSpacing]}>
-        <MetricBadge
-          tone="neutral"
-          icon="woman-outline"
-          label="زيجات الإناث"
-          value={formatNumber(totals.female_munasib)}
-          style={styles.metricBadgeBlock}
-        />
-        <MetricBadge
-          tone="neutral"
-          icon="repeat-outline"
-          label="زيجات قائمة"
-          value={formatNumber(marriageStats.current_marriages)}
-          percent={
-            marriageStats.total_marriages
-              ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
-              : undefined
-          }
-          style={[styles.metricBadgeBlock, styles.metricBadgeBlockSpacing]}
-        />
+      <View style={styles.snapshotGroup}>
+        {topMetrics.map((metric) => (
+          <SnapshotRow key={metric.key} label={metric.label} value={metric.value} />
+        ))}
       </View>
 
       <View style={styles.leaderboardList}>
@@ -966,40 +802,17 @@ const MunasibSection = ({ stats }) => {
             </View>
             <View style={styles.leaderboardInfo}>
               <Text style={styles.familyName}>عائلة {family.family}</Text>
-              <Text style={styles.leaderboardHint}>
-                {formatNumber(family.count)} شراكات موثقة
-              </Text>
-            </View>
-            <View style={styles.leaderboardProgress}>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.max(14, Math.round((family.count / maxCount) * 100))}%`,
-                      backgroundColor: palette.secondary,
-                    },
-                  ]}
-                />
-              </View>
+              <Text style={styles.leaderboardHint}>{formatNumber(family.count)} مرة</Text>
             </View>
           </View>
         ))}
       </View>
 
       {families.length > displayFamilies.length && (
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => setShowAll((prev) => !prev)}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {showAll ? 'عرض الأقل' : 'عرض جميع العائلات'}
+        <TouchableOpacity style={styles.linkButton} onPress={() => setShowAll((prev) => !prev)}>
+          <Text style={styles.linkButtonText}>
+            {showAll ? 'عرض عناصر أقل' : 'عرض جميع العائلات'}
           </Text>
-          <Ionicons
-            name={showAll ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={palette.primary}
-          />
         </TouchableOpacity>
       )}
     </View>
@@ -1146,12 +959,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
-  introTitle: {
-    ...typography.title3,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '700',
-  },
   introSubtitle: {
     ...typography.subheadline,
     fontFamily: 'SF Arabic',
@@ -1198,19 +1005,27 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs / 2,
   },
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignSelf: 'flex-start',
+    alignItems: 'flex-end',
+    gap: spacing.xs / 2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: tokens.radii.md,
     backgroundColor: `${palette.primary}14`,
-    gap: spacing.xs,
+    maxWidth: 180,
+  },
+  badgeHint: {
+    ...typography.caption2,
+    fontFamily: 'SF Arabic',
+    color: `${palette.primary}AA`,
+    fontWeight: '600',
   },
   badgeText: {
     ...typography.caption1,
     fontFamily: 'SF Arabic',
     color: palette.primary,
     fontWeight: '600',
+    flexShrink: 1,
   },
   heroNumber: {
     fontSize: 44,
@@ -1226,20 +1041,35 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginTop: spacing.md,
   },
-  heroMeta: {
+  heroStats: {
     flex: 1,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  heroGenerations: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
+  heroStat: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: tokens.radii.md,
+    backgroundColor: `${palette.text}03`,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.text}0D`,
   },
-  heroGenerationsText: {
-    ...typography.subheadline,
+  heroStatLabel: {
+    ...typography.caption1,
     fontFamily: 'SF Arabic',
-    color: `${palette.text}90`,
+    color: `${palette.text}80`,
+    marginBottom: spacing.xs / 2,
+  },
+  heroStatValue: {
+    ...typography.title2,
+    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontWeight: '700',
+  },
+  heroStatCaption: {
+    ...typography.caption1,
+    fontFamily: 'SF Arabic',
+    color: `${palette.text}70`,
+    marginTop: spacing.xs / 2,
   },
   heroChart: {
     width: 220,
@@ -1247,163 +1077,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  metricBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: tokens.radii.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    backgroundColor: `${palette.text}05`,
+  snapshotGroup: {
+    marginTop: spacing.sm,
     gap: spacing.sm,
   },
-  metricBadgeIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  snapshotRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${palette.text}0D`,
   },
-  metricBadgeTextGroup: {
-    flex: 1,
-  },
-  metricBadgeLabel: {
-    ...typography.caption1,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}80`,
-    marginBottom: 2,
-  },
-  metricBadgeValue: {
-    ...typography.headline,
+  snapshotLabel: {
+    ...typography.subheadline,
     fontFamily: 'SF Arabic',
     color: palette.text,
     fontWeight: '600',
   },
-  metricBadgePercent: {
-    ...typography.footnote,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-  },
-  metricsGrid: {
+  snapshotValueGroup: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  metricTile: {
-    flexBasis: '47%',
-    minWidth: 150,
-    padding: spacing.md,
-    borderRadius: tokens.radii.md,
-    backgroundColor: `${palette.text}03`,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.text}10`,
+    alignItems: 'baseline',
     gap: spacing.xs,
   },
-  metricTileIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  metricTileLabel: {
-    ...typography.caption1,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}80`,
-  },
-  metricTileValue: {
+  snapshotValue: {
     ...typography.title3,
     fontFamily: 'SF Arabic',
     color: palette.text,
     fontWeight: '700',
   },
-  metricTileCaption: {
-    ...typography.footnote,
+  snapshotPercent: {
+    ...typography.caption1,
     fontFamily: 'SF Arabic',
     color: `${palette.text}70`,
   },
-  qualitySection: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: `${palette.text}0D`,
-    gap: spacing.md,
-  },
-  qualityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  qualityLabel: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '600',
-  },
-  qualityValue: {
-    ...typography.footnote,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}80`,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: `${palette.text}0F`,
-    overflow: 'hidden',
-    marginTop: spacing.xs,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
   chartWrapper: {
     marginTop: spacing.sm,
-  },
-  calloutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-    borderRadius: tokens.radii.md,
-    backgroundColor: `${palette.secondary}12`,
   },
   calloutText: {
     ...typography.subheadline,
     fontFamily: 'SF Arabic',
     color: palette.text,
-  },
-  statsStrip: {
     marginTop: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.text}12`,
-    backgroundColor: `${palette.text}03`,
-  },
-  statsStripItem: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  statsStripLabel: {
-    ...typography.caption1,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}70`,
-    marginBottom: spacing.xs / 2,
-  },
-  statsStripValue: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '600',
-  },
-  statsStripDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: `${palette.text}12`,
-    alignSelf: 'stretch',
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -1414,12 +1129,10 @@ const styles = StyleSheet.create({
   },
   segmentOption: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
     borderRadius: tokens.radii.md,
-    gap: spacing.xs,
   },
   segmentOptionActive: {
     ...Platform.select({
@@ -1495,44 +1208,33 @@ const styles = StyleSheet.create({
     width: 90,
     alignItems: 'flex-end',
   },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: `${palette.text}0F`,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
   progressPercent: {
     ...typography.caption2,
     fontFamily: 'SF Arabic',
     color: `${palette.text}70`,
     marginTop: spacing.xs / 2,
   },
-  secondaryButton: {
+  linkButton: {
     marginTop: spacing.lg,
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    alignSelf: 'flex-start',
     paddingVertical: spacing.sm,
-    borderRadius: tokens.radii.md,
-    borderWidth: 1,
-    borderColor: `${palette.primary}40`,
-    backgroundColor: `${palette.primary}08`,
   },
-  secondaryButtonText: {
+  linkButtonText: {
     ...typography.subheadline,
     fontFamily: 'SF Arabic',
     color: palette.primary,
     fontWeight: '600',
-  },
-  metricBadgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  metricBadgeRowSpacing: {
-    marginTop: spacing.sm,
-  },
-  metricBadgeBlock: {
-    flex: 1,
-  },
-  metricBadgeBlockSpacing: {
-    marginStart: spacing.sm / 2,
   },
   leaderboardList: {
     marginTop: spacing.lg,
@@ -1563,9 +1265,6 @@ const styles = StyleSheet.create({
     ...typography.caption1,
     fontFamily: 'SF Arabic',
     color: `${palette.text}70`,
-  },
-  leaderboardProgress: {
-    width: 90,
   },
   loadingCard: {
     alignItems: 'center',
