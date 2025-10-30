@@ -85,98 +85,104 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Apply tree layout
   treeLayout(root);
 
-  // Calculate bounding box (D3's way)
-  let x0 = Infinity;
-  let x1 = -x0;
-  root.each(d => {
-    if (d.x > x1) x1 = d.x;
-    if (d.x < x0) x0 = d.x;
+  // Calculate breadth bounds (needed to normalize x coordinates)
+  let minBreadth = Infinity;
+  let maxBreadth = -Infinity;
+  root.each((d) => {
+    if (d.x < minBreadth) minBreadth = d.x;
+    if (d.x > maxBreadth) maxBreadth = d.x;
   });
 
   if (__DEV__) {
-    console.log(`[CurvesLayout] D3 tidy tree: dx=${dx}, dy=${dy.toFixed(1)}, height=${root.height}, bounds=[${x0.toFixed(1)}, ${x1.toFixed(1)}]`);
+    console.log(
+      `[CurvesLayout] D3 tidy tree: dx=${dx}, dy=${dy.toFixed(1)}, height=${root.height}, breadth=[${minBreadth.toFixed(1)}, ${maxBreadth.toFixed(1)}]`
+    );
   }
 
-  // === ADAPTATION 3: Convert to app format (nodes + connections) ===
-  // Keep D3's coordinate system: x = horizontal breadth, y = vertical depth.
-  // Apply same visual spacing adjustments used by the straight layout so both
-  // modes share identical node anchoring.
-  // Step 1: Root spacing (visual gap at top)
-  root.each((d) => {
-    const isRoot = d.depth === 0 && !d.data.father_id;
-    if (isRoot) {
-      d.y -= 80;
-    }
-  });
+  // Normalize coordinates to match straight-layout conventions
+  const breadthOffset = -minBreadth;
+  const depthSpacing = dy;
 
-  // Step 2: Top alignment per generation (align node tops instead of centers)
+  const layoutNodes = [];
+  const idToLayout = new Map();
   const depthGroups = new Map();
+
   root.each((d) => {
+    const layoutX = d.x + breadthOffset;
+    let layoutY = d.depth * depthSpacing;
+
+    if (d.depth === 0 && !d.data.father_id) {
+      layoutY -= 80; // visual gap above root
+    }
+
+    const layoutNode = {
+      id: d.data.id,
+      data: d.data,
+      depth: d.depth,
+      layoutX,
+      layoutY,
+    };
+
+    layoutNodes.push(layoutNode);
+    idToLayout.set(d.data.id, layoutNode);
+
     if (!depthGroups.has(d.depth)) {
       depthGroups.set(d.depth, []);
     }
-    depthGroups.get(d.depth).push(d);
+    depthGroups.get(d.depth).push(layoutNode);
   });
 
+  // Top-align nodes within each generation (text-only heights for progressive layout)
   depthGroups.forEach((nodesAtDepth, depth) => {
     const minHeight = Math.min(
-      ...nodesAtDepth.map((node) => {
-        const isRoot = depth === 0 && !node.data.father_id;
-        return isRoot ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
-      })
+      ...nodesAtDepth.map((node) => (depth === 0 && !node.data.father_id ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY))
     );
 
     nodesAtDepth.forEach((node) => {
-      const isRoot = depth === 0 && !node.data.father_id;
-      const nodeHeight = isRoot ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
-      const offset = (nodeHeight - minHeight) / 2;
-      node.y += offset;
+      const nodeHeight = depth === 0 && !node.data.father_id ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+      node.layoutY += (nodeHeight - minHeight) / 2;
     });
   });
 
-  const nodes = [];
-  const connections = [];
+  const nodes = layoutNodes.map((node) => ({
+    ...node.data,
+    x: node.layoutX,
+    y: node.layoutY,
+    depth: node.depth,
+  }));
 
-  root.each((d) => {
-    nodes.push({
-      ...d.data,
-      x: d.x,
-      y: d.y,
-      depth: d.depth,
-    });
-  });
-
-  // Group nodes by parent to create connections
   const parentGroups = new Map();
 
   root.each((d) => {
-    if (d.parent) {
-      const parentId = d.parent.data.id;
-      if (!parentGroups.has(parentId)) {
-        parentGroups.set(parentId, {
-          parent: {
-            x: d.parent.x,
-            y: d.parent.y,
-            id: parentId,
-            photo_url: d.parent.data.photo_url,
-            father_id: d.parent.data.father_id,
-          },
-          children: [],
-        });
-      }
-      parentGroups.get(parentId).children.push({
-        x: d.x,
-        y: d.y,
-        id: d.data.id,
-        photo_url: d.data.photo_url,
-        father_id: d.data.father_id,
+    if (!d.parent) return;
+
+    const parentId = d.parent.data.id;
+    const parentLayout = idToLayout.get(parentId);
+    const childLayout = idToLayout.get(d.data.id);
+
+    if (!parentGroups.has(parentId)) {
+      parentGroups.set(parentId, {
+        parent: {
+          x: parentLayout.layoutX,
+          y: parentLayout.layoutY,
+          id: parentId,
+          photo_url: d.parent.data.photo_url,
+          father_id: d.parent.data.father_id,
+        },
+        children: [],
       });
     }
+
+    parentGroups.get(parentId).children.push({
+      x: childLayout.layoutX,
+      y: childLayout.layoutY,
+      id: d.data.id,
+      photo_url: d.data.photo_url,
+      father_id: d.data.father_id,
+    });
   });
 
-  parentGroups.forEach((group) => {
-    connections.push(group);
-  });
+  const connections = Array.from(parentGroups.values());
 
   return { nodes, connections };
 }

@@ -68,8 +68,6 @@ const SPACING = {
 };
 
 const EMBLEM_IMAGE = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
-const WHATSAPP_GREEN = '#25D366';
-
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
 
@@ -261,13 +259,6 @@ export default function ShareProfileSheet({
     }
   }, [profile, inviterProfile]);
 
-  const handleWhatsAppShare = useCallback(async () => {
-    if (!profile) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await shareProfileViaWhatsApp(profile, mode, inviterProfile, { fallbackToCopy: true });
-  }, [profile, mode, inviterProfile]);
-
   const handleOpenLink = useCallback(async () => {
     if (!profileLink) return;
 
@@ -316,7 +307,10 @@ export default function ShareProfileSheet({
         <Text
           style={[
             styles.quickActionLabel,
-            { textAlign: isRTL ? 'right' : 'left' },
+            {
+              textAlign: isRTL ? 'right' : 'left',
+              writingDirection: isRTL ? 'rtl' : 'ltr',
+            },
           ]}
         >
           {label}
@@ -325,7 +319,10 @@ export default function ShareProfileSheet({
           <Text
             style={[
               styles.quickActionDetail,
-              { textAlign: isRTL ? 'right' : 'left' },
+              {
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+              },
             ]}
             numberOfLines={2}
           >
@@ -419,7 +416,10 @@ export default function ShareProfileSheet({
             <Text
               style={[
                 styles.sectionSubtitle,
-                { textAlign: isRTL ? 'right' : 'left' },
+                {
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                },
               ]}
             >
               امسح الرمز للاطلاع على الملف مباشرة أو شاركه باستخدام الخيارات السريعة.
@@ -474,14 +474,6 @@ export default function ShareProfileSheet({
                     <ActivityIndicator size="small" color={COLORS.accent} />
                   ) : null
                 }
-              />
-              <QuickActionButton
-                icon="logo-whatsapp"
-                iconColor={WHATSAPP_GREEN}
-                label="مشاركة عبر واتساب"
-                detail="رسالة جاهزة خلال ثانية."
-                onPress={handleWhatsAppShare}
-                disabled={!profileLink}
               />
               <QuickActionButton
                 icon="copy-outline"

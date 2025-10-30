@@ -101,6 +101,7 @@ const ViewModeContent = React.memo(({
   canEdit,
   refreshing,
   handleRefresh,
+  currentSnapIndex,
 }) => {
   // Velocity-based scroll handler for momentum transfer
   const scrollHandler = useAnimatedScrollHandler({
@@ -133,6 +134,7 @@ const ViewModeContent = React.memo(({
         onRefresh={handleRefresh}
         tintColor={palette.primary}
         colors={[palette.primary]}
+        enabled={currentSnapIndex === 2}
       />
     }
     contentContainerStyle={{
@@ -563,13 +565,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person, userProfile]);
 
-  // Auto-expand BottomSheet to 100% when entering edit mode
-  useEffect(() => {
-    if (mode === 'edit' && bottomSheetRef.current) {
-      bottomSheetRef.current.snapToIndex(2); // Snap to 100%
-    }
-  }, [mode]);
-
   // Debug: FileSystem availability check (crop feature dependency)
   useEffect(() => {
     console.log('[FileSystem Debug] Checking directories after rebuild:', {
@@ -592,7 +587,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);
-  const snapPoints = useMemo(() => ['36%', '74%', '100%'], []);
+  const snapPoints = useMemo(() => ['35%', '50%', '100%'], []);
 
   // Spring animation config for natural, responsive sheet movement
   const animationConfigs = useMemo(() => ({
@@ -634,8 +629,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     (props) => (
       <BottomSheetBackdrop
         {...props}
-        opacity={0.5}
-        appearsOnIndex={0}
+        opacity={0.35}
+        appearsOnIndex={1}
         disappearsOnIndex={-1}
         pressBehavior="close"
       />
@@ -1734,8 +1729,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       ref={bottomSheetRef}
       index={currentSnapIndex}
       snapPoints={snapPoints}
-      enablePanDownToClose={mode !== 'edit'}
-      enableContentPanningGesture={mode !== 'edit'}
+      enablePanDownToClose={!form.isDirty}
+      enableContentPanningGesture={true}
       enableHandlePanningGesture={true}
       activeOffsetY={mode === 'edit' ? [-20, 20] : [-5, 5]}
       animationConfigs={animationConfigs}
@@ -1776,6 +1771,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           canEdit={canEdit}
           refreshing={refreshing}
           handleRefresh={handleRefresh}
+          currentSnapIndex={currentSnapIndex}
         />
       ) : (
         <EditModeContent

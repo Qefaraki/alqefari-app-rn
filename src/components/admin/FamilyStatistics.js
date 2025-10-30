@@ -7,7 +7,7 @@
  * Performance: Lazy loading for secondary charts
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,6 @@ import {
   Platform,
   Image,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -34,6 +33,41 @@ import { RTLVictoryPie, RTLVictoryBar } from '../charts/RTLVictoryWrappers';
 const palette = tokens.colors.najdi;
 const spacing = tokens.spacing;
 const typography = tokens.typography;
+
+const formatNumber = (value) => {
+  if (value === null || value === undefined) return '—';
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return '—';
+  return new Intl.NumberFormat('ar-SA').format(numericValue);
+};
+
+const formatPercent = (value, total) => {
+  if (!total || total === 0 || value === null || value === undefined) {
+    return '0%';
+  }
+  const numericValue = Number(value);
+  const numericTotal = Number(total);
+  if (Number.isNaN(numericValue) || Number.isNaN(numericTotal) || numericTotal === 0) {
+    return '0%';
+  }
+  const percent = Math.round((numericValue / numericTotal) * 100);
+  return `${percent}%`;
+};
+
+const formatDateTime = (isoString) => {
+  if (!isoString) return null;
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  try {
+    return new Intl.DateTimeFormat('ar-SA', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(parsed);
+  } catch (error) {
+    return parsed.toLocaleString('ar-SA');
+  }
+};
 
 export default function FamilyStatistics({ onClose }) {
   // Data states (split by RPC for graceful degradation)
@@ -49,20 +83,10 @@ export default function FamilyStatistics({ onClose }) {
   // Performance: Lazy load charts as user scrolls
   const [visibleCharts, setVisibleCharts] = useState(['gender']); // Start with hero only
 
-  // Section expansion states
-  const [expandedSections, setExpandedSections] = useState({
-    names: false,
-    munasib: false,
-  });
-
   // Lifecycle management
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef(null);
   const lastRefreshTime = useRef(0);
-
-  // Static dimensions (avoid re-render on rotation)
-  const [screenWidth] = useState(() => Dimensions.get('window').width);
-  const isSmallScreen = screenWidth < 390; // iPhone SE 2022
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -227,8 +251,7 @@ export default function FamilyStatistics({ onClose }) {
           <>
             <IntroSurface />
             <HeroSection stats={coreStats} />
-
-            <SectionDivider />
+            <OperationalSnapshot stats={coreStats} />
 
             {/* Generations Section - Lazy Load */}
             <LazyChartSection
@@ -239,8 +262,6 @@ export default function FamilyStatistics({ onClose }) {
               <GenerationsSection stats={coreStats} />
             </LazyChartSection>
 
-            <SectionDivider />
-
             {/* Names Section - Extended Stats (Can timeout) */}
             {extendedLoading ? (
               <LoadingSection title="الأسماء الأكثر شيوعاً" />
@@ -250,13 +271,7 @@ export default function FamilyStatistics({ onClose }) {
                 onVisible={handleChartVisible}
                 isVisible={visibleCharts.includes('names')}
               >
-                <NamesSection
-                  stats={extendedStats}
-                  expanded={expandedSections.names}
-                  onToggle={() =>
-                    setExpandedSections((prev) => ({ ...prev, names: !prev.names }))
-                  }
-                />
+                <NamesSection stats={extendedStats} />
               </LazyChartSection>
             ) : (
               <ErrorSection
@@ -267,8 +282,6 @@ export default function FamilyStatistics({ onClose }) {
               />
             )}
 
-            <SectionDivider />
-
             {/* Munasib Section - Extended Stats */}
             {extendedStats && (
               <LazyChartSection
@@ -276,13 +289,7 @@ export default function FamilyStatistics({ onClose }) {
                 onVisible={handleChartVisible}
                 isVisible={visibleCharts.includes('munasib')}
               >
-                <MunasibSection
-                  stats={extendedStats}
-                  expanded={expandedSections.munasib}
-                  onToggle={() =>
-                    setExpandedSections((prev) => ({ ...prev, munasib: !prev.munasib }))
-                  }
-                />
+                <MunasibSection stats={extendedStats} />
               </LazyChartSection>
             )}
           </>
