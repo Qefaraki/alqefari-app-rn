@@ -16,7 +16,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Circle, Group, Paragraph } from '@shopify/react-native-skia';
+import { Circle, Group, Paragraph, RoundedRect } from '@shopify/react-native-skia';
 
 // Import components
 import { ImageNode } from './ImageNode';
@@ -157,6 +157,49 @@ export function CircularNodeRenderer({
     [node.name, labelWidth, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
   );
 
+  const tidyLabelBackdrop = useMemo(() => {
+    if (!isTidyVariant || !nameParagraph) {
+      return null;
+    }
+    const paragraphHeight = nameParagraph.getHeight();
+    const intrinsicWidth = Math.min(
+      labelWidth,
+      nameParagraph.getMaxIntrinsicWidth
+        ? nameParagraph.getMaxIntrinsicWidth()
+        : labelWidth,
+    );
+    const horizontalPadding = Math.max(
+      6,
+      Math.min(12, (tidyConfig.LABEL_PADDING ?? 12) * 0.45),
+    );
+    const verticalPadding = Math.max(
+      2,
+      Math.round((tidyConfig.NAME_HEIGHT ?? 16) * 0.12),
+    );
+    const backgroundWidth = Math.min(
+      labelWidth,
+      intrinsicWidth + horizontalPadding * 2,
+    );
+    const backgroundHeight = paragraphHeight + verticalPadding * 2;
+    const backgroundX = centerX - backgroundWidth / 2;
+    const backgroundY = textY - verticalPadding;
+    const radius = backgroundHeight / 2;
+    return {
+      x: backgroundX,
+      y: backgroundY,
+      width: backgroundWidth,
+      height: backgroundHeight,
+      radius,
+    };
+  }, [
+    isTidyVariant,
+    nameParagraph,
+    labelWidth,
+    centerX,
+    textY,
+    tidyConfig,
+  ]);
+
   const isTidyPlaceholder = isTidyVariant && !hasPhoto;
 
   const baseLayer = useMemo(() => {
@@ -260,6 +303,16 @@ export function CircularNodeRenderer({
       )}
 
       {/* Name text below circle */}
+      {tidyLabelBackdrop && (
+        <RoundedRect
+          x={tidyLabelBackdrop.x}
+          y={tidyLabelBackdrop.y}
+          width={tidyLabelBackdrop.width}
+          height={tidyLabelBackdrop.height}
+          r={tidyLabelBackdrop.radius}
+          color="#F9F7F3"
+        />
+      )}
       {nameParagraph && (
         <Paragraph
           paragraph={nameParagraph}

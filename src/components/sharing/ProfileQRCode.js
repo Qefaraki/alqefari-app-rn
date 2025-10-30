@@ -4,7 +4,7 @@
  * Generates and displays a QR code for profile sharing with smart logo fallback.
  * Includes deferred rendering to prevent UI blocking and loading skeleton.
  *
- * Logo Strategy: Profile photo → Minimal placeholder
+ * Logo Strategy: Emblem → Profile photo → Minimal placeholder
  *
  * Usage:
  * <ProfileQRCode
@@ -12,6 +12,7 @@
  *   profileId="uuid-1234-5678"  // Required: For caching (unique for all profiles)
  *   inviterShareCode="abc12"  // Optional: Inviter's share code
  *   mode="share"
+ *   emblemSource={require('...')}  // Optional: Local emblem image (overrides photoUrl)
  *   photoUrl="https://..."  // Optional: Profile photo for QR center
  * />
  */
@@ -38,6 +39,7 @@ export default function ProfileQRCode({
   mode = 'share',
   size = 280, // Optimal scanning size - fits iPhone SE (375px) with proper margins
   photoUrl, // Optional: Profile photo URL for QR center logo
+  emblemSource, // Optional: Local emblem image source (overrides photoUrl)
 }) {
   const [qrReady, setQrReady] = useState(false);
   const [qrError, setQrError] = useState(false);
@@ -102,7 +104,7 @@ export default function ProfileQRCode({
     checkCache();
   }, [profileId, photoUrl]);
 
-  // Smart logo fallback: profile photo → placeholder
+  // Smart logo fallback: emblem → profile photo → placeholder
   useEffect(() => {
     // Guards to prevent race condition
     if (usedCache) return; // Skip if cache was used
@@ -112,7 +114,19 @@ export default function ProfileQRCode({
       setLogoLoading(true);
       setLogoSource(null);
 
-      // Strategy 1: Try profile photo (with security validation)
+      // Strategy 1: Use emblem if provided (local asset, no validation needed)
+      if (emblemSource) {
+        try {
+          console.log('[QRCode] ✅ Using emblem as logo');
+          setLogoSource(emblemSource);
+          setLogoLoading(false);
+          return;
+        } catch (error) {
+          console.warn('[QRCode] ❌ Emblem failed, trying profile photo:', error);
+        }
+      }
+
+      // Strategy 2: Try profile photo (with security validation)
       if (photoUrl) {
         // SECURITY: Only allow HTTPS URLs from Supabase storage
         // This prevents: file:// URIs, data: URIs, external domains, XSS attacks
@@ -137,7 +151,7 @@ export default function ProfileQRCode({
         }
       }
 
-      // Strategy 2: Fall back to placeholder overlay
+      // Strategy 3: Fall back to placeholder overlay
       try {
         console.log('[QRCode] ✅ Using placeholder overlay');
         setLogoSource(null);
@@ -158,7 +172,7 @@ export default function ProfileQRCode({
     }
 
     loadLogo();
-  }, [photoUrl, cacheChecked, usedCache]);
+  }, [emblemSource, photoUrl, cacheChecked, usedCache]);
 
   // Error state
   if (qrError || !shareCode) {
@@ -184,9 +198,20 @@ export default function ProfileQRCode({
   }
 
   // QR Code ready
-  const overlaySize = size * 0.26;
-  const overlayRadius = overlaySize * 0.33;
   const isPhotoLogo = Boolean(logoSource && logoSource.uri);
+  const isEmblemLogo = Boolean(logoSource && !logoSource.uri && emblemSource);
+
+  // Larger size for emblem, standard size for photos
+  const emblemTargetRatio = 0.58; // Target absolute coverage relative to QR size
+  const overlaySize = isEmblemLogo ? size * 0.5 : size * 0.26;
+
+  // No border radius for emblem (square), circular for photos
+  const overlayRadius = isEmblemLogo ? overlaySize * 0.05 : overlaySize * 0.33;
+  const overlayRelative = overlaySize / size || 1;
+  const emblemScale = isEmblemLogo
+    ? Math.min(1.12, emblemTargetRatio / overlayRelative)
+    : 1;
+
   const placeholderLabel = shareCode ? shareCode.toUpperCase().slice(0, 2) : 'QR';
 
   return (
@@ -212,7 +237,18 @@ export default function ProfileQRCode({
         ]}
       >
         <View style={[styles.centerGloss, { borderRadius: overlayRadius }]}>
-          {isPhotoLogo ? (
+          {isEmblemLogo ? (
+            <Image
+              source={logoSource}
+              style={[
+                styles.centerEmblem,
+                {
+                  transform: [{ scale: emblemScale }],
+                },
+              ]}
+              resizeMode="contain"
+            />
+          ) : isPhotoLogo ? (
             <Image
               source={logoSource}
               style={[
@@ -237,7 +273,7 @@ export default function ProfileQRCode({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -272,6 +308,10 @@ const styles = StyleSheet.create({
   centerImage: {
     width: '100%',
     height: '100%',
+  },
+  centerEmblem: {
+    width: '98%',
+    height: '98%',
   },
   centerPlaceholder: {
     width: '100%',

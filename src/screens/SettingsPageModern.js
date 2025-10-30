@@ -8,7 +8,6 @@ import {
   ScrollView,
   Alert,
   Image,
-  Linking,
   ActivityIndicator,
   Platform,
   Modal,
@@ -40,11 +39,7 @@ import { PhoneChangeModal } from "../components/settings/PhoneChangeModal";
 import ShareProfileSheet from "../components/sharing/ShareProfileSheet";
 import { DeleteAccountModal } from "../components/settings/DeleteAccountModal";
 import { checkDeletionRateLimit } from "../services/deleteAccountOtp";
-import {
-  formatPhoneForDisplay,
-  formatPhoneForWhatsApp,
-  buildWhatsAppUrl,
-} from "../utils/phoneUtils";
+import { formatPhoneForDisplay, formatPhoneForWhatsApp } from "../utils/phoneUtils";
 
 // Debug: Verify ShareProfileSheet import
 console.log('[DEBUG Settings] ShareProfileSheet import type:', typeof ShareProfileSheet);
@@ -756,36 +751,20 @@ export default function SettingsPageModern({ user }) {
   const currentUserPhone = currentUser?.phone || "";
   const phoneDetails = useMemo(() => {
     if (!currentUserPhone) {
-      return { display: "", whatsappUrl: "", isSaudi: false };
+      return { display: "" };
     }
 
     const canonical = formatPhoneForWhatsApp(currentUserPhone);
     if (canonical && canonical.startsWith("+966")) {
       return {
         display: formatPhoneForDisplay(currentUserPhone),
-        whatsappUrl: buildWhatsAppUrl(currentUserPhone),
-        isSaudi: true,
       };
     }
 
     return {
       display: currentUserPhone.trim(),
-      whatsappUrl: "",
-      isSaudi: false,
     };
   }, [currentUserPhone]);
-
-  const openWhatsApp = useCallback(() => {
-    if (!phoneDetails.whatsappUrl) return;
-    handleFeedback();
-    Linking.openURL(phoneDetails.whatsappUrl).catch(() => {
-      Alert.alert(
-        "تعذر فتح الواتساب",
-        "يرجى التأكد من تثبيت تطبيق الواتساب على جهازك",
-        [{ text: "حسناً" }],
-      );
-    });
-  }, [handleFeedback, phoneDetails.whatsappUrl]);
 
   const profileCardAction = loadingProfile
     ? { onPress: null, disabled: true }
@@ -947,18 +926,7 @@ export default function SettingsPageModern({ user }) {
                         </View>
                       ) : null}
                       {phoneDetails.display ? (
-                        <View style={styles.profilePhoneRow}>
-                          {phoneDetails.whatsappUrl ? (
-                            <TouchableOpacity
-                              style={styles.profilePhoneAction}
-                              onPress={openWhatsApp}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                            </TouchableOpacity>
-                          ) : null}
-                          <Text style={styles.profilePhone}>{phoneDetails.display}</Text>
-                        </View>
+                        <Text style={styles.profilePhone}>{phoneDetails.display}</Text>
                       ) : currentUser?.email ? (
                         <Text style={styles.profilePhone}>{currentUser.email}</Text>
                       ) : null}
@@ -1714,6 +1682,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     ...fontStyles.regular,
     textAlign: "right",
+    marginTop: 4,
   },
   profileStatusBadgeRow: {
     flexDirection: "row",
@@ -1735,21 +1704,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.secondary,
     marginRight: 4,
-  },
-  profilePhoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-    justifyContent: "flex-end",
-  },
-  profilePhoneAction: {
-    marginRight: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(37, 211, 102, 0.12)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   profileActionsRow: {
     flexDirection: "row",

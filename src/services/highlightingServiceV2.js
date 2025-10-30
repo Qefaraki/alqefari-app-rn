@@ -297,13 +297,22 @@ class HighlightingServiceV2 {
       return [];
     }
 
+    // Determine actual parent/child orientation
+    const parentNode = fromNode.father_id === to ? toNode : fromNode;
+    const childNode = parentNode === fromNode ? toNode : fromNode;
+
     return [{
-      from: fromNode.id,
-      to: toNode.id,
-      x1: fromNode.x,
-      y1: fromNode.y,
-      x2: toNode.x,
-      y2: toNode.y,
+      from: parentNode.id,
+      to: childNode.id,
+      connection: {
+        parent: parentNode,
+        children: [childNode],
+      },
+      bounds: this._calculateBounds(parentNode, childNode),
+      x1: parentNode.x,
+      y1: parentNode.y,
+      x2: childNode.x,
+      y2: childNode.y,
     }];
   }
 
@@ -344,8 +353,8 @@ class HighlightingServiceV2 {
       // The renderer needs connection.parent and connection.children to call generateLinePaths()
       // which ensures highlights match tree connection curves perfectly
       segments.push({
-        from: current.id,
-        to: parent.id,
+        from: parent.id,
+        to: current.id,
         connection: {
           parent: parent,
           children: [current],  // Single child for ancestry path
@@ -356,10 +365,10 @@ class HighlightingServiceV2 {
           minY: Math.min(current.y, parent.y),
           maxY: Math.max(current.y, parent.y),
         },
-        x1: current.x,  // Keep for backward compatibility
-        y1: current.y,
-        x2: parent.x,
-        y2: parent.y,
+        x1: parent.x,  // Maintain parent origin for compatibility with straight lines
+        y1: parent.y,
+        x2: current.x,
+        y2: current.y,
       });
 
       current = parent;
@@ -395,12 +404,17 @@ class HighlightingServiceV2 {
       }
 
       segments.push({
-        from: node.id,
-        to: parent.id,
-        x1: node.x,
-        y1: node.y,
-        x2: parent.x,
-        y2: parent.y,
+        from: parent.id,
+        to: node.id,
+        connection: {
+          parent,
+          children: [node],
+        },
+        bounds: this._calculateBounds(parent, node),
+        x1: parent.x,
+        y1: parent.y,
+        x2: node.x,
+        y2: node.y,
       });
     });
 
@@ -451,8 +465,13 @@ class HighlightingServiceV2 {
           }
 
           segments.push({
-            from: nodeId,
+            from: node.id,
             to: child.id,
+            connection: {
+              parent: node,
+              children: [child],
+            },
+            bounds: this._calculateBounds(node, child),
             x1: node.x,
             y1: node.y,
             x2: child.x,
@@ -491,7 +510,27 @@ class HighlightingServiceV2 {
         // Create bidirectional key (parent-child can be in either order)
         const key = this._createSegmentKey(seg.from, seg.to);
 
-        if (!segmentMap.has(key)) {
+        const existing = segmentMap.get(key);
+        if (!existing) {
+          const connection = seg.connection || null;
+          const hasCoordinates =
+            typeof seg.x1 === 'number' && !Number.isNaN(seg.x1) &&
+            typeof seg.y1 === 'number' && !Number.isNaN(seg.y1) &&
+            typeof seg.x2 === 'number' && !Number.isNaN(seg.x2) &&
+            typeof seg.y2 === 'number' && !Number.isNaN(seg.y2);
+          const bounds =
+            seg.bounds ||
+            (connection && connection.parent && connection.children?.length
+              ? this._calculateBoundsMultiple(connection.parent, connection.children)
+              : hasCoordinates
+                ? {
+                    minX: Math.min(seg.x1, seg.x2),
+                    maxX: Math.max(seg.x1, seg.x2),
+                    minY: Math.min(seg.y1, seg.y2),
+                    maxY: Math.max(seg.y1, seg.y2),
+                  }
+                : null);
+
           segmentMap.set(key, {
             from: seg.from,
             to: seg.to,
@@ -499,8 +538,36 @@ class HighlightingServiceV2 {
             y1: seg.y1,
             x2: seg.x2,
             y2: seg.y2,
+            connection,
+            bounds,
             highlights: [],
           });
+        } else {
+          // Preserve any richer geometry data supplied by new segments
+          if (!existing.connection && seg.connection) {
+            existing.connection = seg.connection;
+          }
+
+          if (seg.bounds) {
+            if (!existing.bounds) {
+              existing.bounds = seg.bounds;
+            } else {
+              existing.bounds = {
+                minX: Math.min(existing.bounds.minX, seg.bounds.minX),
+                maxX: Math.max(existing.bounds.maxX, seg.bounds.maxX),
+                minY: Math.min(existing.bounds.minY, seg.bounds.minY),
+                maxY: Math.max(existing.bounds.maxY, seg.bounds.maxY),
+              };
+            }
+          } else if (!existing.bounds && seg.connection && seg.connection.parent && seg.connection.children?.length) {
+            existing.bounds = this._calculateBoundsMultiple(seg.connection.parent, seg.connection.children);
+          }
+
+          // Backfill coordinate data if missing (legacy segments)
+          if (existing.x1 === undefined && seg.x1 !== undefined) existing.x1 = seg.x1;
+          if (existing.y1 === undefined && seg.y1 !== undefined) existing.y1 = seg.y1;
+          if (existing.x2 === undefined && seg.x2 !== undefined) existing.x2 = seg.x2;
+          if (existing.y2 === undefined && seg.y2 !== undefined) existing.y2 = seg.y2;
         }
 
         const entry = segmentMap.get(key);

@@ -66,6 +66,8 @@ const SPACING = {
 };
 
 const EMBLEM_IMAGE = require('../../../assets/logo/Alqefari Emblem (Transparent).png');
+const HERO_PATTERN_SOURCE = require('../../../assets/sadu_patterns/png/9.png');
+const HERO_PATTERN_SEGMENTS = 4;
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
 
@@ -357,6 +359,17 @@ export default function ShareProfileSheet({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroCard}>
+            <View style={styles.heroPatternRow}>
+              {Array.from({ length: HERO_PATTERN_SEGMENTS }).map((_, index) => (
+                <Image
+                  key={`hero-pattern-${index}`}
+                  source={HERO_PATTERN_SOURCE}
+                  style={styles.heroPatternImage}
+                  resizeMode="cover"
+                  accessible={false}
+                />
+              ))}
+            </View>
             <View style={styles.avatarWrapper}>
               {hasValidPhoto ? (
                 <Image
@@ -394,12 +407,6 @@ export default function ShareProfileSheet({
                 {metadata}
               </Text>
             ) : null}
-          </View>
-
-          <View style={styles.qrCard}>
-            <Text style={styles.sectionSubtitle}>
-              امسح الرمز للاطلاع على الملف مباشرة أو شاركه باستخدام الخيارات السريعة.
-            </Text>
 
             <View style={styles.qrWrapper}>
               <ProfileQRCode
@@ -407,7 +414,7 @@ export default function ShareProfileSheet({
                 profileId={profile?.id}
                 inviterShareCode={inviterProfile?.share_code}
                 mode={mode}
-                photoUrl={profile?.photo_url}
+                emblemSource={EMBLEM_IMAGE}
                 size={240}
               />
             </View>
@@ -530,6 +537,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: 28,
     paddingVertical: SPACING.xl,
+    paddingTop: SPACING.xl + 30,
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     marginBottom: SPACING.xl,
@@ -538,16 +546,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 20,
     elevation: 6,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroPatternRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    flexDirection: 'row',
+  },
+  heroPatternImage: {
+    flex: 1,
+    height: '100%',
+    width: undefined,
+    opacity: 0.22,
   },
   avatarWrapper: {
     width: 96,
     height: 96,
     borderRadius: 48,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
     borderWidth: 2,
     borderColor: COLORS.surface,
     backgroundColor: COLORS.surface,
+    marginBottom: SPACING.md,
   },
   avatarImage: {
     width: '100%',
@@ -584,28 +608,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.accentSoft,
     textAlign: 'center',
-  },
-  qrCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 28,
-    padding: SPACING.xl,
-    marginBottom: SPACING.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 5,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xl,
-    lineHeight: 20,
-    textAlign: 'left',
-    alignSelf: 'flex-start',
+    marginBottom: SPACING.md,
   },
   qrWrapper: {
     alignItems: 'center',
+    marginTop: SPACING.xl,
     marginBottom: SPACING.lg,
   },
   linkChip: {

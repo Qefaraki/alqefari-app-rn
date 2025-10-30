@@ -417,7 +417,8 @@ export function generateTidyCurvePaths(
   })();
   const baseStem = tidyCircular ? 12 : tidyRect ? 14 : 10;
   const styleStem = baseStem * (tidyCircular ? 1.0 : tidyRect ? 1.05 : 1);
-  const stemStartY = parentBottom + Math.max(parentLabelHeight, 0) + labelPadding;
+  const stemStartY =
+    parentBottom + Math.max(parentLabelHeight, 0) + labelPadding;
   const stemAnchorY = stemStartY + Math.max(styleStem * depthFactor, 8);
   const baseAnchorRaw = tidyCircular ? 18 : tidyRect ? 20 : 16;
   const BASE_CHILD_ANCHOR_OFFSET = baseAnchorRaw * depthFactor;
@@ -446,8 +447,12 @@ export function generateTidyCurvePaths(
     tidyCurveDebugSamples += 1;
   }
   // Draw shared vertical stem from parent node to anchor
-  pathBuilder.moveTo(parentCenterX, upperStartY);
-  pathBuilder.lineTo(parentCenterX, stemStartY);
+  if (!tidyCircular) {
+    pathBuilder.moveTo(parentCenterX, parentBottom);
+    pathBuilder.lineTo(parentCenterX, stemStartY);
+  } else {
+    pathBuilder.moveTo(parentCenterX, stemStartY);
+  }
   pathBuilder.lineTo(parentCenterX, stemAnchorY);
 
   // Fan-out curves using single cubic Bezier per child (D3 linkVertical-style)
