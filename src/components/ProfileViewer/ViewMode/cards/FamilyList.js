@@ -47,7 +47,7 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
     id,
     name,
     label,
-    photoUrl: node?.photo_url || null,
+    photoUrl: node?.photo_url_cropped || node?.photo_url || null,  // Prefer cropped (Option A fix)
   };
 };
 

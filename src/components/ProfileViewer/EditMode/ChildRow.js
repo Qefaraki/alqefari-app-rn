@@ -62,7 +62,8 @@ const ChildRow = React.memo(
     }, [isEditing, child.name, child.gender]);
 
     const initials = getInitials(child.name);
-    const photoUrl = child.photo_url || child.profile?.photo_url || null;
+    // Prefer cropped variant (Option A fix)
+    const photoUrl = child.photo_url_cropped || child.photo_url || child.profile?.photo_url_cropped || child.profile?.photo_url || null;
     const displayName = isEditing ? editingName || '—' : child.name;
     const subtitle = !isEditing && child.birth_year ? `مواليد ${child.birth_year}` : null;
 
@@ -297,8 +298,9 @@ const ChildRow = React.memo(
     );
   },
   (prev, next) => {
-    const prevPhotoUrl = prev.child.photo_url || prev.child.profile?.photo_url || null;
-    const nextPhotoUrl = next.child.photo_url || next.child.profile?.photo_url || null;
+    // Compare preferred photo (cropped || original) for memo optimization
+    const prevPhotoUrl = prev.child.photo_url_cropped || prev.child.photo_url || prev.child.profile?.photo_url_cropped || prev.child.profile?.photo_url || null;
+    const nextPhotoUrl = next.child.photo_url_cropped || next.child.photo_url || next.child.profile?.photo_url_cropped || next.child.profile?.photo_url || null;
 
     return (
       prev.child.id === next.child.id &&

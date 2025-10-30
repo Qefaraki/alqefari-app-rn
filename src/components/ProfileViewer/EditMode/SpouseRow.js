@@ -70,6 +70,7 @@ const SpouseRow = React.memo(
   }) => {
     const { canEditFamily } = React.useContext(TabFamilyContext);
     const spouse = spouseData.spouse_profile;
+    const spousePhotoUrl = spouse?.photo_url_cropped || spouse?.photo_url;  // Prefer cropped (Option A fix)
     const nodesMap = useTreeStore((state) => state.nodesMap);
     const [editingName, setEditingName] = useState('');
     const [editingStatus, setEditingStatus] = useState('current');
@@ -311,7 +312,7 @@ const SpouseRow = React.memo(
         ]}
       >
         <View style={styles.memberHeader}>
-          <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={getInitials(spouse.name)} />
+          <AvatarThumbnail photoUrl={spousePhotoUrl} fallbackLabel={getInitials(spouse.name)} />
           <View style={styles.memberDetails}>
             <View style={styles.memberTitleRow}>
               <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
@@ -452,8 +453,11 @@ const SpouseRow = React.memo(
     );
   },
   (prev, next) => {
-    const prevPhotoUrl = prev.spouseData.spouse_profile?.photo_url;
-    const nextPhotoUrl = next.spouseData.spouse_profile?.photo_url;
+    // Compare preferred photo (cropped || original) for memo optimization
+    const prevProfile = prev.spouseData.spouse_profile;
+    const nextProfile = next.spouseData.spouse_profile;
+    const prevPhotoUrl = prevProfile?.photo_url_cropped || prevProfile?.photo_url;
+    const nextPhotoUrl = nextProfile?.photo_url_cropped || nextProfile?.photo_url;
     return (
       prev.spouseData.marriage_id === next.spouseData.marriage_id &&
       prev.spouseData.children_count === next.spouseData.children_count &&

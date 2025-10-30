@@ -129,6 +129,9 @@ const EnhancedHero = ({
 
   const hasPersonalInfo = Boolean(currentResidence) || Boolean(birthYearDisplay);
 
+  // Prefer cropped variant if available (Option A fix)
+  const photoUrl = person?.photo_url_cropped || person?.photo_url;
+
   // Social connectivity configuration
   const connectivityMethods = useMemo(() => {
     const primaryActions = [];
@@ -191,7 +194,9 @@ const EnhancedHero = ({
       });
     }
 
-    return [...primaryActions, ...socialActions];
+    const combined = [...primaryActions, ...socialActions];
+    const MAX_VISIBLE = 6;
+    return combined.slice(0, MAX_VISIBLE);
   }, [person?.phone, person?.email, person?.social_links]);
 
   // Handle connectivity method press
@@ -329,52 +334,38 @@ const EnhancedHero = ({
           flexDirection: 'row',
           flexWrap: 'wrap',
           justifyContent: 'center',
-          gap: spacing.sm,
-          marginTop: spacing.md,
+          gap: spacing.xs,
+          marginTop: spacing.sm,
         },
         connectivityButton: {
-          width: tokens.touchTarget.minimum,
-          height: tokens.touchTarget.minimum,
-          borderRadius: tokens.touchTarget.minimum / 2,
-          backgroundColor: hexWithOpacity(colors.najdi.primary, 0.08),
+          width: 40,
+          height: 40,
+          borderRadius: 20,
           alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: hexWithOpacity(colors.najdi.text, 0.02),
           borderWidth: 1,
-          borderColor: hexWithOpacity(colors.najdi.primary, 0.12),
-          ...Platform.select({
-            ios: {
-              shadowColor: colors.najdi.text,
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.08,
-              shadowRadius: 8,
-            },
-            android: {
-              elevation: 2,
-            },
-          }),
+          borderColor: hexWithOpacity(colors.najdi.text, 0.04),
         },
-        connectivityButtonPrimary: {
-          backgroundColor: colors.najdi.primary,
-          borderColor: hexWithOpacity(colors.najdi.primary, 0.4),
+        connectivityButtonGhost: {
+          backgroundColor: 'transparent',
+          borderColor: hexWithOpacity(colors.najdi.text, 0.03),
         },
         connectivityIcon: {
           marginTop: 2,
         },
         connectivityBadge: {
           position: 'absolute',
-          top: 10,
-          width: 8,
-          height: 8,
-          borderRadius: 4,
+          top: 9,
+          width: 5,
+          height: 5,
+          borderRadius: 2.5,
         },
       }),
     [shouldUseAlternateLayout]
   );
 
   const renderAvatar = () => {
-    // Use cropped variant if available, otherwise fall back to original
-    const photoUrl = person?.photo_url_cropped || person?.photo_url;
-
     if (!photoUrl) {
       return (
         <View style={styles.avatarFallback} accessibilityElementsHidden>
@@ -456,8 +447,8 @@ const EnhancedHero = ({
         style={styles.avatarWrapper}
         accessible={true}
         accessibilityRole="imagebutton"
-        accessibilityLabel={person?.photo_url ? 'عرض الصورة الشخصية' : 'الصورة الشخصية غير متوفرة'}
-        disabled={!person?.photo_url}
+        accessibilityLabel={photoUrl ? 'عرض الصورة الشخصية' : 'الصورة الشخصية غير متوفرة'}
+        disabled={!photoUrl}
         activeOpacity={0.8}
       >
         {renderAvatar()}
@@ -529,16 +520,16 @@ const EnhancedHero = ({
           <View style={styles.connectivityBar}>
             {connectivityMethods.map((method) => {
               const isPrimaryAction = method.priority === 0;
+              const accent = method.accentColor
+                ? hexWithOpacity(method.accentColor, 0.55)
+                : hexWithOpacity(colors.najdi.primary, 0.7);
+              const iconColor = isPrimaryAction
+                ? hexWithOpacity(colors.najdi.primary, 0.75)
+                : accent;
               const buttonStyles = [
                 styles.connectivityButton,
-                isPrimaryAction ? styles.connectivityButtonPrimary : null,
-                !isPrimaryAction && method.accentColor
-                  ? { borderColor: hexWithOpacity(method.accentColor, 0.45) }
-                  : null,
+                !isPrimaryAction ? styles.connectivityButtonGhost : null,
               ];
-              const iconColor = isPrimaryAction
-                ? colors.najdi.background
-                : colors.najdi.primary;
 
               return (
                 <TouchableOpacity
@@ -548,23 +539,22 @@ const EnhancedHero = ({
                   accessible={true}
                   accessibilityRole="button"
                   accessibilityLabel={method.label}
-                  activeOpacity={0.85}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                   {!isPrimaryAction && method.accentColor ? (
                     <View
                       style={[
                         styles.connectivityBadge,
-                        I18nManager.isRTL
-                          ? { left: 10 }
-                          : { right: 10 },
-                        { backgroundColor: method.accentColor },
+                        I18nManager.isRTL ? { left: 10 } : { right: 10 },
+                        { backgroundColor: accent },
                       ]}
                       accessible={false}
                     />
                   ) : null}
                   <Ionicons
                     name={method.icon}
-                    size={20}
+                    size={18}
                     color={iconColor}
                     style={styles.connectivityIcon}
                     accessible={false}

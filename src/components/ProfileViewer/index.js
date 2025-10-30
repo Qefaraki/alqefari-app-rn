@@ -20,8 +20,10 @@ import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
-  BottomSheetScrollView,
   BottomSheetBackdrop,
+  BottomSheetHandle,
+  BottomSheetScrollView,
+  BottomSheetView,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
@@ -342,7 +344,7 @@ const EditModeContent = React.memo(({
   return (
     <View style={{ flex: 1 }}>
       {/* Quick Jump Menu */}
-      <View style={styles.quickJumpContainer}>
+      <BottomSheetView style={styles.quickJumpContainer}>
         <View style={styles.quickJumpControl}>
           {SECTIONS.map((section) => (
             <TouchableOpacity
@@ -369,7 +371,7 @@ const EditModeContent = React.memo(({
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </BottomSheetView>
 
       {/* Single Scrolling Form */}
       <BottomSheetScrollView
@@ -616,25 +618,31 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   );
   const handleComponent = useCallback(
     (props) => {
-      // Edit mode: Use EditHeader as the draggable handle (supports buttons + drag)
       if (mode === 'edit') {
         return (
-          <EditHeader
-            onCancel={handleCancel}
-            onSubmit={handleSubmit}
-            saving={saving}
-            canSubmit={form.isDirty}
-            accessMode={accessMode}
-            isFullScreen={currentSnapIndex === 2}
-          />
+          <BottomSheetHandle
+            {...props}
+            style={styles.editHandleWrapper}
+            indicatorStyle={styles.hiddenHandleIndicator}
+          >
+            <EditHeader
+              onCancel={handleCancel}
+              onSubmit={handleSubmit}
+              saving={saving}
+              canSubmit={form.isDirty}
+              accessMode={accessMode}
+              isFullScreen={currentSnapIndex === 2}
+            />
+          </BottomSheetHandle>
         );
       }
 
-      // View mode: Standard drag bar
       return (
-        <View style={styles.handleContainer}>
-          <View style={styles.handleBar} />
-        </View>
+        <BottomSheetHandle
+          {...props}
+          style={styles.handleContainer}
+          indicatorStyle={styles.handleIndicator}
+        />
       );
     },
     [mode, handleCancel, handleSubmit, saving, form.isDirty, accessMode, currentSnapIndex],
@@ -1801,14 +1809,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
   },
-  sheetBackground: {
-    backgroundColor: tokens.colors.najdi.background, // Jazz White (#F9F7F3)
+  editHandleWrapper: {
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    width: '100%',
   },
-  handleBar: {
+  handleIndicator: {
     width: 48,
     height: 5,
     borderRadius: 999,
     backgroundColor: '#d6c5cc',
+  },
+  hiddenHandleIndicator: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+  },
+  sheetBackground: {
+    backgroundColor: tokens.colors.najdi.background, // Jazz White (#F9F7F3)
   },
   empty: {
     flex: 1,
