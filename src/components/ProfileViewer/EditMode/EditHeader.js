@@ -80,7 +80,7 @@ const EditHeader = ({ onCancel, onSubmit, saving, canSubmit, accessMode }) => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: tokens.colors.surface, // White background
+    backgroundColor: tokens.colors.najdi.background, // Jazz White (#F9F7F3)
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomWidth: 0.5,

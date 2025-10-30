@@ -379,12 +379,12 @@ const EditModeContent = React.memo(({
       {/* Single Scrolling Form */}
       <BottomSheetScrollView
         ref={scrollRef}
-        style={{ backgroundColor: tokens.colors.surface }}
+        style={{ backgroundColor: tokens.colors.najdi.background }}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 12,
           paddingBottom: insets.bottom + 80,
-          backgroundColor: tokens.colors.surface,
+          backgroundColor: tokens.colors.najdi.background,
         }}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="interactive"
@@ -1788,7 +1788,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   sheetBackground: {
-    backgroundColor: tokens.colors.surface, // White background
+    backgroundColor: tokens.colors.najdi.background, // Jazz White (#F9F7F3)
   },
   handleBar: {
     width: 48,
@@ -1810,7 +1810,7 @@ const styles = StyleSheet.create({
   quickJumpContainer: {
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.md,
-    backgroundColor: tokens.colors.surface, // White background
+    backgroundColor: tokens.colors.najdi.background, // Jazz White (#F9F7F3)
   },
   quickJumpControl: {
     flexDirection: 'row',
