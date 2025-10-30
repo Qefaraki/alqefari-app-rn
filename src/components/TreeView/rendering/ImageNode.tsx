@@ -243,45 +243,24 @@ export function renderLoadedImage(
   width: number,
   height: number,
   cornerRadius: number,
-  crop_top: number = 0,
+  crop_top: number = 0,      // Keep params for backwards compat, but ignore
   crop_bottom: number = 0,
   crop_left: number = 0,
   crop_right: number = 0,
   opacity?: any
 ): JSX.Element {
-  // Validate and normalize crop values (prevent edge cases from invalid DB data)
-  const clamp = (v: number) => Math.max(0, Math.min(0.999, v ?? 0));
-  const safeCrop = {
-    top: clamp(crop_top),
-    bottom: clamp(crop_bottom),
-    left: clamp(crop_left),
-    right: clamp(crop_right),
-  };
-
   // Get image dimensions
   const imageWidth = image.width();
   const imageHeight = image.height();
 
-  // Calculate visible portion after crops (0.0-1.0 range)
-  const visibleWidthRatio = 1 - safeCrop.left - safeCrop.right;
-  const visibleHeightRatio = 1 - safeCrop.top - safeCrop.bottom;
-
-  // Calculate visible dimensions in image pixels
-  const visibleWidth = imageWidth * visibleWidthRatio;
-  const visibleHeight = imageHeight * visibleHeightRatio;
-
-  // Calculate scale to fill node container (cover behavior like CSS)
-  const scaleX = width / visibleWidth;
-  const scaleY = height / visibleHeight;
-  const scale = Math.max(scaleX, scaleY);
-
-  // Scaled image dimensions (NOT raw dimensions)
+  // Standard cover behavior - scale to fill, center overflow (NO CROP LOGIC)
+  const scale = Math.max(width / imageWidth, height / imageHeight);
   const scaledWidth = imageWidth * scale;
   const scaledHeight = imageHeight * scale;
 
-  // Offset to align visible portion with node position
-  const offsetX = x - (safeCrop.left * imageWidth * scale);
-  const offsetY = y - (safeCrop.top * imageHeight * scale);
+  // Center the overflow
+  const offsetX = x - (scaledWidth - width) / 2;
+  const offsetY = y - (scaledHeight - height) / 2;
 
   // Create clip path at node position (rounded rect)
   const clipPath = rrect(
@@ -290,17 +269,16 @@ export function renderLoadedImage(
     cornerRadius
   );
 
-  // Render: Position scaled image offset by crop amount, clip to node bounds
-  // This shows only the visible (non-cropped) portion of the image at correct scale
+  // Render: Standard centered image (cropped variant already cropped at file level)
   return (
     <Group clip={clipPath} opacity={opacity}>
       <SkiaImage
         image={image}
-        x={offsetX}           // Offset image to align visible portion
-        y={offsetY}           // Offset image to align visible portion
-        width={scaledWidth}   // Scaled to fit node container
-        height={scaledHeight} // Scaled to fit node container
-        fit="none"            // No auto-scaling (manual positioning)
+        x={offsetX}
+        y={offsetY}
+        width={scaledWidth}
+        height={scaledHeight}
+        fit="none"
       />
     </Group>
   );

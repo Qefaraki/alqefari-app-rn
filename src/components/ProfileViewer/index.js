@@ -257,14 +257,14 @@ const EditModeContent = React.memo(({
 
   return (
     <>
-      {/* Sticky Tabs - Outside scroll view */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
+      {/* Sticky Tabs - In BottomSheetView for proper gesture handling */}
+      <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
         <SegmentedControl
           options={enhancedTabs}
           value={activeTab}
           onChange={handleTabChange}
         />
-      </View>
+      </BottomSheetView>
 
       {/* Scrollable Content */}
       <BottomSheetScrollView
