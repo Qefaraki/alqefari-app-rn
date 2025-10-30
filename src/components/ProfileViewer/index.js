@@ -103,6 +103,8 @@ const ViewModeContent = React.memo(({
 }) => (
   <BottomSheetScrollView
     ref={scrollRef}
+    bounces={false}
+    overScrollMode="never"
     refreshControl={
       <RefreshControl
         refreshing={refreshing}
