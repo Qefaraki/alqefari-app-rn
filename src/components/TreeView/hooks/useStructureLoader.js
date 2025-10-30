@@ -20,7 +20,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
-const TREE_STRUCTURE_SCHEMA_VERSION = '2.1.0'; // Bumped: Added status field to get_structure_only RPC for deceased photo grayscale
+const TREE_STRUCTURE_SCHEMA_VERSION = '2.2.0'; // Bumped: Added photo_url_cropped to get_structure_only RPC for file-based cropping
 
 export function useStructureLoader() {
   const [structure, setStructure] = useState([]);

@@ -167,10 +167,6 @@ export function CircularNodeRenderer({
             showPhotos={showPhotos}
             isDeceased={isDeceased}
             useBatchedSkiaImage={useBatchedSkiaImage}
-            crop_top={node.crop_top}
-            crop_bottom={node.crop_bottom}
-            crop_left={node.crop_left}
-            crop_right={node.crop_right}
           />
         </>
       ) : (

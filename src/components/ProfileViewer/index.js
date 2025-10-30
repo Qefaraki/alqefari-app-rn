@@ -26,7 +26,7 @@ import BottomSheet, {
   BottomSheetView,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
-import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useSharedValue, useAnimatedReaction, runOnJS, useAnimatedScrollHandler, useDerivedValue } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -96,15 +96,37 @@ const ViewModeContent = React.memo(({
   onNavigateToProfile,
   accessMode,
   scrollY,
+  scrollVelocityY,
   scrollRef,
   canEdit,
   refreshing,
   handleRefresh,
-}) => (
+}) => {
+  // Velocity-based scroll handler for momentum transfer
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      'worklet';
+      scrollY.value = event.contentOffset.y;
+      scrollVelocityY.value = event.velocity?.y || 0;
+    },
+    onEndDrag: (event) => {
+      'worklet';
+      const velocity = event.velocity?.y || 0;
+      const atTop = event.contentOffset.y <= 0;
+
+      // Fast upward swipe at top of scroll (> 800px/s) → close sheet
+      if (atTop && velocity < -800) {
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        runOnJS(closeSheet)();
+      }
+    }
+  }, [scrollY, scrollVelocityY, closeSheet]);
+
+  return (
   <BottomSheetScrollView
     ref={scrollRef}
-    bounces={false}
-    overScrollMode="never"
+    bounces={true}
+    overScrollMode="auto"
     refreshControl={
       <RefreshControl
         refreshing={refreshing}
@@ -120,11 +142,8 @@ const ViewModeContent = React.memo(({
       gap: 16,
     }}
     showsVerticalScrollIndicator={false}
-    onScroll={Animated.event(
-      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-      { useNativeDriver: false },
-    )}
-    scrollEventThrottle={16}
+    onScroll={scrollHandler}
+    scrollEventThrottle={8}
     accessibilityLiveRegion="polite"
   >
     <EnhancedHero
@@ -191,7 +210,8 @@ const ViewModeContent = React.memo(({
     </View>
 
   </BottomSheetScrollView>
-), (prevProps, nextProps) => {
+  );
+}, (prevProps, nextProps) => {
   // Custom comparator - only re-render when actual data changes
   return (
     prevProps.person?.id === nextProps.person?.id &&
@@ -574,6 +594,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const editScrollRef = useRef(null);
   const snapPoints = useMemo(() => ['36%', '74%', '100%'], []);
 
+  // Spring animation config for natural, responsive sheet movement
+  const animationConfigs = useMemo(() => ({
+    damping: 50,
+    mass: 0.5,
+    stiffness: 300,
+    overshootClamping: false,
+    restSpeedThreshold: 0.3,
+    restDisplacementThreshold: 0.3,
+  }), []);
+
   const [mode, setMode] = useState('view');
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
 
@@ -649,7 +679,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     permissions: true,
   });
 
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useSharedValue(0);
+  const scrollVelocityY = useSharedValue(0);
   const animatedPosition = useSharedValue(0);
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
@@ -1000,6 +1031,23 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     runOnJS(closeSheet)();
   }, [closeSheet]);
 
+  // Momentum dismiss gesture - captures overscroll velocity for quick sheet dismissal
+  const momentumDismissGesture = useMemo(() => {
+    return Gesture.Pan()
+      .enabled(mode === 'view' && scrollY.value <= 5)
+      .activeOffsetY([-5, 999999]) // Only trigger on upward swipes
+      .onUpdate((event) => {
+        'worklet';
+        const fastUpwardSwipe = event.velocityY < -800;
+        const significantTranslation = event.translationY < -50;
+
+        if (fastUpwardSwipe && significantTranslation) {
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+          closeSheetFromGesture();
+        }
+      });
+  }, [mode, scrollY, closeSheetFromGesture]);
+
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
     let gestureStartX = 0;
@@ -1037,6 +1085,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         }
       });
   }, [mode, form.isDirty, screenWidth, closeSheetFromGesture]);
+
+  // Compose gestures - both can work simultaneously
+  const composedGesture = useMemo(() => {
+    return Gesture.Simultaneous(momentumDismissGesture, edgeSwipeGesture);
+  }, [momentumDismissGesture, edgeSwipeGesture]);
 
   // Define edit mode handlers before menuOptions to prevent stale closure
   const enterEditMode = useCallback(async () => {
@@ -1651,6 +1704,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const handleSheetChange = useCallback((index) => {
     setCurrentSnapIndex(index);
     useTreeStore.setState({ profileSheetIndex: index });
+
+    // Haptic feedback on snap point change (excluding close)
+    if (index >= 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
     if (index === -1) {
       onClose?.();
     }
@@ -1678,7 +1737,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       enablePanDownToClose={mode !== 'edit'}
       enableContentPanningGesture={mode !== 'edit'}
       enableHandlePanningGesture={true}
-      activeOffsetY={mode === 'edit' ? [-20, 20] : [-1, 10]}
+      activeOffsetY={mode === 'edit' ? [-20, 20] : [-5, 5]}
+      animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
       handleComponent={handleComponent}
       animatedPosition={animatedPosition}
@@ -1711,6 +1771,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           onNavigateToProfile={onNavigateToProfile}
           accessMode={accessMode}
           scrollY={scrollY}
+          scrollVelocityY={scrollVelocityY}
           scrollRef={viewScrollRef}
           canEdit={canEdit}
           refreshing={refreshing}
@@ -1739,7 +1800,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   return (
     <>
       {mode === 'view' ? (
-        <GestureDetector gesture={edgeSwipeGesture}>
+        <GestureDetector gesture={composedGesture}>
           {bottomSheetContent}
         </GestureDetector>
       ) : (

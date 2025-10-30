@@ -80,12 +80,6 @@ export interface ImageNodeProps {
   // Global photo visibility toggle
   showPhotos?: boolean;
 
-  // Photo cropping (normalized 0.0-1.0, optional)
-  crop_top?: number | null;
-  crop_bottom?: number | null;
-  crop_left?: number | null;
-  crop_right?: number | null;
-
   // Visual styling for deceased people (grayscale photos)
   isDeceased?: boolean;
 
@@ -385,10 +379,6 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     nodeId,
     selectBucket,
     showPhotos = true,
-    crop_top,
-    crop_bottom,
-    crop_left,
-    crop_right,
     isDeceased = false,
     useBatchedSkiaImage,
   }) => {
@@ -398,10 +388,10 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const previousImageRef = React.useRef<any>(null); // Track previous image for morph transitions
     const blurhashImageRef = React.useRef<any>(null); // BlurHash Skia Image
 
-    // Normalize crop values for backwards compatibility (handles NULL/undefined)
+    // No cropping (file-based system uses photo_url_cropped, not coordinate cropping)
     const normalizedCrop = React.useMemo(
-      () => normalizeCropValues({ crop_top, crop_bottom, crop_left, crop_right }),
-      [crop_top, crop_bottom, crop_left, crop_right]
+      () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+      []
     );
 
     // Determine if image should load

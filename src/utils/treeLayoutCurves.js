@@ -7,6 +7,7 @@
  */
 
 import { hierarchy, tree } from "d3-hierarchy";
+import { STANDARD_NODE, ROOT_NODE } from "../components/TreeView/rendering/nodeConstants";
 
 /**
  * Calculate D3 tidy tree layout with EXACT D3 code
@@ -97,18 +98,50 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   }
 
   // === ADAPTATION 3: Convert to app format (nodes + connections) ===
-  // Use D3's original coordinates (no swap needed - D3 tree() handles orientation)
-  // With nodeSize([small_dx, large_dy]), D3 naturally creates horizontal layout:
-  // - d.x (breadth) = vertical axis (siblings spread up/down)
-  // - d.y (depth) = horizontal axis (tree grows left-to-right)
+  // Keep D3's coordinate system: x = horizontal breadth, y = vertical depth.
+  // Apply same visual spacing adjustments used by the straight layout so both
+  // modes share identical node anchoring.
+  // Step 1: Root spacing (visual gap at top)
+  root.each((d) => {
+    const isRoot = d.depth === 0 && !d.data.father_id;
+    if (isRoot) {
+      d.y -= 80;
+    }
+  });
+
+  // Step 2: Top alignment per generation (align node tops instead of centers)
+  const depthGroups = new Map();
+  root.each((d) => {
+    if (!depthGroups.has(d.depth)) {
+      depthGroups.set(d.depth, []);
+    }
+    depthGroups.get(d.depth).push(d);
+  });
+
+  depthGroups.forEach((nodesAtDepth, depth) => {
+    const minHeight = Math.min(
+      ...nodesAtDepth.map((node) => {
+        const isRoot = depth === 0 && !node.data.father_id;
+        return isRoot ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+      })
+    );
+
+    nodesAtDepth.forEach((node) => {
+      const isRoot = depth === 0 && !node.data.father_id;
+      const nodeHeight = isRoot ? ROOT_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+      const offset = (nodeHeight - minHeight) / 2;
+      node.y += offset;
+    });
+  });
+
   const nodes = [];
   const connections = [];
 
   root.each((d) => {
     nodes.push({
       ...d.data,
-      x: d.y,  // Swap: D3 depth becomes horizontal position
-      y: d.x,  // Swap: D3 breadth becomes vertical position
+      x: d.x,
+      y: d.y,
       depth: d.depth,
     });
   });
@@ -122,8 +155,8 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
       if (!parentGroups.has(parentId)) {
         parentGroups.set(parentId, {
           parent: {
-            x: d.parent.y,  // Swap: D3 depth becomes horizontal position
-            y: d.parent.x,  // Swap: D3 breadth becomes vertical position
+            x: d.parent.x,
+            y: d.parent.y,
             id: parentId,
             photo_url: d.parent.data.photo_url,
             father_id: d.parent.data.father_id,
@@ -132,8 +165,8 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
         });
       }
       parentGroups.get(parentId).children.push({
-        x: d.y,  // Swap: D3 depth becomes horizontal position
-        y: d.x,  // Swap: D3 breadth becomes vertical position
+        x: d.x,
+        y: d.y,
         id: d.data.id,
         photo_url: d.data.photo_url,
         father_id: d.data.father_id,
