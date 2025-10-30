@@ -4,6 +4,7 @@ import {
   TextInput,
   Text,
   Pressable,
+  TouchableOpacity,
   Keyboard,
   Animated,
   Platform,
@@ -21,10 +22,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
+import { useNetworkGuard } from "../hooks/useNetworkGuard";
 import useDynamicTypography from "../hooks/useDynamicTypography";
 import SearchResultCard from "./search/SearchResultCard";
+import tokens from "./ui/tokens";
 
-const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
+const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], style }) => {
   const [query, setQuery] = useState("");
   const { height: windowHeight } = useWindowDimensions();
   const resultsMaxHeight = Math.min(windowHeight * 0.55, 420);
@@ -35,10 +38,34 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const { isOffline } = useNetworkGuard();
   const inputRef = useRef(null);
   const getTypography = useDynamicTypography();
   const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
   const fontFamilyArabic = Platform.OS === "ios" ? "SF Arabic" : "Roboto";
+
+  // Navigation pills data extraction
+  const navigationData = useMemo(() => {
+    if (!nodes || nodes.length === 0 || !onNavigate) {
+      return { rootNode: null, g2Branches: [], hasData: false };
+    }
+
+    // Find root node (generation 1, no father_id)
+    const rootNode = nodes.find(n => !n.father_id && n.generation === 1);
+
+    // Find main G2 branches (generation 2 with children, sorted by sibling order)
+    const g2Branches = nodes
+      .filter(n => n.generation === 2 && (n._hasChildren || hasDescendants(n.id, nodes)))
+      .sort((a, b) => (a.sibling_order || 0) - (b.sibling_order || 0))
+      .map(node => ({
+        id: node.id,
+        name: extractFirstName(node.name),
+        fullName: node.name
+      }));
+
+    const hasData = rootNode || g2Branches.length > 0;
+    return { rootNode, g2Branches, hasData };
+  }, [nodes, onNavigate]);
 
   // Get profile sheet state from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -120,9 +147,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   );
 
   // Use animated reaction to watch profileSheetProgress and update opacity
-  // Note: profileSheetProgress (shared value) not in dependency array.
-  // Per Reanimated docs, dependencies only needed without Babel plugin.
-  // Worklet tracks .value changes internally.
+  // ✅ FIX (Oct 28, 2025): Added profileSheetProgress to deps for Reanimated 4.x compatibility
+  // Reanimated 4.x requires all variables accessed in worklet to be in dependency array
+  // Previous comment was incorrect - Babel plugin does NOT auto-capture outer scope variables
   useAnimatedReaction(
     () => {
       "worklet";
@@ -149,7 +176,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       // Always call the update function, let it handle the check
       runOnJS(updateOpacity)(result.opacity, result.progress);
     },
-    [],
+    [profileSheetProgress],
   );
 
   // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)
@@ -231,6 +258,14 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       if (!searchText || searchText.length < 1) {
         setResults([]);
         setShowResults(false);
+        return;
+      }
+
+      // NETWORK CHECK: Show error if offline
+      if (isOffline) {
+        setResults([]);
+        setShowResults(false);
+        console.log('Search not available - user is offline');
         return;
       }
 
@@ -413,6 +448,14 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     }
   }, [onClearHighlight]);
 
+  // Navigation pills handler
+  const handlePillPress = useCallback((nodeId, nodeName) => {
+    if (onNavigate) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onNavigate(nodeId);
+    }
+  }, [onNavigate]);
+
   const handleFocus = () => {
     setIsFocused(true);
     // Subtle press animation like Google Maps
@@ -503,7 +546,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         >
           <Animated.View
             style={{
-              opacity: isAdminMode && !selectedPersonId ? 1 : searchBarOpacity,
+              opacity: searchBarOpacity,
             }}
           >
             <Pressable
@@ -533,6 +576,8 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 returnKeyType="search"
                 textAlign="right"
                 multiline={false}
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 allowFontScaling
               />
 
@@ -555,6 +600,55 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 </Animated.View>
               )}
             </Pressable>
+
+            {/* Navigation Pills - INSIDE opacity wrapper for synchronization */}
+            {navigationData.hasData && (
+              <View style={styles.pillsContainer}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pillsContent}
+                  style={styles.pillsScrollView}
+                >
+                  {/* Root Node Pill */}
+                  {navigationData.rootNode && (
+                    <TouchableOpacity
+                      style={[styles.pill, styles.rootPill]}
+                      onPress={() => handlePillPress(navigationData.rootNode.id, getRootDisplayName(navigationData.rootNode))}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
+                    >
+                      <Text style={[styles.pillText, styles.rootPillText]}>
+                        {getRootDisplayName(navigationData.rootNode)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Divider */}
+                  {navigationData.rootNode && navigationData.g2Branches.length > 0 && (
+                    <View style={styles.pillDivider} />
+                  )}
+
+                  {/* G2 Branch Pills */}
+                  {navigationData.g2Branches.map((branch) => (
+                    <TouchableOpacity
+                      key={branch.id}
+                      style={[styles.pill, styles.branchPill]}
+                      onPress={() => handlePillPress(branch.id, branch.name)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
+                    >
+                      <Text style={[styles.pillText, styles.branchPillText]} numberOfLines={1}>
+                        {branch.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
           </Animated.View>
         </Animated.View>
 
@@ -592,6 +686,31 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         )}
       </View>
     </>
+  );
+};
+
+// Helper function to get root node display name
+const getRootDisplayName = (rootNode) => {
+  if (!rootNode || !rootNode.name) {
+    return 'الجذر';
+  }
+  
+  // Use hardcoded name as requested by user
+  return "سليمان (ابو القفارات)";
+};
+
+// Helper function to extract first name from full Arabic name
+const extractFirstName = (fullName) => {
+  if (!fullName) return '';
+  // Split by space and take the first part
+  return fullName.trim().split(' ')[0];
+};
+
+// Helper function to check if a node has descendants
+const hasDescendants = (nodeId, nodes) => {
+  return nodes.some(node => 
+    node.father_id === nodeId || 
+    node.mother_id === nodeId
   );
 };
 
@@ -672,6 +791,63 @@ const styles = StyleSheet.create({
   },
   resultsContentWrapper: {
     paddingVertical: 4,
+  },
+  // Navigation Pills styles
+  pillsContainer: {
+    marginTop: 8,
+  },
+  pillsScrollView: {
+    flexGrow: 0,
+  },
+  pillsContent: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    gap: 8,
+  },
+  pill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: tokens.radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 64,
+    minHeight: 32,
+    
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  rootPill: {
+    backgroundColor: tokens.colors.najdi.primary,
+    minWidth: 120,  // Allow more width for full Arabic name
+    maxWidth: 220,  // Reasonable max width for long names
+  },
+  branchPill: {
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container,
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'SF Arabic',
+    textAlign: 'center',
+  },
+  rootPillText: {
+    color: tokens.colors.surface,
+  },
+  branchPillText: {
+    color: tokens.colors.najdi.text,
+  },
+  pillDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: `${tokens.colors.najdi.textMuted}30`,
+    marginHorizontal: 4,
   },
 });
 
