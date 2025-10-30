@@ -1,6 +1,7 @@
 import "./src/utils/suppressWarnings"; // Suppress known warnings - must be first
 import "./global.css"; // Import NativeWind styles
 import { I18nManager, NativeModules, Platform } from "react-native";
+import ErrorUtils from "react-native/Libraries/Core/ErrorUtils";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
 
@@ -15,6 +16,18 @@ if (Platform.OS === "ios") {
     NativeModules.RCTI18nUtil.forceRTL(true);
   }
 }
+
+const defaultHandler = ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  try {
+    console.error("[GLOBAL_ERROR]", error?.message, error?.stack);
+  } catch (loggingError) {
+    // ignore logging failure
+  }
+  if (typeof defaultHandler === "function") {
+    defaultHandler(error, isFatal);
+  }
+});
 
 // Import expo-router entry point
 import "expo-router/entry";

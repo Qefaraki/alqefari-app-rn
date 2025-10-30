@@ -10,7 +10,6 @@ import {
   Alert,
   Text,
   StyleSheet,
-  Dimensions,
   Platform,
   RefreshControl,
 } from 'react-native';
@@ -22,7 +21,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
-  BottomSheetView,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -652,7 +650,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   });
 
   // Shared values for scroll tracking and sheet animation
-  const animatedPosition = useSharedValue(0);
   // ✅ FIX #1: Proper cleanup on unmount to prevent memory leaks
   useEffect(() => {
     isMountedRef.current = true;
@@ -1677,7 +1674,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
       handleComponent={handleComponent}
-      animatedPosition={animatedPosition}
       animateOnMount={true}
       keyboardBehavior="fillParent"
       android_keyboardInputMode="adjustResize"

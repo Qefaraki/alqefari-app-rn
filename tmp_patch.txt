@@ -1,0 +1,34 @@
+*** Begin Patch
+*** Add File: src/components/TreeView/rendering/saduGlyphs.ts
++import type { ImageSource } from "react-native";
++
++const glyphSources = [
++  require("../../../../assets/sadu_patterns/icons_barez/71.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/75.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/77.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/81.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/85.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/91.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/93.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/95.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/97.png"),
++  require("../../../../assets/sadu_patterns/icons_barez/100.png"),
++] as const satisfies ImageSource[];
++
++export function getSaduGlyphSource(key: string | null | undefined): ImageSource {
++  if (!key) {
++    return glyphSources[0];
++  }
++
++  let hash = 0;
++  for (let i = 0; i < key.length; i += 1) {
++    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
++  }
++
++  const index = hash % glyphSources.length;
++  return glyphSources[index];
++}
++
++export const SADU_GLYPH_COUNT = glyphSources.length;
++
+*** End Patch
