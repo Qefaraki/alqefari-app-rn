@@ -28,6 +28,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import PagerView from 'react-native-pager-view';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -257,67 +258,114 @@ const EditModeContent = React.memo(({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Sticky Tabs */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
+      {/* Visual-only Tab Indicators (not clickable) */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, pointerEvents: 'none' }}>
         <SegmentedControl
           options={enhancedTabs}
           value={activeTab}
-          onChange={handleTabChange}
+          onChange={() => {}} // No-op - not interactive
         />
       </View>
 
-      {/* Scrollable Content */}
-      <BottomSheetScrollView
+      {/* Horizontal Pager for Swipeable Pages */}
+      <PagerView
         style={{ flex: 1 }}
-        ref={scrollRef}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 4,
-          paddingBottom: insets.bottom + 80,
-          gap: 20,
+        initialPage={0}
+        onPageSelected={(e) => {
+          const pageIndex = e.nativeEvent.position;
+          const tabIds = ['general', 'details', 'family', 'contact'];
+          setActiveTab(tabIds[pageIndex]);
         }}
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="interactive"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
       >
-        {/* Lazy load tabs - only render the active one */}
-        {activeTab === 'general' && (
-          <TabGeneral
-            form={form}
-            updateField={form.updateField}
-            onCropPress={handleCropPress}
-            person={person}
-            userProfile={userProfile}
-            accessMode={accessMode}
-          />
-        )}
-        {activeTab === 'details' && (
-          <TabDetails form={form} updateField={form.updateField} />
-        )}
-        {activeTab === 'family' && (
-          <TabFamily
-            person={person}
-            accessMode={accessMode}
-            onDataChanged={() => {
-              // Reload marriages data in parent
-              if (person?.id) {
-                profilesService
-                  .getPersonMarriages(person.id)
-                  .then((data) => setMarriages(data || []))
-                  .catch((err) => console.warn('Failed to reload marriages:', err));
-              }
+        {/* Page 1: General */}
+        <View key="general" style={{ flex: 1 }}>
+          <BottomSheetScrollView
+            ref={scrollRef}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: insets.bottom + 80,
+              gap: 20,
             }}
-            onNavigateToProfile={onNavigateToProfile}
-          />
-        )}
-        {activeTab === 'contact' && (
-          <TabContact form={form} updateField={form.updateField} />
-        )}
-      </BottomSheetScrollView>
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            scrollEventThrottle={16}
+          >
+            <TabGeneral
+              form={form}
+              updateField={form.updateField}
+              onCropPress={handleCropPress}
+              person={person}
+              userProfile={userProfile}
+              accessMode={accessMode}
+            />
+          </BottomSheetScrollView>
+        </View>
+
+        {/* Page 2: Details */}
+        <View key="details" style={{ flex: 1 }}>
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: insets.bottom + 80,
+              gap: 20,
+            }}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            scrollEventThrottle={16}
+          >
+            <TabDetails form={form} updateField={form.updateField} />
+          </BottomSheetScrollView>
+        </View>
+
+        {/* Page 3: Family */}
+        <View key="family" style={{ flex: 1 }}>
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: insets.bottom + 80,
+              gap: 20,
+            }}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            scrollEventThrottle={16}
+          >
+            <TabFamily
+              person={person}
+              accessMode={accessMode}
+              onDataChanged={() => {
+                // Reload marriages data in parent
+                if (person?.id) {
+                  profilesService
+                    .getPersonMarriages(person.id)
+                    .then((data) => setMarriages(data || []))
+                    .catch((err) => console.warn('Failed to reload marriages:', err));
+                }
+              }}
+              onNavigateToProfile={onNavigateToProfile}
+            />
+          </BottomSheetScrollView>
+        </View>
+
+        {/* Page 4: Contact */}
+        <View key="contact" style={{ flex: 1 }}>
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: insets.bottom + 80,
+              gap: 20,
+            }}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            scrollEventThrottle={16}
+          >
+            <TabContact form={form} updateField={form.updateField} />
+          </BottomSheetScrollView>
+        </View>
+      </PagerView>
     </View>
   );
 });
