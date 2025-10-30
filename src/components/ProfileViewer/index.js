@@ -1599,7 +1599,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           index={currentSnapIndex}
           snapPoints={snapPoints}
           enablePanDownToClose={mode !== 'edit'}
-          enableContentPanningGesture={true}
+          enableContentPanningGesture={mode !== 'edit'}
           enableHandlePanningGesture={true}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
