@@ -71,6 +71,9 @@ const CompactHero = ({
     return chain ? `${chain} القفاري` : '';
   }, [nodesMap, person]);
 
+  // Prefer cropped variant if available (Option A fix)
+  const photoUrl = person?.photo_url_cropped || person?.photo_url;
+
   const generationLabel = metrics?.generationLabel;
   const siblingsCount = metrics?.siblingsCount ?? person?.siblings_count ?? 0;
   const birthPlace = person?.birth_place;
@@ -101,7 +104,7 @@ const CompactHero = ({
   const hasPersonalInfo = Boolean(birthPlace) || Boolean(birthYearDisplay);
 
   const renderAvatar = () => {
-    if (!person?.photo_url) {
+    if (!photoUrl) {
       return (
         <View style={styles.avatarFallback} accessibilityElementsHidden>
           <Text style={styles.avatarInitial} numberOfLines={1}>
@@ -112,10 +115,10 @@ const CompactHero = ({
     }
 
     return (
-      <Galeria urls={[person.photo_url]}>
+      <Galeria urls={[photoUrl]}>
         <Galeria.Image index={0}>
           <Image
-            source={{ uri: person.photo_url }}
+            source={{ uri: photoUrl }}
             style={styles.avatarImage}
             resizeMode="cover"
             accessibilityIgnoresInvertColors
@@ -166,8 +169,8 @@ const CompactHero = ({
       <TouchableOpacity
         style={styles.avatarWrapper}
         accessibilityRole="imagebutton"
-        accessibilityLabel={person?.photo_url ? 'عرض الصورة الشخصية' : 'الصورة الشخصية غير متوفرة'}
-        disabled={!person?.photo_url}
+        accessibilityLabel={photoUrl ? 'عرض الصورة الشخصية' : 'الصورة الشخصية غير متوفرة'}
+        disabled={!photoUrl}
         activeOpacity={0.8}
       >
         {renderAvatar()}

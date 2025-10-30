@@ -57,16 +57,19 @@ const Hero = React.memo(({
     return chain ? `${chain} القفاري` : '';
   }, [nodesMap, person]);
 
+  // Prefer cropped variant if available (Option A fix)
+  const photoUrl = person?.photo_url_cropped || person?.photo_url;
+
   const isRTL = I18nManager.isRTL;
 
   return (
     <View style={styles.container}>
-      {person?.photo_url ? (
+      {photoUrl ? (
         <View style={styles.photoWrapper}>
-          <Galeria urls={[person.photo_url]}>
+          <Galeria urls={[photoUrl]}>
             <Galeria.Image index={0}>
               <Image
-                source={{ uri: person.photo_url }}
+                source={{ uri: photoUrl }}
                 style={styles.heroImage}
                 resizeMode="cover"
               />
@@ -104,7 +107,7 @@ const Hero = React.memo(({
               </Text>
             ) : null}
           </View>
-          {!person?.photo_url ? (
+          {!photoUrl ? (
             <HeroActions
               onMenuPress={onMenu}
               onClose={onClose}
@@ -142,7 +145,7 @@ const Hero = React.memo(({
         <MetricsRow metrics={metrics} />
       </View>
 
-      {person?.photo_url ? (
+      {photoUrl ? (
         <View
           pointerEvents="box-none"
           style={[styles.overlayControls, { top: 16 }]}

@@ -80,8 +80,9 @@ export function D3SimpleCircleRenderer({
   // Calculate deceased status for grayscale photos
   const isDeceased = node.status === 'deceased';
 
-  // Check if we should show photo
-  const hasPhoto = showPhotos && !!node.photo_url;
+  // Prefer cropped variant if available (Option A fix)
+  const photoUrl = node.photo_url_cropped || node.photo_url;
+  const hasPhoto = showPhotos && !!photoUrl;
 
   return (
     <Group>
@@ -114,7 +115,7 @@ export function D3SimpleCircleRenderer({
             y={centerY - photoSize / 2}
             width={photoSize}
             height={photoSize}
-            url={node.photo_url!}
+            url={photoUrl!}
             blurhash={node.blurhash}
             cornerRadius={photoSize / 2}
             tier={node._tier || 1}
