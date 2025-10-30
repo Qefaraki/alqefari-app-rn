@@ -1,9 +1,27 @@
 # Victory Native RTL Pattern
 
-**Status**: ✅ Complete (October 2025)
+**Status**: ✅ Complete with Critical Fixes (October 2025)
 **Purpose**: Provide RTL (Right-to-Left) support for Victory Native charts in Arabic app
 **Location**: `src/components/charts/RTLVictoryWrappers.js`
-**Last Updated**: October 28, 2025
+**Last Updated**: October 30, 2025
+
+## 🔥 Critical Fixes Applied (Oct 30, 2025)
+
+The following RTL issues have been **comprehensively fixed**:
+
+✅ **Generation Counts Graph (Worst RTL Offender)**
+- Fixed: Padding now RTL-aware (swaps left/right based on `I18nManager.isRTL`)
+- Fixed: Axis labels like "الجيل الأول" no longer cut off on right side
+- Fixed: Bar count labels properly aligned inside bars with correct textAnchor
+- Fixed: Custom gradient colors from FamilyStatistics now properly applied
+
+✅ **All Charts**
+- Fixed: Design tokens used instead of hardcoded colors (`#242121` → `tokens.colors.najdi.text`)
+- Fixed: Label style merging - parent component styles now respected
+- Fixed: Increased label offset from ±8 to ±12 for better Arabic number spacing
+- Fixed: Comprehensive inline documentation explaining each RTL adjustment
+
+**Impact**: All Victory Native charts now render perfectly in RTL mode with proper label positioning, no cutoff text, and full design system integration.
 
 ## Overview
 
@@ -409,6 +427,93 @@ Add usage example and any RTL-specific adjustments to this documentation.
 
 ## Troubleshooting
 
+### Problem: Generation counts labels cut off on right side (FIXED Oct 30, 2025)
+
+**Cause**: Hardcoded padding that wasn't RTL-aware. The wrapper had `left: 120, right: 40` which is backwards for RTL (axis labels should be on the right with 120px padding).
+
+**Fix Applied**: ✅ Padding now swaps based on RTL state
+```javascript
+// Before (WRONG - caused label cutoff)
+padding={{ top: 20, bottom: 40, left: 120, right: 40 }}
+
+// After (CORRECT - RTL-aware)
+padding={{
+  top: 20,
+  bottom: 40,
+  left: isRTL ? 40 : 120,   // Less on left in RTL
+  right: isRTL ? 120 : 40   // More on right in RTL
+}}
+```
+
+**Impact**: Generation labels like "الجيل الأول" now fully visible in RTL mode
+
+---
+
+### Problem: Bar count labels misaligned inside bars (FIXED Oct 30, 2025)
+
+**Cause**: Missing `textAnchor` property and insufficient `dx` offset for Arabic numbers
+
+**Fix Applied**: ✅ Added textAnchor and increased offset
+```javascript
+// Before (WRONG - labels floated)
+<VictoryLabel dx={isRTL ? -8 : 8} />
+
+// After (CORRECT - proper anchor and spacing)
+<VictoryLabel
+  dx={isRTL ? -12 : 12}
+  textAnchor={isRTL ? 'end' : 'start'}
+/>
+```
+
+**Impact**: Count numbers (٥، ١٠، ١٥) now properly aligned inside bars
+
+---
+
+### Problem: Custom label styles ignored (FIXED Oct 30, 2025)
+
+**Cause**: `RTLVictoryBar` created a custom `labelComponent` that didn't merge passed-in styles from `barProps.style.labels`
+
+**Fix Applied**: ✅ Proper style merging
+```javascript
+// Before (WRONG - ignored passed styles)
+style={{
+  fontSize: 13,
+  fontFamily: 'SFArabic-Semibold',
+  fill: '#242121',
+}}
+
+// After (CORRECT - merges parent styles)
+const labelStyles = barProps?.style?.labels || {};
+// ...
+style={{
+  fontSize: 13,
+  fontFamily: 'SFArabic-Semibold',
+  fill: tokens.colors.najdi.text,
+  ...labelStyles,  // Merge passed-in styles
+}}
+```
+
+**Impact**: FamilyStatistics gradient colors now properly applied to bar labels
+
+---
+
+### Problem: Hardcoded colors don't match design system (FIXED Oct 30, 2025)
+
+**Cause**: Both wrappers used `fill: '#242121'` instead of design tokens
+
+**Fix Applied**: ✅ Using design tokens
+```javascript
+// Before (WRONG - hardcoded color)
+fill: '#242121',
+
+// After (CORRECT - design token)
+fill: tokens.colors.najdi.text,
+```
+
+**Impact**: Charts automatically adapt to design system changes
+
+---
+
 ### Problem: Labels appear on wrong side
 
 **Cause**: Using `VictoryPie` directly instead of `RTLVictoryPie`
@@ -422,13 +527,13 @@ import { RTLVictoryPie } from '../charts/RTLVictoryWrappers';
 
 ### Problem: Text is cut off
 
-**Cause**: Insufficient padding for Arabic text
+**Cause**: Insufficient padding for Arabic text (should now be automatically handled by wrapper)
 
-**Fix**: Increase padding in chart props
+**Fix**: The wrapper now handles this automatically. If you need more padding, you can override:
 ```javascript
 <RTLVictoryBar
-  padding={{ top: 20, bottom: 40, left: 120, right: 60 }}
-  // Increase left padding for longer Arabic labels
+  padding={{ top: 20, bottom: 40, left: 140, right: 50 }}
+  // Override wrapper defaults if needed
 />
 ```
 
@@ -446,22 +551,6 @@ import { RTLVictoryPie } from '../charts/RTLVictoryWrappers';
     angle: -45,   // Rotate labels
   }}
 />
-```
-
----
-
-### Problem: Colors don't match design system
-
-**Cause**: Hardcoded colors instead of using tokens
-
-**Fix**: Use design system tokens
-```javascript
-import tokens from '../ui/tokens';
-
-colorScale={[
-  tokens.colors.najdi.primary,
-  tokens.colors.najdi.secondary,
-]}
 ```
 
 ---
