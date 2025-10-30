@@ -21,12 +21,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
-import { useNetworkGuard } from "../hooks/useNetworkGuard";
 import useDynamicTypography from "../hooks/useDynamicTypography";
 import SearchResultCard from "./search/SearchResultCard";
-import tokens from "./ui/tokens";
 
-const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], style }) => {
+const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [query, setQuery] = useState("");
   const { height: windowHeight } = useWindowDimensions();
   const resultsMaxHeight = Math.min(windowHeight * 0.55, 420);
@@ -35,37 +33,12 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [activePillId, setActivePillId] = useState(null);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const { isOffline } = useNetworkGuard();
   const inputRef = useRef(null);
   const getTypography = useDynamicTypography();
   const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
   const fontFamilyArabic = Platform.OS === "ios" ? "SF Arabic" : "Roboto";
-
-  // Navigation pills data extraction
-  const navigationData = useMemo(() => {
-    if (!nodes || nodes.length === 0 || !onNavigate) {
-      return { rootNode: null, g2Branches: [], hasData: false };
-    }
-
-    // Find root node (generation 1, no father_id)
-    const rootNode = nodes.find(n => !n.father_id && n.generation === 1);
-
-    // Find main G2 branches (generation 2 with children, sorted by sibling order)
-    const g2Branches = nodes
-      .filter(n => n.generation === 2 && (n._hasChildren || hasDescendants(n.id, nodes)))
-      .sort((a, b) => (a.sibling_order || 0) - (b.sibling_order || 0))
-      .map(node => ({
-        id: node.id,
-        name: extractFirstName(node.name),
-        fullName: node.name
-      }));
-
-    const hasData = rootNode || g2Branches.length > 0;
-    return { rootNode, g2Branches, hasData };
-  }, [nodes, onNavigate]);
 
   // Get profile sheet state from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -147,9 +120,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
   );
 
   // Use animated reaction to watch profileSheetProgress and update opacity
-  // ✅ FIX (Oct 28, 2025): Added profileSheetProgress to deps for Reanimated 4.x compatibility
-  // Reanimated 4.x requires all variables accessed in worklet to be in dependency array
-  // Previous comment was incorrect - Babel plugin does NOT auto-capture outer scope variables
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => {
       "worklet";
@@ -176,7 +149,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
       // Always call the update function, let it handle the check
       runOnJS(updateOpacity)(result.opacity, result.progress);
     },
-    [profileSheetProgress],
+    [],
   );
 
   // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)
@@ -261,14 +234,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         return;
       }
 
-      // NETWORK CHECK: Show error if offline
-      if (isOffline) {
-        setResults([]);
-        setShowResults(false);
-        console.log('Search not available - user is offline');
-        return;
-      }
-
       try {
         // Import enhanced search service
         const enhancedSearchService =
@@ -280,7 +245,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
           .split(/\s+/)
           .filter((name) => name.length > 0);
 
-        console.log("🔍 Searching for:", names, "| Min length:", names.length > 0 ? Math.min(...names.map(n => n.length)) : 0);
 
         // Use search service (uses search_name_chain RPC with partial matching)
         const { data, error } =
@@ -289,14 +253,10 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
           });
 
         if (error) {
-          console.error("❌ Search error:", error);
-          console.error("Error details:", JSON.stringify(error, null, 2));
           setResults([]);
           setShowResults(false);
         } else {
-          console.log("✅ Search results:", data?.length || 0, "items");
           if (data && data.length > 0) {
-            console.log("First result:", {
               name: data[0].name,
               name_chain: data[0].name_chain,
               hasTitle: !!data[0].professional_title
@@ -329,7 +289,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
           }
         }
       } catch (err) {
-        console.error("Search exception:", err);
         setResults([]);
         setShowResults(false);
       }
@@ -344,20 +303,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         fontWeight: "400",
       }),
     [getTypography, fontFamilyBase],
-  );
-
-  const pillTypography = useMemo(
-    () =>
-      getTypography("subheadline", {
-        fontWeight: "600",
-        textAlign: "center",
-      }),
-    [getTypography],
-  );
-
-  const pillHitSlop = useMemo(
-    () => ({ top: 6, bottom: 6, left: 6, right: 6 }),
-    [],
   );
 
   const dynamicInputStyle = useMemo(() => {
@@ -462,27 +407,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
     }
   }, [onClearHighlight]);
 
-  // Navigation pills handler
-  const handlePillPress = useCallback(
-    (nodeId) => {
-      if (!nodeId) {
-        return;
-      }
-
-      const didChange = nodeId !== activePillId;
-
-      if (didChange) {
-        setActivePillId(nodeId);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      if (onNavigate) {
-        onNavigate(nodeId);
-      }
-    },
-    [activePillId, onNavigate],
-  );
-
   const handleFocus = () => {
     setIsFocused(true);
     // Subtle press animation like Google Maps
@@ -531,28 +455,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
     };
   }, [query]);
 
-  useEffect(() => {
-    if (!navigationData.hasData) {
-      return;
-    }
-
-    if (selectedPersonId) {
-      const isRoot = navigationData.rootNode?.id === selectedPersonId;
-      const matchingBranch = navigationData.g2Branches.find(
-        (branch) => branch.id === selectedPersonId,
-      );
-
-      if ((isRoot || matchingBranch) && activePillId !== selectedPersonId) {
-        setActivePillId(selectedPersonId);
-      }
-      return;
-    }
-
-    if (!activePillId && navigationData.rootNode) {
-      setActivePillId(navigationData.rootNode.id);
-    }
-  }, [activePillId, navigationData.hasData, navigationData.rootNode, navigationData.g2Branches, selectedPersonId]);
-
   return (
     <>
       <Animated.View
@@ -595,7 +497,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         >
           <Animated.View
             style={{
-              opacity: searchBarOpacity,
+              opacity: isAdminMode && !selectedPersonId ? 1 : searchBarOpacity,
             }}
           >
             <Pressable
@@ -649,95 +551,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
                 </Animated.View>
               )}
             </Pressable>
-
-            {/* Navigation Pills - INSIDE opacity wrapper for synchronization */}
-            {navigationData.hasData && (
-              <View style={styles.pillsContainer}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.pillsContent}
-                  style={styles.pillsScrollView}
-                  decelerationRate="fast"
-                >
-                  {/* Root Node Pill */}
-                  {navigationData.rootNode && (
-                    <Pressable
-                      onPress={() => handlePillPress(navigationData.rootNode.id)}
-                      hitSlop={pillHitSlop}
-                      accessibilityRole="button"
-                      accessibilityLabel={`الانتقال إلى ${navigationData.rootNode.name}`}
-                      accessibilityState={{ selected: activePillId === navigationData.rootNode.id }}
-                      style={({ pressed }) => [
-                        styles.pill,
-                        styles.rootPill,
-                        activePillId === navigationData.rootNode.id
-                          ? styles.pillSelected
-                          : styles.rootPillResting,
-                        pressed && styles.pillPressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          pillTypography,
-                          styles.pillText,
-                          { fontFamily: fontFamilyArabic },
-                          activePillId === navigationData.rootNode.id
-                            ? styles.pillTextSelected
-                            : styles.rootPillTextDefault,
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        allowFontScaling
-                      >
-                        {getRootDisplayName(navigationData.rootNode)}
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  {/* Divider */}
-                  {navigationData.rootNode && navigationData.g2Branches.length > 0 && (
-                    <View style={styles.pillDivider} />
-                  )}
-
-                  {/* G2 Branch Pills */}
-                  {navigationData.g2Branches.map((branch) => {
-                    const isSelected = activePillId === branch.id;
-                    return (
-                      <Pressable
-                        key={branch.id}
-                        onPress={() => handlePillPress(branch.id)}
-                        hitSlop={pillHitSlop}
-                        accessibilityRole="button"
-                        accessibilityLabel={`الانتقال إلى فرع ${branch.fullName}`}
-                        accessibilityState={{ selected: isSelected }}
-                        style={({ pressed }) => [
-                          styles.pill,
-                          styles.branchPill,
-                          isSelected ? styles.pillSelected : styles.pillOutline,
-                          pressed && styles.pillPressed,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            pillTypography,
-                            styles.pillText,
-                            { fontFamily: fontFamilyArabic },
-                            isSelected ? styles.pillTextSelected : styles.pillTextDefault,
-                          ]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                          allowFontScaling
-                        >
-                          {branch.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
           </Animated.View>
         </Animated.View>
 
@@ -775,31 +588,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, onNavigate, nodes = [], s
         )}
       </View>
     </>
-  );
-};
-
-// Helper function to get root node display name
-const getRootDisplayName = (rootNode) => {
-  if (!rootNode || !rootNode.name) {
-    return 'الجذر';
-  }
-  
-  // Use hardcoded name as requested by user
-  return "سليمان (ابو القفارات)";
-};
-
-// Helper function to extract first name from full Arabic name
-const extractFirstName = (fullName) => {
-  if (!fullName) return '';
-  // Split by space and take the first part
-  return fullName.trim().split(' ')[0];
-};
-
-// Helper function to check if a node has descendants
-const hasDescendants = (nodeId, nodes) => {
-  return nodes.some(node => 
-    node.father_id === nodeId || 
-    node.mother_id === nodeId
   );
 };
 
@@ -880,81 +668,6 @@ const styles = StyleSheet.create({
   },
   resultsContentWrapper: {
     paddingVertical: 4,
-  },
-  // Navigation Pills styles
-  pillsContainer: {
-    marginTop: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.xs,
-  },
-  pillsScrollView: {
-    flexGrow: 0,
-  },
-  pillsContent: {
-    alignItems: 'center',
-    paddingVertical: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.md,
-    gap: tokens.spacing.xs,
-  },
-  pill: {
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 72,
-    minHeight: tokens.touchTarget.minimum,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container,
-    backgroundColor: tokens.colors.surface,
-    flexShrink: 1,
-    maxWidth: 240,
-  },
-  pillOutline: {
-    backgroundColor: tokens.colors.surface,
-    borderColor: tokens.colors.najdi.container,
-  },
-  pillSelected: {
-    backgroundColor: tokens.colors.najdi.primary,
-    borderColor: tokens.colors.najdi.primary,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  pillPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.97 }],
-  },
-  rootPill: {
-    minWidth: 120,
-    borderColor: tokens.colors.najdi.primary,
-  },
-  rootPillResting: {
-    borderColor: tokens.colors.najdi.primary,
-  },
-  branchPill: {
-    minWidth: 84,
-  },
-  pillText: {
-    textAlign: 'center',
-    flexShrink: 1,
-    maxWidth: 220,
-  },
-  pillTextSelected: {
-    color: tokens.colors.surface,
-  },
-  pillTextDefault: {
-    color: tokens.colors.najdi.text,
-  },
-  rootPillTextDefault: {
-    color: tokens.colors.najdi.primary,
-  },
-  pillDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 24,
-    backgroundColor: `${tokens.colors.najdi.textMuted}30`,
-    marginHorizontal: tokens.spacing.xs,
   },
 });
 
