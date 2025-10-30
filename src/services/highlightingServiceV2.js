@@ -288,6 +288,15 @@ class HighlightingServiceV2 {
       return [];
     }
 
+    // Guard: Check if nodes have coordinates (layout calculated)
+    if (fromNode.x === undefined || fromNode.y === undefined ||
+        toNode.x === undefined || toNode.y === undefined) {
+      if (__DEV__) {
+        console.warn(`[HighlightingServiceV2] Nodes missing coordinates (layout not calculated yet)`);
+      }
+      return [];
+    }
+
     return [{
       from: fromNode.id,
       to: toNode.id,
@@ -321,6 +330,15 @@ class HighlightingServiceV2 {
 
       const parent = nodesMap.get(current.father_id);
       if (!parent) break;
+
+      // Guard: Skip segment if coordinates missing (layout not calculated yet)
+      if (current.x === undefined || current.y === undefined ||
+          parent.x === undefined || parent.y === undefined) {
+        if (__DEV__) {
+          console.warn(`[HighlightingServiceV2] Skipping segment (missing coordinates): ${current.id} → ${parent.id}`);
+        }
+        break;
+      }
 
       segments.push({
         from: current.id,
@@ -356,6 +374,12 @@ class HighlightingServiceV2 {
 
       // Apply filter if provided
       if (filter && !this._passesFilter(node, parent, filter)) return;
+
+      // Guard: Skip segment if coordinates missing (layout not calculated yet)
+      if (node.x === undefined || node.y === undefined ||
+          parent.x === undefined || parent.y === undefined) {
+        return;
+      }
 
       segments.push({
         from: node.id,
@@ -407,6 +431,12 @@ class HighlightingServiceV2 {
       // Find all children
       nodesMap.forEach(child => {
         if (child.father_id === nodeId) {
+          // Guard: Skip segment if coordinates missing (layout not calculated yet)
+          if (node.x === undefined || node.y === undefined ||
+              child.x === undefined || child.y === undefined) {
+            return;
+          }
+
           segments.push({
             from: nodeId,
             to: child.id,
