@@ -780,6 +780,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.id]);
 
+  // Snap to 100% when entering edit mode (after UI renders)
+  useEffect(() => {
+    if (mode === 'edit') {
+      // Small delay to allow edit UI to render first, then expand sheet
+      const timer = setTimeout(() => {
+        bottomSheetRef.current?.snapToIndex(2);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [mode]);
+
   useEffect(() => {
     let isCancelled = false; // Prevents race conditions on rapid profile switches
 
@@ -1112,8 +1124,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             form.reset();
             setMode('edit');
-            // Snap to 100% for edit mode
-            bottomSheetRef.current?.snapToIndex(2);
           }, 50);
           return;
         }
@@ -1128,9 +1138,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     form.reset();
     setMode('edit');
-
-    // Snap to 100% for edit mode
-    bottomSheetRef.current?.snapToIndex(2);
 
     // Start background download for instant crop opening
     if (person?.photo_url && !cachedPhotoPath) {

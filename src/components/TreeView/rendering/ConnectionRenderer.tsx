@@ -405,7 +405,7 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
   nodeHeightWithPhoto = 90,
   nodeHeightTextOnly = 35,
   lineColor = '#D1BBA360',
-  lineWidth = 1.2,
+  lineWidth = 1.5,
   maxVisibleEdges = 1000,
 }) => {
   const { elements } = renderEdgesBatched(
@@ -431,7 +431,7 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
 // Export constants for testing
 export const CONNECTION_CONSTANTS = {
   DEFAULT_LINE_COLOR: '#D1BBA360', // Camel Hair Beige 60%
-  DEFAULT_LINE_WIDTH: 1.2,
+  DEFAULT_LINE_WIDTH: 1.5,
   DEFAULT_NODE_HEIGHT_WITH_PHOTO: 90,
   DEFAULT_NODE_HEIGHT_TEXT_ONLY: 35,
   ROOT_NODE_HEIGHT: 100,

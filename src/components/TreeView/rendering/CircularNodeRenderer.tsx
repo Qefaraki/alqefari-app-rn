@@ -91,10 +91,8 @@ export function CircularNodeRenderer({
         ? CIRCULAR_NODE.G2_PHOTO_SIZE
         : CIRCULAR_NODE.PHOTO_SIZE;
 
-  const baseRingWidth = isTidyVariant ? tidyConfig.RING_WIDTH : 0;
-
   const selectionStrokeWidth = isTidyVariant
-    ? tidyConfig.RING_WIDTH
+    ? 1.2
     : isRoot
       ? CIRCULAR_NODE.ROOT_SELECTION_BORDER
       : CIRCULAR_NODE.SELECTION_BORDER;
@@ -154,88 +152,103 @@ export function CircularNodeRenderer({
     [node.name, diameter, getCachedParagraph, textX, textY, nameFontSize, isTidyVariant],
   );
 
-  const renderTidyBase = () => {
-    if (!isTidyVariant) return null;
+  const baseLayer = useMemo(() => {
+    const tidyRingWidth = 1.6;
+    const tidyGap = 1.2;
 
-    return (
-      <>
+    if (hasPhoto) {
+      if (isTidyVariant) {
+        return (
+          <Circle
+            cx={centerX}
+            cy={centerY}
+            r={Math.max(radius - 0.6, 0)}
+            color={TIDY_CIRCLE.COLORS.INNER_FILL}
+          />
+        );
+      }
+
+      return (
         <Circle
           cx={centerX}
           cy={centerY}
           r={radius}
-          style="stroke"
-          strokeWidth={baseRingWidth}
-          color={TIDY_CIRCLE.COLORS.OUTER_RING}
+          color={COLORS.NODE_BACKGROUND}
         />
-        <Circle
-          cx={centerX}
-          cy={centerY}
-          r={radius - baseRingWidth / 2}
-          color={TIDY_CIRCLE.COLORS.INNER_FILL}
-        />
-      </>
-    );
-  };
+      );
+    }
 
-  const renderSelection = () => {
-    if (!isSelected) return null;
-
-    const extraOffset = isTidyVariant ? baseRingWidth : 0;
+    if (isTidyVariant) {
+      const ringRadius = radius;
+      const fillRadius = Math.max(ringRadius - tidyRingWidth / 2 - tidyGap, 0);
+      return (
+        <>
+          <Circle
+            cx={centerX}
+            cy={centerY}
+            r={ringRadius}
+            style="stroke"
+            strokeWidth={tidyRingWidth}
+            color={TIDY_CIRCLE.COLORS.OUTER_RING}
+          />
+          {fillRadius > 0 && (
+            <Circle
+              cx={centerX}
+              cy={centerY}
+              r={fillRadius}
+              color={TIDY_CIRCLE.COLORS.OUTER_RING}
+            />
+          )}
+        </>
+      );
+    }
 
     return (
       <Circle
         cx={centerX}
         cy={centerY}
-        r={radius + extraOffset + selectionStrokeWidth}
-        style="stroke"
-        strokeWidth={selectionStrokeWidth}
-        color={COLORS.SELECTION_BORDER}
+        r={radius}
+        color={CIRCULAR_NODE.TEXT_ONLY_FILL}
       />
     );
-  };
+  }, [hasPhoto, isTidyVariant, centerX, centerY, radius]);
+
+  const tidyOuterOffset = hasPhoto ? 0.8 : 2.0;
+  const selectionRadius =
+    radius + (isTidyVariant ? tidyOuterOffset : 0) + selectionStrokeWidth;
+
+  const selectionElement = isSelected ? (
+    <Circle
+      cx={centerX}
+      cy={centerY}
+      r={selectionRadius}
+      style="stroke"
+      strokeWidth={selectionStrokeWidth}
+      color={COLORS.SELECTION_BORDER}
+    />
+  ) : null;
 
   return (
     <Group>
-      {renderTidyBase()}
-      {renderSelection()}
+      {baseLayer}
+      {selectionElement}
 
-      {hasPhoto ? (
-        /* Photo node with circular clipping */
-        <>
-          {!isTidyVariant && (
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r={radius}
-              color={COLORS.NODE_BACKGROUND}
-            />
-          )}
-
-          {/* Photo with circular clipping via cornerRadius */}
-          <ImageNode
-            x={centerX - photoSize / 2}
-            y={centerY - photoSize / 2}
-            width={photoSize}
-            height={photoSize}
-            url={node.photo_url!}
-            blurhash={node.blurhash}
-            cornerRadius={photoSize / 2}
-            tier={node._tier || 1}
-            scale={node._scale || 1}
-            nodeId={node.id}
-            selectBucket={node._selectBucket}
-            showPhotos={showPhotos}
-            isDeceased={isDeceased}
-            useBatchedSkiaImage={useBatchedSkiaImage}
-          />
-        </>
-      ) : (
-        /* Text-only node - solid fill (no initials) */
-        <Circle
-          cx={centerX}
-          cy={centerY}
-          r={isTidyVariant ? Math.max(radius - baseRingWidth, 0) : radius}
-          color={isTidyVariant ? TIDY_CIRCLE.COLORS.LEAF_FILL : CIRCULAR_NODE.TEXT_ONLY_FILL}
+      {hasPhoto && (
+        <ImageNode
+          x={centerX - photoSize / 2}
+          y={centerY - photoSize / 2}
+          width={photoSize}
+          height={photoSize}
+          url={node.photo_url!}
+          blurhash={node.blurhash}
+          cornerRadius={photoSize / 2}
+          tier={node._tier || 1}
+          scale={node._scale || 1}
+          nodeId={node.id}
+          selectBucket={node._selectBucket}
+          showPhotos={showPhotos}
+          isDeceased={isDeceased}
+          useBatchedSkiaImage={useBatchedSkiaImage}
         />
       )}
 

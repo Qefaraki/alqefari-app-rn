@@ -96,24 +96,24 @@ export const TEXT_PILL = {
 // For modern avatar-style circular node rendering
 export const CIRCULAR_NODE = {
   // Standard circular node (40px diameter)
-  DIAMETER: 40,
-  PHOTO_SIZE: 36,         // 36px photo inside 40px circle (4px border space)
+  DIAMETER: 32,
+  PHOTO_SIZE: 28,         // Updated to match smaller diameter
   NAME_HEIGHT: 24,        // Space for name text below circle
-  NAME_GAP: 6,           // Gap between circle bottom and text top
+  NAME_GAP: 5,           // Gap between circle bottom and text top
   SELECTION_BORDER: 1.5,  // Thinner than rectangular (proportional to size)
   IMAGE_BUCKET: 40,      // Use 40px image bucket for standard nodes
 
   // Root circular node (100px diameter - maintains hierarchy)
-  ROOT_DIAMETER: 100,
-  ROOT_PHOTO_SIZE: 92,    // 92px photo inside 100px circle
-  ROOT_NAME_HEIGHT: 28,
-  ROOT_SELECTION_BORDER: 2,
+  ROOT_DIAMETER: 64,
+  ROOT_PHOTO_SIZE: 58,
+  ROOT_NAME_HEIGHT: 24,
+  ROOT_SELECTION_BORDER: 1.8,
   ROOT_IMAGE_BUCKET: 120, // Better quality for prominent node
 
   // G2 parent circular node (60px diameter)
-  G2_DIAMETER: 60,
-  G2_PHOTO_SIZE: 54,      // 54px photo inside 60px circle
-  G2_NAME_HEIGHT: 24,
+  G2_DIAMETER: 42,
+  G2_PHOTO_SIZE: 36,
+  G2_NAME_HEIGHT: 20,
   G2_SELECTION_BORDER: 1.5,
   G2_IMAGE_BUCKET: 60,
 
@@ -143,28 +143,28 @@ export const D3_SIMPLE_CIRCLE = {
 // Tidy curve variant (for bezier/curves mode) - compact circles with dark ring aesthetic
 export const TIDY_CIRCLE = {
   STANDARD: {
+    DIAMETER: 28,
+    PHOTO_SIZE: 24,
+    NAME_GAP: 4,
+    NAME_HEIGHT: 16,
+    FONT_SIZE: 9,
+    RING_WIDTH: 0,
+  },
+  G2: {
     DIAMETER: 34,
     PHOTO_SIZE: 30,
     NAME_GAP: 5,
     NAME_HEIGHT: 18,
-    FONT_SIZE: 9,
-    RING_WIDTH: 1.6,
+    FONT_SIZE: 9.5,
+    RING_WIDTH: 0,
   },
-  G2: {
+  ROOT: {
     DIAMETER: 42,
     PHOTO_SIZE: 36,
     NAME_GAP: 6,
     NAME_HEIGHT: 20,
     FONT_SIZE: 10,
-    RING_WIDTH: 1.8,
-  },
-  ROOT: {
-    DIAMETER: 64,
-    PHOTO_SIZE: 56,
-    NAME_GAP: 8,
-    NAME_HEIGHT: 24,
-    FONT_SIZE: 11,
-    RING_WIDTH: 2.2,
+    RING_WIDTH: 0,
   },
   COLORS: {
     OUTER_RING: '#1E1E1F',
@@ -224,7 +224,7 @@ export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
 // Connection line styling (Najdi Sadu palette)
 export const CONNECTION_STYLES = {
   LINE_COLOR: '#D1BBA340',  // Camel Hair Beige 40%
-  LINE_WIDTH: 2,
+  LINE_WIDTH: 2.5,
   CORNER_RADIUS: 8,
 } as const;
 

@@ -39,7 +39,7 @@ export type LineStyle = typeof LINE_STYLES[keyof typeof LINE_STYLES];
  */
 export const BEZIER_CONFIG = {
   CURVE_STRENGTH: 0.40,      // Reduced from 0.50 - gentler curves
-  STROKE_WIDTH: 2,           // Elegant, subtle line width
+  STROKE_WIDTH: 2.5,         // Slightly thicker for readability
   STROKE_OPACITY: 0.6,       // Soft, not overpowering
   STROKE_COLOR: '#D1BBA3',   // Camel Hair Beige (greyish from design system)
 } as const;
