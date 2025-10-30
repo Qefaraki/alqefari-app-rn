@@ -122,8 +122,8 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
       if (!parentGroups.has(parentId)) {
         parentGroups.set(parentId, {
           parent: {
-            x: d.parent.x,  // D3 breadth coordinate
-            y: d.parent.y,  // D3 depth coordinate
+            x: d.parent.y,  // Swap: D3 depth becomes horizontal position
+            y: d.parent.x,  // Swap: D3 breadth becomes vertical position
             id: parentId,
             photo_url: d.parent.data.photo_url,
             father_id: d.parent.data.father_id,
@@ -132,8 +132,8 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
         });
       }
       parentGroups.get(parentId).children.push({
-        x: d.x,  // D3 breadth coordinate
-        y: d.y,  // D3 depth coordinate
+        x: d.y,  // Swap: D3 depth becomes horizontal position
+        y: d.x,  // Swap: D3 breadth becomes vertical position
         id: d.data.id,
         photo_url: d.data.photo_url,
         father_id: d.data.father_id,

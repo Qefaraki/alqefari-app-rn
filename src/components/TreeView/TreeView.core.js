@@ -1365,7 +1365,7 @@ const TreeViewCore = ({
     ) {
       // Determine target node (matches NavigateToRootButton logic)
       let targetNode = null;
-      const focusPersonId = linkedProfileId || profile?.id;
+      const focusPersonId = initialFocusId || linkedProfileId || profile?.id;
 
       if (focusPersonId) {
         // Try to find user's linked profile
@@ -1444,21 +1444,12 @@ const TreeViewCore = ({
     (nodeId) => {
       console.log("Attempting to navigate to node:", nodeId);
 
-      // Guard: Check if tree data is ready
-      if (!store.state.nodesMap.has(nodeId)) {
-        Alert.alert(
-          "تنبيه",
-          "جاري تحميل البيانات، يرجى الانتظار قليلاً"
-        );
-        return;
-      }
-
-      // Find the node in the current nodes array (not indices)
-      // This ensures we always use fresh coordinates
+      // Find the node in the current nodes array (structure + layout data)
+      // No guard on nodesMap - tree structure is already loaded with coordinates
       const targetNode = nodes.find((n) => n.id === nodeId);
 
       if (!targetNode) {
-        // This should be unreachable now, but keep as fallback
+        // Real guard: node doesn't exist in loaded tree
         console.warn("Node not found in current nodes:", nodeId);
         console.log("Total nodes in tree:", nodes.length);
         // Show alert if node is not loaded
@@ -1555,7 +1546,7 @@ const TreeViewCore = ({
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
-    [nodes, dimensions, highlightNode, syncTransform, store.state.nodesMap],
+    [nodes, dimensions, highlightNode, syncTransform],
   );
 
   useEffect(() => {

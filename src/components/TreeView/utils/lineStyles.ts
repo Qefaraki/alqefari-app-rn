@@ -274,9 +274,10 @@ export function generateD3CurvePaths(
   // curveBumpX creates Bézier curves with horizontal tangents (same as linkHorizontal default)
   // Creates elegant S-curves matching Observable tidy tree example
   // Connect to node centers (where nodes actually render) for perfect alignment
+  // NOTE: Coordinates already swapped in treeLayoutCurves.js, use them directly
   const linkGen = link(curveBumpX)
-    .source((d: any) => [d.source.y, d.source.x])  // [horizontal, vertical] = [node.y, node.x]
-    .target((d: any) => [d.target.y, d.target.x]); // Connect to node centers
+    .source((d: any) => [d.source.x, d.source.y])  // Use swapped coordinates from layout
+    .target((d: any) => [d.target.x, d.target.y]); // Connect to node centers
 
   // Generate curve from parent to each child
   children.forEach((child) => {
