@@ -10,7 +10,6 @@ import {
   Alert,
   Text,
   StyleSheet,
-  Animated,
   Dimensions,
   Platform,
   RefreshControl,
@@ -26,7 +25,6 @@ import BottomSheet, {
   BottomSheetView,
   TouchableOpacity,
 } from '@gorhom/bottom-sheet';
-import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -655,9 +653,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   // Shared values for scroll tracking and sheet animation
   const animatedPosition = useSharedValue(0);
-
-  const screenHeight = useMemo(() => Dimensions.get('window').height, []);
-
   // ✅ FIX #1: Proper cleanup on unmount to prevent memory leaks
   useEffect(() => {
     isMountedRef.current = true;
@@ -677,8 +672,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     person?.id,
     accessMode,
   );
-  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
-
   // Ensure profile has version field before allowing edits
   // Enriches non-enriched nodes (from structure-only progressive loading)
   useEnsureProfileEnriched(person);
@@ -990,24 +983,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       setRefreshing(false);
     }
   }, [person, mode, marriages, metrics]);
-
-  // Track sheet position and update global store progress
-  // Follows established pattern from ProfileSheet.js
-  // Guard with conditional logic inside prepare function
-  useAnimatedReaction(
-    () => {
-      // Return null if profileSheetProgress doesn't exist (guard)
-      if (!profileSheetProgress) return null;
-      return animatedPosition.value;
-    },
-    (current, previous) => {
-      'worklet';
-      // Guard: Skip if no current value or profileSheetProgress is null
-      if (!current || current === previous || !profileSheetProgress) return;
-      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-      profileSheetProgress.value = progress;
-    }
-  );
 
   const canEdit = accessMode !== 'readonly';
 
