@@ -1358,8 +1358,9 @@ const TreeViewCore = ({
         const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
 
         // Modal view needs vertical offset to account for header/profile bar (~120-150px)
+        // SUBTRACT 150px to shift viewport UP (screen Y: 0=top, positive=down)
         const verticalOffset = modalView ? 150 : 0;
-        const offsetY = (dimensions.height / 2 - adjustedY * targetScale) + verticalOffset;
+        const offsetY = (dimensions.height / 2 - adjustedY * targetScale) - verticalOffset;
 
         // INSTANT placement - NO animation
         translateX.value = offsetX;
@@ -1448,9 +1449,9 @@ const TreeViewCore = ({
       const targetX = dimensions.width / 2 - targetNode.x * targetScale;
 
       // Modal view needs vertical offset to account for header/profile bar (~120-150px)
-      // Adding 150px shifts viewport UP to show more ancestors above focus node
+      // SUBTRACT 150px to shift viewport UP (screen Y: 0=top, positive=down)
       const verticalOffset = modalView ? 150 : 0;
-      const targetY = (dimensions.height / 2 - targetNode.y * targetScale) + verticalOffset;
+      const targetY = (dimensions.height / 2 - targetNode.y * targetScale) - verticalOffset;
 
       console.log("Current scale:", currentScale, "Target scale:", targetScale);
       console.log("Navigating to:", { targetX, targetY, targetScale });
@@ -1566,6 +1567,11 @@ const TreeViewCore = ({
 
   useEffect(() => {
     if (autoHighlight && autoHighlight.type === 'SEARCH' && autoHighlight.nodeId && nodes.length > 0) {
+      // Wait for nodesMap to be populated before calculating paths (fixes "node not found" warning)
+      if (store.state.nodesMap.size === 0) {
+        return; // Skip until data loads
+      }
+
       const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
 
       if (pathData && pathData.pathNodeIds.length > 0) {
@@ -2240,7 +2246,16 @@ const TreeViewCore = ({
     // Use line styles system for unified path generation
     // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
     const currentLineStyle = lineStyle === "bezier" ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
-    
+
+    if (__DEV__) {
+      console.log('[TreeView.core] Line style routing:', {
+        lineStyle,
+        currentLineStyle,
+        isCurves: currentLineStyle === LINE_STYLES.CURVES,
+        connectionCount: connections.length
+      });
+    }
+
     // Filter connections for viewport and apply edge limit
     const limitedConnections = connections.slice(0, Math.floor(MAX_VISIBLE_EDGES / 2)); // Conservative limit
     

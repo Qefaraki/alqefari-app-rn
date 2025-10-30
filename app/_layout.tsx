@@ -61,9 +61,15 @@ function RootLayoutNav() {
   const router = useRouter();
   const lastNavigationRef = useRef<string | null>(null);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const segmentsRef = useRef(segments); // Track latest segments to avoid stale closure
 
   // Determine if we're ready to make routing decisions
   const isReady = !isLoading && hasCompletedOnboarding !== null;
+
+  // Update segmentsRef on every render (before navigation effect)
+  useEffect(() => {
+    segmentsRef.current = segments;
+  });
 
   // Initialize network monitoring and cleanup old crop cache on app start
   useEffect(() => {
@@ -153,9 +159,11 @@ function RootLayoutNav() {
 
     // Debounce navigation to prevent rapid redirects
     navigationTimeoutRef.current = setTimeout(() => {
-      const inAuthGroup = segments[0] === '(auth)';
-      const inAppGroup = segments[0] === '(app)';
-      const currentPath = segments.join('/');
+      // Read from ref to get latest segments value (avoids stale closure)
+      const currentSegments = segmentsRef.current;
+      const inAuthGroup = currentSegments[0] === '(auth)';
+      const inAppGroup = currentSegments[0] === '(app)';
+      const currentPath = currentSegments.join('/');
 
       // SIMPLE LOGIC: If authenticated but no profile → profile-linking. If profile exists → app
       // CRITICAL FIX: Force boolean values to prevent security vulnerability
@@ -203,6 +211,20 @@ function RootLayoutNav() {
           router.replace(destination);
         }
       }
+
+      // Monitoring: Track route changes for debugging
+      if (currentPath !== lastNavigationRef.current) {
+        console.log('[Navigation] Route changed:', {
+          from: lastNavigationRef.current,
+          to: currentPath,
+          authState: {
+            hasUser: !!user,
+            hasProfile: !!profile,
+            isGuest: isGuestMode,
+            isPending: isPendingApproval
+          }
+        });
+      }
     }, 100); // 100ms debounce
 
     // Cleanup timeout on unmount or deps change
@@ -212,8 +234,10 @@ function RootLayoutNav() {
       }
     };
   }, [user, profile, hasCompletedOnboarding, isGuestMode, isPendingApproval, isReady]);
-  // NOTE: segments deliberately NOT in deps - we read it synchronously but don't react to route changes
-  // Adding segments here creates circular dependency: effect changes route → segments update → effect runs again
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // NOTE: segments deliberately NOT in deps (circular dependency prevention)
+  // We read from segmentsRef.current which always has latest value (no stale closure risk)
+  // Adding segments to deps creates loop: effect → router.replace() → segments update → effect re-runs
 
   // Return slot which will render the appropriate route group
   // NetworkStatusIndicator banner shows globally when offline

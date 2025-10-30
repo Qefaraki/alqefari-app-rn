@@ -72,13 +72,21 @@ export function AuthProvider({ children }) {
         async (event, session) => {
           // Throttle rapid auth events (500ms minimum between events)
           // Defense against auth event storms causing infinite render loops
+          // EXCEPTION: Don't throttle TOKEN_REFRESHED (critical for session continuity)
           const now = Date.now();
           const EVENT_THROTTLE_MS = 500;
-          if (now - lastEventTime.current < EVENT_THROTTLE_MS) {
+          const shouldThrottle = event !== 'TOKEN_REFRESHED' &&
+                                 (now - lastEventTime.current < EVENT_THROTTLE_MS);
+
+          if (shouldThrottle) {
             console.warn('[AuthContext] Auth event throttled (too fast):', event);
             return;
           }
-          lastEventTime.current = now;
+
+          // Update timestamp for non-TOKEN_REFRESHED events
+          if (event !== 'TOKEN_REFRESHED') {
+            lastEventTime.current = now;
+          }
 
           // Prevent duplicate event processing
           const eventKey = `${event}-${session?.user?.id || 'no-user'}`;
