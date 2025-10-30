@@ -356,6 +356,7 @@ const TreeViewCore = ({
   navigationTarget = null,
   initialFocusId = null,
   autoHighlight = null,
+  modalView = false,  // For vertical offset in branch tree modal
 }) => {
   // Extract state and actions from store prop
   const { stage, minZoom, maxZoom, selectedPersonId, treeData, navigationTarget: storeNavigationTarget } = store.state;
@@ -1355,7 +1356,10 @@ const TreeViewCore = ({
         const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
         const targetScale = 1.0;
         const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
-        const offsetY = dimensions.height / 2 - adjustedY * targetScale;
+
+        // Modal view needs vertical offset to account for header/profile bar (~120-150px)
+        const verticalOffset = modalView ? 150 : 0;
+        const offsetY = (dimensions.height / 2 - adjustedY * targetScale) + verticalOffset;
 
         // INSTANT placement - NO animation
         translateX.value = offsetX;
@@ -1442,7 +1446,11 @@ const TreeViewCore = ({
       // So: targetNode.x * targetScale + translateX = width/2
       // Therefore: translateX = width/2 - targetNode.x * targetScale
       const targetX = dimensions.width / 2 - targetNode.x * targetScale;
-      const targetY = dimensions.height / 2 - targetNode.y * targetScale;
+
+      // Modal view needs vertical offset to account for header/profile bar (~120-150px)
+      // Adding 150px shifts viewport UP to show more ancestors above focus node
+      const verticalOffset = modalView ? 150 : 0;
+      const targetY = (dimensions.height / 2 - targetNode.y * targetScale) + verticalOffset;
 
       console.log("Current scale:", currentScale, "Target scale:", targetScale);
       console.log("Navigating to:", { targetX, targetY, targetScale });
