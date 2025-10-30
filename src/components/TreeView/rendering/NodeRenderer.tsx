@@ -72,6 +72,7 @@ export interface LayoutNode {
   generation: number;
   father_id: string | null;
   photo_url?: string;
+  photo_url_cropped?: string; // Cropped variant (preferred over photo_url)
   blurhash?: string; // BlurHash placeholder for progressive loading
   x: number;
   y: number;
@@ -143,7 +144,9 @@ export function calculateNodeDimensions(
   diameter?: number;
 } {
   const isRoot = !node.father_id;
-  const hasPhoto = showPhotos && !!node.photo_url;
+  // Prefer cropped variant if available
+  const photoUrl = node.photo_url_cropped || node.photo_url;
+  const hasPhoto = showPhotos && !!photoUrl;
   const isG2Parent = node.generation === 2 && hasChildren;
 
   // Circular node dimensions
@@ -439,7 +442,9 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   nodeFramesRef,
 }) => {
   const isRoot = !node.father_id;
-  const hasPhoto = showPhotos && !!node.photo_url;
+  // Prefer cropped variant if available
+  const photoUrl = node.photo_url_cropped || node.photo_url;
+  const hasPhoto = showPhotos && !!photoUrl;
   const isG2Parent = node.generation === 2 && node._hasChildren;
   const isSelected = selectedPersonId === node.id;
 
@@ -500,9 +505,9 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE, STANDARD_NODE.CORNER_RADIUS)}
 
           {/* Load and display image if available */}
-          {node.photo_url && (
+          {photoUrl && (
             <ImageNode
-              url={node.photo_url}
+              url={photoUrl}
               blurhash={node.blurhash}
               x={node.x - PHOTO_SIZE / 2}
               y={node.y - 10 - PHOTO_SIZE / 2}

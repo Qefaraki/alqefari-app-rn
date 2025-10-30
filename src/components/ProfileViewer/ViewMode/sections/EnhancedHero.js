@@ -40,7 +40,6 @@ import tokens, { useAccessibilitySize } from '../../../ui/tokens';
 import { formatNameWithTitle } from '../../../../services/professionalTitleService';
 import { useTreeStore } from '../../../../stores/useTreeStore';
 import { toArabicNumerals } from '../../../../utils/dateUtils';
-import { getCroppedImageStyle, hasCrop } from '../../../../utils/imageCropStyles';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { hero: heroTokens } = profileViewer;
@@ -256,7 +255,10 @@ const EnhancedHero = ({
   );
 
   const renderAvatar = () => {
-    if (!person?.photo_url) {
+    // Use cropped variant if available, otherwise fall back to original
+    const photoUrl = person?.photo_url_cropped || person?.photo_url;
+
+    if (!photoUrl) {
       return (
         <View style={styles.avatarFallback} accessibilityElementsHidden>
           <Text style={styles.avatarInitial} numberOfLines={1}>
@@ -266,43 +268,15 @@ const EnhancedHero = ({
       );
     }
 
-    // Apply CSS-based cropping if crop values exist
-    const shouldApplyCrop = hasCrop(person);
-    const cropStyle = shouldApplyCrop
-      ? getCroppedImageStyle(person, {
-          width: heroTokens.avatarSize,
-          height: heroTokens.avatarSize,
-        })
-      : null;
-
     return (
-      <Galeria urls={[person.photo_url]}>
+      <Galeria urls={[photoUrl]}>
         <Galeria.Image index={0}>
-          {shouldApplyCrop ? (
-            // Cropped image: Wrap in overflow container with manual positioning
-            <View
-              style={{
-                overflow: 'hidden',
-                width: heroTokens.avatarSize,
-                height: heroTokens.avatarSize,
-                borderRadius: heroTokens.avatarBorderRadius,
-              }}
-            >
-              <Image
-                source={{ uri: person.photo_url }}
-                style={cropStyle}
-                accessibilityIgnoresInvertColors
-              />
-            </View>
-          ) : (
-            // No crop: Use standard cover mode
-            <Image
-              source={{ uri: person.photo_url }}
-              style={styles.avatarImage}
-              resizeMode="cover"
-              accessibilityIgnoresInvertColors
-            />
-          )}
+          <Image
+            source={{ uri: photoUrl }}
+            style={styles.avatarImage}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+          />
         </Galeria.Image>
       </Galeria>
     );

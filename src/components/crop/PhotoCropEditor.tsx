@@ -29,25 +29,16 @@
 import React, { useEffect } from 'react';
 import { Alert } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
-import { isValidCrop, clampCropCoordinates } from '../../utils/cropUtils';
 import { downloadImageForCrop } from '../../utils/imageCacheUtil';
+import storageService from '../../services/storage';
+import { supabase } from '../../services/supabase';
 
 interface PhotoCropEditorProps {
   visible: boolean;
+  profileId: string; // Profile UUID for storage path and DB update
   photoUrl: string;
   cachedPhotoPath?: string | null; // Pre-downloaded local file:// path for instant opening
-  initialCrop?: {
-    crop_top: number;
-    crop_bottom: number;
-    crop_left: number;
-    crop_right: number;
-  };
-  onSave: (crop: {
-    crop_top: number;
-    crop_bottom: number;
-    crop_left: number;
-    crop_right: number;
-  }) => void;
+  onSave: () => void; // Called after successful upload and DB update
   onCancel: () => void;
   saving?: boolean;
 }
@@ -64,9 +55,9 @@ interface PhotoCropEditorProps {
  */
 export function PhotoCropEditor({
   visible,
+  profileId,
   photoUrl,
   cachedPhotoPath,
-  initialCrop = { crop_top: 0, crop_bottom: 0, crop_left: 0, crop_right: 0 },
   onSave,
   onCancel,
   saving = false,
@@ -118,49 +109,49 @@ export function PhotoCropEditor({
         console.log('[PhotoCrop] Crop result:', {
           width: result.width,
           height: result.height,
-          cropRect: result.cropRect,
+          path: result.path,
         });
 
-        // Extract crop coordinates from result
-        if (!result.cropRect) {
-          console.warn('[PhotoCrop] No cropRect in result, using full image');
-          onSave({ crop_top: 0, crop_bottom: 0, crop_left: 0, crop_right: 0 });
+        // Upload cropped image file to Supabase Storage
+        const croppedFileName = `${profileId}_cropped_${Date.now()}.jpg`;
+        console.log('[PhotoCrop] Uploading cropped file:', croppedFileName);
+
+        const { data: uploadData, error: uploadError } = await storageService.uploadPhoto(
+          result.path,  // Cropped image file path
+          croppedFileName,
+          'profile-photos'
+        );
+
+        if (uploadError) {
+          console.error('[PhotoCrop] Upload error:', uploadError);
+          Alert.alert('خطأ', 'فشل رفع الصورة المقصوصة. يرجى المحاولة مرة أخرى.');
+          onCancel();
           return;
         }
 
-        const { x, y, width, height } = result.cropRect;
-        const imageWidth = result.sourceWidth || result.width;
-        const imageHeight = result.sourceHeight || result.height;
+        const croppedPhotoUrl = uploadData.publicUrl;
+        console.log('[PhotoCrop] Upload successful:', croppedPhotoUrl);
 
-        console.log('[PhotoCrop] Source dimensions:', { imageWidth, imageHeight });
-        console.log('[PhotoCrop] Crop rect:', { x, y, width, height });
+        // Update profile with cropped photo URL
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            photo_url_cropped: croppedPhotoUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', profileId);
 
-        // Convert pixel coordinates to normalized 0.0-1.0 coordinates
-        const crop = {
-          crop_left: x / imageWidth,
-          crop_top: y / imageHeight,
-          crop_right: 1 - ((x + width) / imageWidth),
-          crop_bottom: 1 - ((y + height) / imageHeight),
-        };
-
-        console.log('[PhotoCrop] Normalized crop coordinates:', crop);
-
-        // Clamp coordinates to prevent floating-point edge cases
-        const clampedCrop = clampCropCoordinates(crop);
-
-        // Validate crop
-        if (!isValidCrop(clampedCrop)) {
-          Alert.alert(
-            'خطأ',
-            'حجم المنطقة المحصورة صغير جداً. يجب أن تكون المنطقة المرئية على الأقل 10% من الصورة.'
-          );
+        if (updateError) {
+          console.error('[PhotoCrop] DB update error:', updateError);
+          Alert.alert('خطأ', 'فشل حفظ الصورة المقصوصة في قاعدة البيانات.');
+          onCancel();
           return;
         }
 
-        console.log('[PhotoCrop] Final clamped crop:', clampedCrop);
+        console.log('[PhotoCrop] Profile updated successfully');
 
-        // Save crop coordinates
-        onSave(clampedCrop);
+        // Success - trigger tree reload
+        onSave();
       } catch (error: any) {
         console.error('[PhotoCrop] Crop error:', error);
 
@@ -178,7 +169,7 @@ export function PhotoCropEditor({
     };
 
     openCropUI();
-  }, [visible, photoUrl, cachedPhotoPath, onSave, onCancel, saving, initialCrop]);
+  }, [visible, profileId, photoUrl, cachedPhotoPath, onSave, onCancel, saving]);
 
   // No UI - native crop UI handles everything
   return null;

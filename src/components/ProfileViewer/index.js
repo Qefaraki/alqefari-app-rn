@@ -256,33 +256,31 @@ const EditModeContent = React.memo(({
   );
 
   return (
-    <>
-      {/* Sticky Tabs - In BottomSheetView for proper gesture handling */}
-      <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
-        <SegmentedControl
-          options={enhancedTabs}
-          value={activeTab}
-          onChange={handleTabChange}
-        />
-      </BottomSheetView>
-
-      {/* Scrollable Content */}
-      <BottomSheetScrollView
-        ref={scrollRef}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 4,
-          paddingBottom: insets.bottom + 80,
-          gap: 20,
-        }}
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="interactive"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
-      >
+    <BottomSheetScrollView
+      ref={scrollRef}
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: insets.bottom + 80,
+        gap: 20,
+      }}
+      showsVerticalScrollIndicator={false}
+      keyboardDismissMode="interactive"
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false },
+      )}
+      scrollEventThrottle={16}
+      ListHeaderComponent={
+        <View style={{ paddingHorizontal: 0, paddingTop: 8, paddingBottom: 12 }}>
+          <SegmentedControl
+            options={enhancedTabs}
+            value={activeTab}
+            onChange={handleTabChange}
+          />
+        </View>
+      }
+    >
         {/* Lazy load tabs - only render the active one */}
         {activeTab === 'general' && (
           <TabGeneral
@@ -317,7 +315,6 @@ const EditModeContent = React.memo(({
           <TabContact form={form} updateField={form.updateField} />
         )}
       </BottomSheetScrollView>
-    </>
   );
 });
 EditModeContent.displayName = 'EditModeContent';
@@ -1075,78 +1072,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [cachedPhotoPath, person?.photo_url]);
 
-  // Save crop handler with RPC integration
-  const handleSaveCrop = useCallback(async (crop) => {
-    if (!person?.id || !userProfile?.id) {
-      Alert.alert('خطأ', 'معلومات المستخدم غير متوفرة');
-      return;
-    }
-
-    // Network check before RPC call
-    const canProceed = await checkBeforeAction();
-    if (!canProceed) return;
-
-    setSavingCrop(true);
+  // Save crop handler - simplified for file-based cropping
+  // PhotoCropEditor handles upload and DB update internally
+  const handleSaveCrop = useCallback(async () => {
     try {
-      // Call admin_update_profile_crop RPC
-      const { data, error } = await supabase.rpc('admin_update_profile_crop', {
-        p_profile_id: person.id,
-        p_crop_top: crop.crop_top,
-        p_crop_bottom: crop.crop_bottom,
-        p_crop_left: crop.crop_left,
-        p_crop_right: crop.crop_right,
-        p_version: person.version ?? 1,
-        p_user_id: userProfile.id,
-      });
-
-      if (error) {
-        console.error('[PhotoCrop] RPC error:', error);
-
-        // Handle specific errors
-        if (error.message?.includes('version')) {
-          Alert.alert(
-            'تعارض في البيانات',
-            'تم تحديث الملف من قبل مستخدم آخر. يرجى إعادة فتح الملف والمحاولة مرة أخرى.',
-            [{ text: 'حسناً', onPress: () => handleRefresh() }]
-          );
-        } else if (error.message?.includes('permission')) {
-          Alert.alert('خطأ', 'ليس لديك صلاحية لتعديل هذه الصورة');
-        } else if (error.message?.includes('منطقة المحصورة صغير')) {
-          Alert.alert('خطأ', 'حجم المنطقة المحصورة صغير جداً. يرجى تحديد منطقة أكبر.');
-        } else {
-          Alert.alert('خطأ', handleSupabaseError(error));
-        }
-        return;
-      }
-
-      // Success! Update local state and tree store
-      const newVersion = data?.[0]?.new_version ?? (person.version ?? 1) + 1;
-      const updatedPerson = {
-        ...person,
-        crop_top: crop.crop_top,
-        crop_bottom: crop.crop_bottom,
-        crop_left: crop.crop_left,
-        crop_right: crop.crop_right,
-        version: newVersion,
-      };
-
-      // Update tree store (for tree rendering)
-      useTreeStore.getState().updateNode(person.id, {
-        crop_top: crop.crop_top,
-        crop_bottom: crop.crop_bottom,
-        crop_left: crop.crop_left,
-        crop_right: crop.crop_right,
-        version: newVersion,
-      });
-
-      // Update parent component via onUpdate callback
-      onUpdate?.(updatedPerson);
-
       // Invalidate structure cache (force reload on next app start)
       await invalidateStructureCache();
 
       // Invalidate QR logo cache (fire-and-forget)
       clearLogoCache(person.id).catch(console.warn);
+
+      // Reload profile to get photo_url_cropped
+      await handleRefresh();
 
       // Success feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1156,10 +1093,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     } catch (error) {
       console.error('[PhotoCrop] Unexpected error:', error);
       Alert.alert('خطأ', 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setSavingCrop(false);
     }
-  }, [person, userProfile, checkBeforeAction, handleRefresh, onUpdate]);
+  }, [person, handleRefresh]);
 
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
@@ -1692,14 +1627,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       {showCropEditor && person?.photo_url && (
         <PhotoCropEditor
           visible={showCropEditor}
+          profileId={person.id}
           photoUrl={person.photo_url}
           cachedPhotoPath={cachedPhotoPath}
-          initialCrop={{
-            crop_top: person.crop_top ?? 0,
-            crop_bottom: person.crop_bottom ?? 0,
-            crop_left: person.crop_left ?? 0,
-            crop_right: person.crop_right ?? 0,
-          }}
           onSave={handleSaveCrop}
           onCancel={() => setShowCropEditor(false)}
           saving={savingCrop}
