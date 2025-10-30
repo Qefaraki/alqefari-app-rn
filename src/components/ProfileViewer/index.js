@@ -27,7 +27,7 @@ import BottomSheet, {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, NativeViewGestureHandler } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 // Removed CompactHero - now using EnhancedHero from ViewMode/sections
@@ -259,11 +259,13 @@ const EditModeContent = React.memo(({
     <>
       {/* Sticky Tabs - Outside scroll view */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingVertical: 12 }}>
-        <SegmentedControl
-          options={enhancedTabs}
-          value={activeTab}
-          onChange={handleTabChange}
-        />
+        <NativeViewGestureHandler disallowInterruption={true}>
+          <SegmentedControl
+            options={enhancedTabs}
+            value={activeTab}
+            onChange={handleTabChange}
+          />
+        </NativeViewGestureHandler>
       </View>
 
       {/* Scrollable Content */}
@@ -445,13 +447,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       // Edit mode: Use EditHeader as the draggable handle (supports buttons + drag)
       if (mode === 'edit') {
         return (
-          <EditHeader
-            onCancel={handleCancel}
-            onSubmit={handleSubmit}
-            saving={saving}
-            canSubmit={form.isDirty}
-            accessMode={accessMode}
-          />
+          <NativeViewGestureHandler disallowInterruption={true}>
+            <EditHeader
+              onCancel={handleCancel}
+              onSubmit={handleSubmit}
+              saving={saving}
+              canSubmit={form.isDirty}
+              accessMode={accessMode}
+            />
+          </NativeViewGestureHandler>
         );
       }
 
