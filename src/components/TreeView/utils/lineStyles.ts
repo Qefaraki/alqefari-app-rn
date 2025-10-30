@@ -9,7 +9,7 @@
  */
 
 import { Skia, SkPath } from "@shopify/react-native-skia";
-import { linkHorizontal } from 'd3-shape';
+import { link, curveStepBefore } from 'd3-shape';
 import {
   calculateBusY,
   calculateParentVerticalPath,
@@ -117,6 +117,39 @@ function calculateActualNodeHeight(
     if (isRoot) return ROOT_NODE.HEIGHT;
     if (isG2Parent) return hasPhoto ? G2_NODE.HEIGHT_PHOTO : G2_NODE.HEIGHT_TEXT;
     return hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+  }
+}
+
+/**
+ * Calculate actual rendered node width based on node type and style
+ *
+ * For horizontal trees, this is critical for calculating left/right edge positions.
+ * Note: For circular nodes, width = height = diameter.
+ *
+ * @param node - Node with generation, father_id, photo_url, _hasChildren
+ * @param showPhotos - Whether photos are visible
+ * @param nodeStyle - 'rectangular' or 'circular' rendering mode
+ * @returns Actual width in pixels of the rendered node
+ */
+function calculateActualNodeWidth(
+  node: { father_id: string | null; photo_url?: string; generation?: number; _hasChildren?: boolean },
+  showPhotos: boolean,
+  nodeStyle: 'rectangular' | 'circular',
+): number {
+  const isRoot = !node.father_id;
+  const hasPhoto = showPhotos && !!node.photo_url;
+  const isG2Parent = node.generation === 2 && node._hasChildren;
+
+  if (nodeStyle === 'circular') {
+    // Circles: width = height = diameter
+    if (isRoot) return CIRCULAR_NODE.ROOT_DIAMETER;
+    if (isG2Parent) return CIRCULAR_NODE.G2_DIAMETER;
+    return CIRCULAR_NODE.DIAMETER;
+  } else {
+    // Rectangular mode - use WIDTH constants
+    if (isRoot) return ROOT_NODE.WIDTH;
+    if (isG2Parent) return hasPhoto ? G2_NODE.WIDTH_PHOTO : G2_NODE.WIDTH_TEXT;
+    return hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY;
   }
 }
 
@@ -239,26 +272,27 @@ export function generateD3CurvePaths(
 
   // Calculate actual rendered dimensions (respects rectangular vs circular mode)
   // This ensures curves connect to the ACTUAL edge position of rendered nodes
-  const parentHeight = calculateActualNodeHeight(parent, showPhotos, nodeStyle);
-  const parentRightY = parent.y + parentHeight / 2;  // Right edge in horizontal tree
+  const parentWidth = calculateActualNodeWidth(parent, showPhotos, nodeStyle);
+  const parentRightEdge = parent.y + parentWidth / 2;  // Right edge (horizontal depth position)
 
-  // D3 linkHorizontal with coordinate swap for proper horizontal tree curves
-  // Observable Plot pattern: swap x/y to convert vertical tree coords to horizontal display
-  // This creates horizontal tangent curves with automatic "elbow" vertical approach to nodes
-  const linkGen = linkHorizontal()
+  // D3 link() with curveStepBefore for elbow-style connections
+  // Creates angular "staircase" curves: horizontal → sharp vertical turn → horizontal
+  // Note: linkHorizontal() doesn't support .curve() - must use link(curve) constructor
+  const linkGen = link(curveStepBefore)  // Pass curve to constructor for elbow effect
     .x(d => d.y)  // Use Y coordinate for horizontal position (depth → left-to-right)
     .y(d => d.x); // Use X coordinate for vertical position (breadth → up-down)
 
   // Generate curve from parent right edge to each child left edge
   children.forEach((child) => {
-    const childHeight = calculateActualNodeHeight(child, showPhotos, nodeStyle);
-    const childLeftY = child.y - childHeight / 2;  // Left edge in horizontal tree
+    const childWidth = calculateActualNodeWidth(child, showPhotos, nodeStyle);
+    const childLeftEdge = child.y - childWidth / 2;  // Left edge (horizontal depth position)
 
     // Connect edges (not centers) for clean convergence with elbow-style approach
-    // linkGen will access coordinates via .x() and .y() accessors (which swap x/y)
+    // Assign horizontal coord to x field, vertical coord to y field
+    // linkGen accessors .x(d => d.y) and .y(d => d.x) will swap them for horizontal tree display
     const svgPathData = linkGen({
-      source: { x: parent.x, y: parentRightY },  // D3 reads as [parentRightY, parent.x]
-      target: { x: child.x, y: childLeftY }      // D3 reads as [childLeftY, child.x]
+      source: { x: parentRightEdge, y: parent.x },  // horizontal (depth) to x, vertical (breadth) to y
+      target: { x: childLeftEdge, y: child.x }      // horizontal (depth) to x, vertical (breadth) to y
     });
 
     // Convert SVG path to Skia path
@@ -266,6 +300,8 @@ export function generateD3CurvePaths(
       const skiaPath = Skia.Path.MakeFromSVGString(svgPathData);
       if (skiaPath) {
         paths.push(skiaPath);
+      } else if (__DEV__) {
+        console.warn('[D3 Curves] Failed to convert SVG to Skia path for child:', child.id);
       }
     }
   });

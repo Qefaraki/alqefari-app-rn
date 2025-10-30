@@ -122,42 +122,26 @@ export function PhotoCropEditor({
           return;
         }
 
-        // Strategy 2: Download-on-demand (fallback)
-        console.log('[PhotoCrop] No cached image, downloading now...');
+        // Strategy 2: Try using remote URL directly (expo-dynamic-image-crop might support it)
+        console.log('[PhotoCrop] No cached image, trying remote URL directly');
+        setLocalImagePath(photoUrl);
 
-        // Import download function (uses expo-image-manipulator, no FileSystem dependency)
-        const { downloadOptimizedImage } = await import('../../utils/imageCacheUtil');
-        const downloadedPath = await downloadOptimizedImage(photoUrl);
-
-        if (downloadedPath) {
-          console.log('[PhotoCrop] Downloaded successfully:', downloadedPath);
-          setLocalImagePath(downloadedPath);
-
-          Image.getSize(
-            downloadedPath,
-            (width, height) => {
-              setImageDimensions({ width, height });
-              setImageLoaded(true);
-              console.log('[PhotoCrop] Image loaded after download:', { width, height });
-            },
-            (error) => {
-              console.error('[PhotoCrop] Failed to load downloaded image:', error);
-              Alert.alert(
-                'خطأ',
-                'تعذر تحميل الصورة. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.'
-              );
-              onCancel();
-            }
-          );
-        } else {
-          // Download failed - show user-friendly error
-          console.error('[PhotoCrop] Download returned null');
-          Alert.alert(
-            'تعذر تحميل الصورة',
-            'لم نتمكن من تحميل الصورة للقص. يرجى:\n\n1. التحقق من اتصالك بالإنترنت\n2. المحاولة مرة أخرى\n3. إذا استمرت المشكلة، حاول إعادة فتح الملف الشخصي',
-            [{ text: 'حسناً', onPress: onCancel }]
-          );
-        }
+        Image.getSize(
+          photoUrl,
+          (width, height) => {
+            setImageDimensions({ width, height });
+            setImageLoaded(true);
+            console.log('[PhotoCrop] Remote image loaded directly:', { width, height });
+          },
+          (error) => {
+            console.error('[PhotoCrop] Remote URL failed, cannot proceed:', error);
+            Alert.alert(
+              'تعذر تحميل الصورة',
+              'لم نتمكن من تحميل الصورة للقص. هذه ميزة تجريبية قد لا تعمل على جميع الأجهزة.',
+              [{ text: 'حسناً', onPress: onCancel }]
+            );
+          }
+        );
       } catch (error) {
         console.error('[PhotoCrop] Image preparation error:', error);
         Alert.alert('خطأ', 'فشل تحميل الصورة للقص');

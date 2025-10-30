@@ -17,6 +17,7 @@ import {
   PixelRatio,
   Animated as RNAnimated,
 } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Canvas,
   Group,
@@ -395,6 +396,18 @@ const TreeViewCore = ({
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
+
+  // Dynamic vertical offset for modal view (branch tree)
+  // Accounts for: safe area inset + header (56px) + profile bar (92px) + spacing (42px)
+  const insets = useSafeAreaInsets();
+  const verticalOffset = modalView
+    ? insets.top + 56 + 92 + 42  // Device-agnostic calculation
+    : 0;
+
+  // Debug logging for vertical offset (dev mode only)
+  if (__DEV__ && modalView) {
+    console.log('[TreeView] modalView:', modalView, 'offset:', verticalOffset, 'insets.top:', insets.top);
+  }
 
   // Phase 3B: Skeleton-in-Store Pattern - SIMPLIFIED
   // Direct store subscription: Single source of truth for loading state
@@ -1357,9 +1370,8 @@ const TreeViewCore = ({
         const targetScale = 1.0;
         const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
 
-        // Modal view needs vertical offset to account for header/profile bar (~120-150px)
-        // SUBTRACT 150px to shift viewport UP (screen Y: 0=top, positive=down)
-        const verticalOffset = modalView ? 150 : 0;
+        // Modal view uses dynamic vertical offset (calculated earlier from safe area insets)
+        // SUBTRACT offset to shift viewport UP (screen Y: 0=top, positive=down)
         const offsetY = (dimensions.height / 2 - adjustedY * targetScale) - verticalOffset;
 
         // INSTANT placement - NO animation
@@ -1448,9 +1460,8 @@ const TreeViewCore = ({
       // Therefore: translateX = width/2 - targetNode.x * targetScale
       const targetX = dimensions.width / 2 - targetNode.x * targetScale;
 
-      // Modal view needs vertical offset to account for header/profile bar (~120-150px)
-      // SUBTRACT 150px to shift viewport UP (screen Y: 0=top, positive=down)
-      const verticalOffset = modalView ? 150 : 0;
+      // Modal view uses dynamic vertical offset (calculated earlier from safe area insets)
+      // SUBTRACT offset to shift viewport UP (screen Y: 0=top, positive=down)
       const targetY = (dimensions.height / 2 - targetNode.y * targetScale) - verticalOffset;
 
       console.log("Current scale:", currentScale, "Target scale:", targetScale);

@@ -41,6 +41,27 @@ class StorageService {
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
 
+        // OPTIMISTIC LOCKING: Fetch current photo_url to detect concurrent uploads
+        const { data: currentProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('photo_url, deleted_at')
+          .eq('id', profileId)
+          .single();
+
+        if (fetchError) {
+          throw new Error(`فشل التحقق من الملف الشخصي: ${fetchError.message}`);
+        }
+
+        if (!currentProfile) {
+          throw new Error('الملف الشخصي غير موجود');
+        }
+
+        if (currentProfile.deleted_at) {
+          throw new Error('لا يمكن رفع صورة لملف شخصي محذوف');
+        }
+
+        const previousPhotoUrl = currentProfile.photo_url;
+
         // Fetch the image as a blob
         const response = await fetch(uri);
         const blob = await response.blob();
@@ -71,15 +92,17 @@ class StorageService {
           uploaderAuthId,
           fileSize: blob.size,
           filePath,
+          previousPhotoUrl,
           timestamp: new Date().toISOString()
         });
 
         // Upload to Supabase Storage with timeout (120s)
+        // Use upsert: false to detect concurrent uploads (file already exists error)
         const uploadPromise = supabase.storage
           .from(this.bucketName)
           .upload(filePath, arrayBuffer, {
             contentType: blob.type || "image/jpeg",
-            upsert: true, // FIXED: Prevent race conditions, allow atomic replace
+            upsert: false, // Detect concurrent uploads via "already exists" error
             onUploadProgress: (progress) => {
               if (onProgress) {
                 const percentComplete =
@@ -96,7 +119,49 @@ class StorageService {
           )
         ]);
 
-        if (error) {
+        // Handle "already exists" error (concurrent upload detected)
+        if (error && error.message?.includes('already exists')) {
+          console.warn('[STORAGE_UPLOAD_CONFLICT]', {
+            targetProfileId: profileId,
+            filePath,
+            message: 'File already exists - checking for concurrent modification'
+          });
+
+          // Check if photo_url changed since we started (concurrent admin upload)
+          const { data: latestProfile } = await supabase
+            .from('profiles')
+            .select('photo_url')
+            .eq('id', profileId)
+            .single();
+
+          if (latestProfile && latestProfile.photo_url !== previousPhotoUrl) {
+            throw new Error('تم تحديث الصورة من قبل مستخدم آخر. يرجى تحديث الصفحة وإعادة المحاولة.');
+          }
+
+          // Same admin retrying - safe to upsert
+          console.log('[STORAGE_UPLOAD_RETRY_UPSERT]', {
+            targetProfileId: profileId,
+            reason: 'Same user retry detected, using upsert'
+          });
+
+          const retryUpload = await supabase.storage
+            .from(this.bucketName)
+            .upload(filePath, arrayBuffer, {
+              contentType: blob.type || "image/jpeg",
+              upsert: true, // Now safe to overwrite
+              onUploadProgress: (progress) => {
+                if (onProgress) {
+                  const percentComplete =
+                    (progress.loaded / progress.total) * 100;
+                  onProgress(percentComplete);
+                }
+              },
+            });
+
+          if (retryUpload.error) {
+            throw retryUpload.error;
+          }
+        } else if (error) {
           throw error;
         }
 

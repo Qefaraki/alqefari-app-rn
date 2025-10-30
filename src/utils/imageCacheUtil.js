@@ -24,9 +24,10 @@
  *
  * Created: October 28, 2025
  * Corrected: October 28, 2025 - Fixed per plan validator recommendations
+ * Updated: October 29, 2025 - SDK 54 migration: Use legacy FileSystem API
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const CACHE_SUBDIR = 'crop_cache/';
 const MAX_CACHE_AGE_HOURS = 24;

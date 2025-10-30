@@ -154,6 +154,7 @@ const BranchTreeView = ({
 
   return (
     <TreeViewCoreWithProviders
+      modalView={modalView}      // CRITICAL: Pass explicitly BEFORE restProps (not in restProps due to destructuring)
       store={store}
       readOnly={true}            // No node taps, no editing
       hideControls={true}        // No SearchBar

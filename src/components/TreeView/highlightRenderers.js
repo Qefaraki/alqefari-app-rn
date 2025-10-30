@@ -481,7 +481,8 @@ function HighlightSegment({ segment, highlight, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+      // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 
       // Warn if path generation is slow (>5ms per segment)
@@ -613,7 +614,8 @@ function OverlappingHighlightSegment({ segment, showGlow, glowStrategy, lineStyl
       // Performance monitoring (development only)
       const startTime = __DEV__ ? performance.now() : 0;
 
-      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.BEZIER : LINE_STYLES.STRAIGHT;
+      // Route bezier mode to D3 curves (with coordinate swap for elbow effect)
+      const currentLineStyle = lineStyle === 'bezier' ? LINE_STYLES.CURVES : LINE_STYLES.STRAIGHT;
       const paths = generateLinePaths(connection, currentLineStyle, showPhotos, nodeStyle);
 
       // Warn if path generation is slow (>5ms per segment)

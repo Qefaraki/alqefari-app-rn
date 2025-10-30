@@ -76,6 +76,7 @@ import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
 import ShareProfileSheet from '../sharing/ShareProfileSheet';
 import { PhotoCropEditor } from '../crop/PhotoCropEditor';
 import { downloadImageToCache } from '../../utils/imageCacheUtil';
+import * as FileSystem from 'expo-file-system/legacy';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -382,6 +383,25 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       console.warn('[PROFILE VIEWER DEBUG] ⚠️ Person data appears incomplete, only has:', Object.keys(person));
     }
   }, [person, userProfile]);
+
+  // Debug: FileSystem availability check (crop feature dependency)
+  useEffect(() => {
+    console.log('[FileSystem Debug] Checking directories after rebuild:', {
+      cacheDirectory: FileSystem.cacheDirectory,
+      documentDirectory: FileSystem.documentDirectory,
+      bothNull: !FileSystem.cacheDirectory && !FileSystem.documentDirectory,
+      cacheDirectoryType: typeof FileSystem.cacheDirectory,
+      documentDirectoryType: typeof FileSystem.documentDirectory,
+    });
+
+    if (!FileSystem.cacheDirectory && !FileSystem.documentDirectory) {
+      console.error('[FileSystem Debug] 🚨 BOTH directories are null - FileSystem broken!');
+    } else if (FileSystem.documentDirectory) {
+      console.log('[FileSystem Debug] ✅ documentDirectory available - crop feature should work!');
+    } else if (FileSystem.cacheDirectory) {
+      console.log('[FileSystem Debug] ✅ cacheDirectory available - crop feature should work!');
+    }
+  }, []);
 
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);

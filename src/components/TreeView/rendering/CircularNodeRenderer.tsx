@@ -116,18 +116,7 @@ export function CircularNodeRenderer({
         2, // Max 2 lines
       );
 
-      // PHASE 1.1: Verification logging
-      if (__DEV__) {
-        console.log('[CircularNode]', {
-          nodeId: node.id,
-          name: node.name,
-          diameter,
-          maxWidth: diameter,
-          paragraphExists: !!paragraph,
-          textX,
-          textY,
-        });
-      }
+      // PHASE 1.1: Verification logging (REMOVED - too verbose)
 
       return paragraph;
     },
@@ -174,6 +163,10 @@ export function CircularNodeRenderer({
             selectBucket={node._selectBucket}
             showPhotos={showPhotos}
             useBatchedSkiaImage={useBatchedSkiaImage}
+            crop_top={node.crop_top}
+            crop_bottom={node.crop_bottom}
+            crop_left={node.crop_left}
+            crop_right={node.crop_right}
           />
         </>
       ) : (

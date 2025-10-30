@@ -170,6 +170,7 @@ npm run update:rollback                         # Emergency undo
 |---------|--------|----------|-------|
 | **QR Code & Deep Linking** | ✅ Security fixes deployed | Admin Dashboard → Share Profile | Ready for testing, feature flag: `__DEV__` |
 | **Photo Crop** | ✅ Production-ready | ProfileViewer → Edit Photo | Non-destructive, GPU rendering |
+| **Photo Approval System** | ✅ Complete (A+ grade) | Admin Dashboard → Quick Actions | Template-based rejection, accessibility |
 | **BlurHash** | 🚧 Day 1 (80%) | Backend deployed | Day 2: Frontend (8h) |
 | **Family Statistics** | ✅ Complete | Admin Dashboard → إحصائيات العائلة | Victory Native charts |
 | **Munasib Management** | ✅ Deployed | Admin Dashboard → Munasib Management | NULL HID identifier |
