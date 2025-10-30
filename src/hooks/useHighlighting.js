@@ -4,32 +4,24 @@
  * Public API for managing tree highlighting features.
  * Provides simple, consistent interface for all highlight types.
  *
+ * HISTORICAL ARCHITECTURE RESTORED (Oct 30, 2025):
+ * This hook now accepts nodes array directly from TreeView, ensuring highlights
+ * use the SAME coordinate source as tree rendering (perfect alignment).
+ *
  * Usage:
- *   const { setHighlight, clearHighlight, clearAllHighlights, activeHighlights } = useHighlighting();
- *
- *   // Set single-path highlight (search result)
- *   setHighlight('SEARCH', profileId);
- *
- *   // Set dual-path highlight (cousin marriage)
- *   setHighlight('COUSIN_MARRIAGE', [spouse1Id, spouse2Id]);
- *
- *   // Clear specific highlight
- *   clearHighlight('SEARCH');
- *
- *   // Clear all highlights
- *   clearAllHighlights();
+ *   const { calculatePathData } = useHighlighting();
+ *   const pathData = calculatePathData('USER_LINEAGE', profileId, nodes);
  */
 
 import { useCallback, useRef } from 'react';
-import { useTreeStore } from '../stores/useTreeStore';
 import { HIGHLIGHT_TYPES } from '../services/highlightingService';
 import PathCalculationService from '../services/pathCalculationService';
 
 /**
  * Custom hook for tree highlighting
+ * No longer depends on store.nodesMap - accepts nodes array parameter instead
  */
 export function useHighlighting() {
-  const nodesMap = useTreeStore(state => state.nodesMap);
 
   // Highlighting state (will be added to TreeView as local state)
   // This hook provides the API, TreeView manages the state
@@ -37,18 +29,31 @@ export function useHighlighting() {
   // Path calculation service instance (singleton per component)
   const pathServiceRef = useRef(null);
 
-  // Initialize path service
-  if (!pathServiceRef.current || pathServiceRef.current.nodesMap !== nodesMap) {
-    pathServiceRef.current = new PathCalculationService(nodesMap);
-  }
-
   /**
    * Calculate path data for a specific highlight type
    * @param {string} typeKey - Highlight type key (e.g., 'SEARCH', 'COUSIN_MARRIAGE')
    * @param {string|Array<string>} nodeIds - Node ID(s) to highlight
+   * @param {Array<Object>} nodesArray - Nodes array with coordinates from layout calculation
    * @returns {Object|null} Path data for rendering or null if invalid
    */
-  const calculatePathData = useCallback((typeKey, nodeIds) => {
+  const calculatePathData = useCallback((typeKey, nodeIds, nodesArray = []) => {
+    // Safety guard: Require nodes array with coordinates
+    if (!nodesArray || nodesArray.length === 0) {
+      if (__DEV__) {
+        console.warn('[useHighlighting] Cannot calculate path: nodes array is empty (layout not ready)');
+      }
+      return null;
+    }
+
+    // Create nodesMap from array for PathCalculationService
+    const nodesMap = new Map(nodesArray.map(n => [n.id, n]));
+
+    // Initialize or update path service with current nodes
+    if (!pathServiceRef.current) {
+      pathServiceRef.current = new PathCalculationService(nodesMap);
+    } else {
+      pathServiceRef.current.updateNodesMap(nodesMap);
+    }
     const config = HIGHLIGHT_TYPES[typeKey];
     if (!config) {
       console.warn(`[useHighlighting] Unknown highlight type: ${typeKey}`);
@@ -107,8 +112,8 @@ export function useHighlighting() {
         return null;
     }
   }, []);
-  // NOTE: nodesMap intentionally REMOVED from deps - pathServiceRef.current.nodesMap provides stable access
-  // Adding nodesMap to deps causes calculatePathData to get new reference → triggers useEffect in TreeView.core → potential instability
+  // NOTE: No dependencies needed - nodesArray is passed as parameter on each call
+  // This ensures we always use the latest nodes with correct coordinates from layout
 
   /**
    * Clear path calculation cache

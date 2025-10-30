@@ -190,14 +190,28 @@ const useBranchTreeStore = create(
     /**
      * Get render data for highlights (viewport-culled)
      * @param {Object} viewport - Current viewport bounds { minX, maxX, minY, maxY }
+     * @param {Array<Object>} nodesArray - Nodes array with coordinates from layout calculation
      * @returns {Array<SegmentData>} Visible segments with highlight info
      */
-    getHighlightRenderData: (viewport) => {
-      const { highlights, nodesMap } = get();
+    getHighlightRenderData: (viewport, nodesArray = null) => {
+      const { highlights } = get();
 
       if (Object.keys(highlights).length === 0) {
         return [];
       }
+
+      // HISTORICAL ARCHITECTURE RESTORED (Oct 30, 2025):
+      // Accept nodes array with coordinates from TreeView's layout calculation.
+      // This ensures highlights use SAME coordinate source as tree rendering.
+      if (!nodesArray || nodesArray.length === 0) {
+        if (__DEV__) {
+          console.warn('[BranchTreeStore] No nodes array provided (layout not ready yet)');
+        }
+        return [];
+      }
+
+      // Convert array to Map for highlightingServiceV2
+      const nodesMap = new Map(nodesArray.map(n => [n.id, n]));
 
       return highlightingServiceV2.getRenderData(highlights, nodesMap, viewport);
     },

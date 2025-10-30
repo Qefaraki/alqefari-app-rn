@@ -23,7 +23,6 @@ import { useMemo } from 'react';
 import { useStructureLoader } from './useStructureLoader';
 import { useViewportEnrichment } from './progressive/useViewportEnrichment';
 import { calculateTreeLayout } from '../../../utils/treeLayout';
-import { useTreeStore } from '../../../stores/useTreeStore';
 
 export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyle = 'rectangular', layoutMode = 'normal') {
   // Phase 1: Load structure-only (0.45 MB)
@@ -57,10 +56,11 @@ export function useProgressiveTreeView(stage = null, dimensions = null, nodeStyl
     // Pass actual viewport width for proper D3 curve scaling
     const layout = calculateTreeLayout(structure, false, nodeStyle, layoutMode, dimensions?.width || 800);
 
-    // Sync coordinates to store for highlighting system
-    // This ensures store.nodesMap has x/y coordinates for rendering highlights
-    // Without this, highlights would try to access undefined coordinates and fail
-    useTreeStore.getState().syncCoordinates(layout.nodes);
+    // HISTORICAL ARCHITECTURE RESTORED (Oct 30, 2025):
+    // Coordinates are ephemeral computed values that belong in the local nodes array,
+    // not in the persistent store. Highlights will receive nodes array directly,
+    // ensuring perfect alignment (same coordinate source as tree rendering).
+    // This matches the working system from 2 weeks ago (commit 95f8fdf57).
 
     return layout;
   }, [structureHash, nodeStyle, layoutMode]); // Hash-based dependency: only recalcs on structural changes

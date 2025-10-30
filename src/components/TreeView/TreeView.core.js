@@ -1607,8 +1607,8 @@ const TreeViewCore = ({
       return;
     }
 
-    if (autoHighlight.type === 'SEARCH' && nodes.length > 0) {
-      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId);
+    if (autoHighlight.type === 'SEARCH' && nodes.length > 0 && nodes[0]?.x !== undefined) {
+      const pathData = calculatePathData('SEARCH', autoHighlight.nodeId, nodes);
 
       if (pathData && pathData.pathNodeIds.length > 0) {
         // Clear existing search highlight
@@ -1633,9 +1633,9 @@ const TreeViewCore = ({
         store.actions.removeHighlight(searchHighlightIdRef.current);
       }
     };
-  }, [autoHighlight, calculatePathData, nodes.length]);
-  // NOTE: store.actions intentionally REMOVED from deps to prevent circular dependency
-  // Circular loop: addHighlight() → highlights state changes → BranchTreeView useMemo re-runs → new store.actions → useEffect triggers → infinite loop
+  }, [autoHighlight, calculatePathData, nodes]);
+  // NOTE: Depends on nodes array (not just length) to trigger recalculation when layout changes
+  // store.actions intentionally REMOVED from deps to prevent circular dependency
 
   // Focus on specific node after d3 layout completes (branch tree modal)
   useEffect(() => {
@@ -1695,9 +1695,9 @@ const TreeViewCore = ({
   const userLineageIdRef = useRef(null);
 
   useEffect(() => {
-    // Only calculate if toggle is ON and user has profile
-    if (highlightMyLine && authProfile?.id && nodes.length > 0) {
-      const pathData = calculatePathData('USER_LINEAGE', authProfile.id);
+    // Only calculate if toggle is ON and user has profile AND layout has coordinates
+    if (highlightMyLine && authProfile?.id && nodes.length > 0 && nodes[0]?.x !== undefined) {
+      const pathData = calculatePathData('USER_LINEAGE', authProfile.id, nodes);
 
       if (!pathData || pathData.pathNodeIds.length === 0) {
         // User not in loaded tree
@@ -1736,9 +1736,9 @@ const TreeViewCore = ({
         store.actions.removeHighlight(userLineageIdRef.current);
       }
     };
-  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData]);
-  // NOTE: store.actions intentionally REMOVED from deps to prevent circular dependency
-  // Circular loop: addHighlight() → highlights state changes → store.actions changes → useEffect triggers → infinite loop
+  }, [highlightMyLine, authProfile?.id, nodes, calculatePathData]);
+  // NOTE: Depends on nodes array (not just length) to trigger recalculation when layout changes
+  // store.actions intentionally REMOVED from deps to prevent circular dependency
 
   // Clear all highlights (glow + path) - called when X button clicked
   const clearAllHighlights = useCallback(() => {
@@ -2390,7 +2390,8 @@ const TreeViewCore = ({
     };
 
     // Get render data from store (calls highlightingServiceV2.getRenderData internally)
-    const renderData = store.actions.getHighlightRenderData(worldViewport);
+    // Pass nodes array to ensure highlights use same coordinates as tree rendering
+    const renderData = store.actions.getHighlightRenderData(worldViewport, nodes);
 
     if (__DEV__ && renderData.length > 0) {
       console.log(`[TreeViewCore] UnifiedHighlightRenderer: ${renderData.length} visible segments`);
@@ -2400,6 +2401,7 @@ const TreeViewCore = ({
   }, [
     store.state.highlights,
     store.actions.getHighlightRenderData,
+    nodes,  // ADDED: Depend on nodes array for coordinate updates
     currentTransform.scale,
     currentTransform.x,
     currentTransform.y,
