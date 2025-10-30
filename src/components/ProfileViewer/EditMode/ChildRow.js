@@ -299,14 +299,15 @@ const ChildRow = React.memo(
   },
   (prev, next) => {
     // Compare preferred photo (cropped || original) for memo optimization
-    const prevPhotoUrl = prev.child.photo_url_cropped || prev.child.photo_url || prev.child.profile?.photo_url_cropped || prev.child.profile?.photo_url || null;
-    const nextPhotoUrl = next.child.photo_url_cropped || next.child.photo_url || next.child.profile?.photo_url_cropped || next.child.profile?.photo_url || null;
+    // Defensive coding: Use optional chaining to prevent crashes if child is null/undefined
+    const prevPhotoUrl = prev.child?.photo_url_cropped || prev.child?.photo_url || prev.child?.profile?.photo_url_cropped || prev.child?.profile?.photo_url || null;
+    const nextPhotoUrl = next.child?.photo_url_cropped || next.child?.photo_url || next.child?.profile?.photo_url_cropped || next.child?.profile?.photo_url || null;
 
     return (
-      prev.child.id === next.child.id &&
-      prev.child.name === next.child.name &&
-      prev.child.gender === next.child.gender &&
-      prev.child.birth_year === next.child.birth_year &&
+      prev.child?.id === next.child?.id &&
+      prev.child?.name === next.child?.name &&
+      prev.child?.gender === next.child?.gender &&
+      prev.child?.birth_year === next.child?.birth_year &&
       prevPhotoUrl === nextPhotoUrl &&
       prev.isEditing === next.isEditing
     );
