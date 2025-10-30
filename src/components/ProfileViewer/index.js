@@ -274,15 +274,6 @@ const EditModeContent = React.memo(({
     }
     lastScrollTime.current = now;
 
-    // Set animation flag to prevent handleScroll from overriding
-    isAnimatingToSection.current = true;
-
-    // IMMEDIATELY update active state before scrolling
-    setScrollState(prev => ({
-      ...prev,
-      activeSection: sectionId
-    }));
-
     const sectionIndex = SECTIONS.findIndex(s => s.id === sectionId);
     if (sectionIndex >= 0 && sectionRefs.current[sectionIndex]?.current) {
       sectionRefs.current[sectionIndex].current.measureLayout(
@@ -293,11 +284,6 @@ const EditModeContent = React.memo(({
             animated: true
           });
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-          // Clear animation flag after iOS scroll animation completes (~350ms)
-          setTimeout(() => {
-            isAnimatingToSection.current = false;
-          }, 350);
         },
         (error) => {
           console.warn('[EditMode] Failed to scroll to section:', sectionId, error);
@@ -307,20 +293,9 @@ const EditModeContent = React.memo(({
               y: sectionPositions[sectionIndex] - SCROLL_CONFIG.SECTION_SCROLL_OFFSET,
               animated: true
             });
-
-            // Clear animation flag after fallback scroll
-            setTimeout(() => {
-              isAnimatingToSection.current = false;
-            }, 350);
-          } else {
-            // Clear flag immediately if scroll failed completely
-            isAnimatingToSection.current = false;
           }
         }
       );
-    } else {
-      // Clear flag if section not found
-      isAnimatingToSection.current = false;
     }
   }, [scrollRef, sectionPositions]);
 
@@ -336,17 +311,6 @@ const EditModeContent = React.memo(({
 
     // Determine new state
     const newShowScrollTop = scrollY > SCROLL_CONFIG.SCROLL_TO_TOP_THRESHOLD;
-
-    // Skip detection if programmatic scroll is animating
-    if (isAnimatingToSection.current) {
-      setScrollState(prev => {
-        if (prev.showScrollTop === newShowScrollTop) {
-          return prev;
-        }
-        return { ...prev, showScrollTop: newShowScrollTop };
-      });
-      return;
-    }
 
     // Use dynamic section positions if available, fallback to general
     let newActiveSection = 'general';
