@@ -306,10 +306,10 @@ export default function FamilyStatistics({ onClose }) {
 // Skeleton Loader for initial load
 const SkeletonContent = () => (
   <View style={styles.skeletonContainer}>
-    {[...Array(5)].map((_, i) => (
-      <View key={i} style={styles.skeletonCard}>
-        <SkeletonLoader width="60%" height={20} style={{ marginBottom: 12 }} />
-        <SkeletonLoader width="100%" height={200} />
+    {[...Array(4)].map((_, index) => (
+      <View key={index} style={styles.skeletonCard}>
+        <SkeletonLoader width="45%" height={20} style={{ marginBottom: spacing.md }} />
+        <SkeletonLoader width="100%" height={index === 0 ? 200 : 160} />
       </View>
     ))}
   </View>
@@ -426,7 +426,7 @@ const HeroSection = ({ stats }) => {
   );
 };
 
-const MetricBadge = ({ tone = 'primary', icon, label, value, percent }) => {
+const MetricBadge = ({ tone = 'primary', icon, label, value, percent, style }) => {
   const toneColor =
     tone === 'secondary'
       ? palette.secondary
@@ -435,7 +435,7 @@ const MetricBadge = ({ tone = 'primary', icon, label, value, percent }) => {
       : palette.primary;
 
   return (
-    <View style={styles.metricBadge}>
+    <View style={[styles.metricBadge, style]}>
       <View style={[styles.metricBadgeIcon, { backgroundColor: `${toneColor}16` }]}>
         <Ionicons name={icon} size={18} color={toneColor} />
       </View>
@@ -927,12 +927,14 @@ const MunasibSection = ({ stats }) => {
               ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
               : undefined
           }
+          style={styles.metricBadgeBlock}
         />
         <MetricBadge
           tone="secondary"
           icon="man-outline"
           label="زيجات الذكور"
           value={formatNumber(totals.male_munasib)}
+          style={[styles.metricBadgeBlock, styles.metricBadgeBlockSpacing]}
         />
       </View>
       <View style={[styles.metricBadgeRow, styles.metricBadgeRowSpacing]}>
@@ -941,6 +943,7 @@ const MunasibSection = ({ stats }) => {
           icon="woman-outline"
           label="زيجات الإناث"
           value={formatNumber(totals.female_munasib)}
+          style={styles.metricBadgeBlock}
         />
         <MetricBadge
           tone="neutral"
@@ -952,6 +955,7 @@ const MunasibSection = ({ stats }) => {
               ? formatPercent(marriageStats.current_marriages, marriageStats.total_marriages)
               : undefined
           }
+          style={[styles.metricBadgeBlock, styles.metricBadgeBlockSpacing]}
         />
       </View>
 
@@ -1031,25 +1035,26 @@ const LazyChartSection = ({ chartName, onVisible, isVisible, children }) => {
     return () => clearTimeout(timer);
   }, [chartName, onVisible]);
 
-  return (
-    <View ref={ref}>
-      {isVisible ? children : <ChartSkeleton />}
-    </View>
-  );
+  return <View ref={ref}>{isVisible ? children : <ChartSkeleton />}</View>;
 };
 
 // Chart Skeleton for lazy loading
 const ChartSkeleton = () => (
-  <View style={styles.section}>
-    <SkeletonLoader width="40%" height={22} style={{ marginBottom: 16 }} />
-    <SkeletonLoader width="100%" height={200} />
+  <View style={styles.card}>
+    <SkeletonLoader width="45%" height={20} style={{ marginBottom: spacing.md }} />
+    <SkeletonLoader width="100%" height={180} />
   </View>
 );
 
 // Loading Section for extended stats
 const LoadingSection = ({ title }) => (
-  <View style={styles.section}>
-    <Text style={styles.sectionHeader}>{title}</Text>
+  <View style={styles.card}>
+    <View style={styles.cardHeaderRow}>
+      <View>
+        <Text style={styles.cardEyebrow}>{title}</Text>
+        <Text style={styles.cardSubtitle}>جارٍ التحميل...</Text>
+      </View>
+    </View>
     <View style={styles.loadingCard}>
       <Ionicons name="time-outline" size={32} color={palette.secondary} />
       <Text style={styles.loadingText}>جارٍ التحميل...</Text>
@@ -1059,8 +1064,13 @@ const LoadingSection = ({ title }) => (
 
 // Error Section for failed extended stats
 const ErrorSection = ({ title, message, onRetry, isRetrying = false }) => (
-  <View style={styles.section}>
-    <Text style={styles.sectionHeader}>{title}</Text>
+  <View style={styles.card}>
+    <View style={styles.cardHeaderRow}>
+      <View>
+        <Text style={styles.cardEyebrow}>{title}</Text>
+        <Text style={styles.cardSubtitle}>حدث خطأ أثناء تحميل البيانات</Text>
+      </View>
+    </View>
     <View style={styles.errorCard}>
       <Ionicons name="alert-circle-outline" size={32} color={palette.secondary} />
       <Text style={styles.errorText}>{message}</Text>
@@ -1082,367 +1092,3 @@ const ErrorSection = ({ title, message, onRetry, isRetrying = false }) => (
 // ============================================================================
 // STYLES
 // ============================================================================
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Skeleton
-  skeletonContainer: {
-    padding: 16,
-  },
-  skeletonCard: {
-    marginBottom: 24,
-  },
-
-  // Intro Surface (exact copy from Munasib Manager)
-  introSurface: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}40`,
-    overflow: 'hidden',
-    position: 'relative',
-    ...Platform.select({
-      ios: tokens.shadow.ios,
-      android: tokens.shadow.android,
-    }),
-  },
-  patternRow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    height: 32,
-    overflow: 'hidden',
-    borderTopLeftRadius: tokens.radii.lg,
-    borderTopRightRadius: tokens.radii.lg,
-  },
-  introPattern: {
-    width: 64,
-    height: 32,
-    tintColor: palette.primary,
-    opacity: 0.4,
-  },
-  introContent: {
-    paddingTop: spacing.md + 24,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  introTitle: {
-    ...typography.title3,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '700',
-  },
-  introSubtitle: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}99`,
-    lineHeight: typography.subheadline.lineHeight,
-  },
-
-  // Section
-  section: {
-    marginHorizontal: 16,
-    marginBottom: 40, // Increased from 32px
-    paddingTop: 8, // Added for spacing after divider
-  },
-  sectionHeader: {
-    ...typography.title2,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: palette.secondary,
-    paddingBottom: spacing.xs,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 4,
-  },
-  subsectionTitle: {
-    ...typography.headline,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}99`,
-    marginBottom: spacing.md,
-  },
-
-  // Hero Section
-  heroNumberContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  heroNumber: {
-    fontSize: 56,
-    fontFamily: 'SF Arabic',
-    fontWeight: '700',
-    color: palette.text,
-  },
-  heroLabel: {
-    ...typography.headline,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}99`,
-    marginTop: spacing.xs,
-  },
-  genderBreakdown: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  genderText: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}80`,
-    textAlign: 'center',
-  },
-  chartContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
-      },
-    }),
-  },
-
-  // Insight Card
-  insightCard: {
-    flexDirection: 'row',
-    backgroundColor: `${palette.secondary}10`,
-    borderRadius: tokens.radii.md,
-    borderWidth: 1.5,
-    borderColor: `${palette.secondary}60`,
-    padding: 14,
-    marginTop: 20,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: palette.secondary,
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-      },
-    }),
-  },
-  insightText: {
-    flex: 1,
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    marginLeft: spacing.sm,
-  },
-
-  // Names Section
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  nameRank: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-    color: `${palette.text}66`,
-    width: 30,
-  },
-  nameName: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    flex: 1,
-  },
-  nameBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 120,
-  },
-  nameBar: {
-    height: 24,
-    borderRadius: tokens.radii.sm / 2,
-    marginRight: spacing.xs,
-  },
-  nameCount: {
-    ...typography.footnote,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-    color: palette.text,
-  },
-
-  // Munasib Leaderboard
-  leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: palette.surface,
-    borderRadius: tokens.radii.md,
-    borderWidth: 1,
-    borderColor: `${palette.text}10`,
-    padding: 14,
-    marginBottom: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-      },
-    }),
-  },
-  rank: {
-    ...typography.headline,
-    width: 40,
-    textAlign: 'center',
-  },
-  familyName: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    flex: 1,
-  },
-  barContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 100,
-  },
-  barFill: {
-    height: 28,
-    borderRadius: tokens.radii.sm / 2,
-    marginRight: spacing.xs,
-  },
-  count: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-    color: palette.text,
-  },
-
-  // Expand Button
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    padding: spacing.sm,
-  },
-  expandText: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-    color: palette.primary,
-    marginRight: spacing.xs,
-  },
-
-  // Section Divider
-  dividerContainer: {
-    marginHorizontal: 16,
-    marginVertical: 24,
-    alignItems: 'center',
-  },
-  dividerLine: {
-    width: '100%',
-    height: 1,
-    backgroundColor: `${palette.text}14`,
-  },
-
-  // Loading/Error Cards
-  loadingCard: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    padding: spacing.xxl,
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    marginTop: spacing.sm,
-  },
-  errorCard: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    padding: spacing.xxl,
-    alignItems: 'center',
-  },
-  errorText: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    color: palette.text,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: palette.primary,
-    borderRadius: tokens.radii.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    marginTop: spacing.md,
-  },
-  retryButtonDisabled: {
-    opacity: 0.5,
-  },
-  retryButtonText: {
-    ...typography.subheadline,
-    fontFamily: 'SF Arabic',
-    fontWeight: '600',
-    color: palette.background,
-  },
-  emptyChartContainer: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.text}10`,
-    padding: spacing.xxl * 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.02,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
-      },
-    }),
-  },
-  emptyChartText: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}66`,
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    ...typography.callout,
-    fontFamily: 'SF Arabic',
-    color: `${palette.text}66`,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-});

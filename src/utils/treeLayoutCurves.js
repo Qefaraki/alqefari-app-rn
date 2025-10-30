@@ -23,7 +23,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
     return { nodes: [], connections: [] };
   }
 
-  // === ADAPTATION 1: Convert flat array to hierarchical structure ===
+  // === ADAPTATION 1: Convert flat family array to hierarchical structure ===
   const dataMap = new Map();
   familyData.forEach((person) =>
     dataMap.set(person.id, { ...person, children: [] }),

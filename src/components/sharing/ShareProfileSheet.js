@@ -31,7 +31,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import ProfileQRCode from './ProfileQRCode';
 import {
   shareProfile,
@@ -378,7 +377,14 @@ export default function ShareProfileSheet({
               color={COLORS.textPrimary}
             />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>شارك الملف</Text>
+          <Text
+            style={[
+              styles.headerTitle,
+              { writingDirection: isRTL ? 'rtl' : 'ltr' },
+            ]}
+          >
+            شارك الملف
+          </Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -387,7 +393,10 @@ export default function ShareProfileSheet({
             styles.scrollContainer,
             isRTL ? styles.directionRTL : styles.directionLTR,
           ]}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isRTL ? styles.directionRTL : styles.directionLTR,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           <View
@@ -456,6 +465,7 @@ export default function ShareProfileSheet({
                 {
                   textAlign: isRTL ? 'right' : 'left',
                   writingDirection: isRTL ? 'rtl' : 'ltr',
+                  alignSelf: isRTL ? 'flex-end' : 'flex-start',
                 },
               ]}
             >
@@ -486,7 +496,12 @@ export default function ShareProfileSheet({
                 activeOpacity={0.7}
                 onPress={handleOpenLink}
               >
-                <Ionicons name="link-outline" size={18} color={COLORS.accent} />
+                <Ionicons
+                  name="link-outline"
+                  size={18}
+                  color={COLORS.accent}
+                  style={isRTL ? styles.flipIconRTL : null}
+                />
                 <Text
                   style={[
                     styles.linkText,
@@ -496,7 +511,12 @@ export default function ShareProfileSheet({
                 >
                   {profileLink.replace(/^https?:\/\//, '')}
                 </Text>
-                <Ionicons name="open-outline" size={18} color={COLORS.accent} />
+                <Ionicons
+                  name="open-outline"
+                  size={18}
+                  color={COLORS.accent}
+                  style={isRTL ? styles.flipIconRTL : null}
+                />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -697,6 +717,9 @@ const styles = StyleSheet.create({
   linkChipLTR: {
     alignSelf: 'flex-start',
   },
+  flipIconRTL: {
+    transform: [{ scaleX: -1 }],
+  },
   linkText: {
     flex: 1,
     fontSize: 14,
@@ -719,7 +742,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   quickActionButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 18,
     paddingVertical: SPACING.sm,

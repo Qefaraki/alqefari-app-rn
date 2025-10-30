@@ -96,7 +96,6 @@ const ViewModeContent = React.memo(({
   onNavigateToProfile,
   accessMode,
   scrollY,
-  scrollVelocityY,
   scrollRef,
   canEdit,
   refreshing,
@@ -108,7 +107,6 @@ const ViewModeContent = React.memo(({
     onScroll: (event) => {
       'worklet';
       scrollY.value = event.contentOffset.y;
-      scrollVelocityY.value = event.velocity?.y || 0;
     },
     onEndDrag: (event) => {
       'worklet';
@@ -121,7 +119,7 @@ const ViewModeContent = React.memo(({
         runOnJS(closeSheet)();
       }
     }
-  }, [scrollY, scrollVelocityY, closeSheet]);
+  }, []);
 
   return (
   <BottomSheetScrollView
@@ -675,7 +673,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   });
 
   const scrollY = useSharedValue(0);
-  const scrollVelocityY = useSharedValue(0);
   const animatedPosition = useSharedValue(0);
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
@@ -1029,10 +1026,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Momentum dismiss gesture - captures overscroll velocity for quick sheet dismissal
   const momentumDismissGesture = useMemo(() => {
     return Gesture.Pan()
-      .enabled(mode === 'view' && scrollY.value <= 5)
+      .enabled(mode === 'view')
       .activeOffsetY([-5, 999999]) // Only trigger on upward swipes
       .onUpdate((event) => {
         'worklet';
+        // Check if at top of scroll (read shared value inside worklet)
+        const atTop = scrollY.value <= 5;
+        if (!atTop) return;
+
         const fastUpwardSwipe = event.velocityY < -800;
         const significantTranslation = event.translationY < -50;
 
@@ -1041,7 +1042,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           closeSheetFromGesture();
         }
       });
-  }, [mode, scrollY, closeSheetFromGesture]);
+  }, [mode, closeSheetFromGesture]);
 
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
@@ -1770,7 +1771,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           onNavigateToProfile={onNavigateToProfile}
           accessMode={accessMode}
           scrollY={scrollY}
-          scrollVelocityY={scrollVelocityY}
           scrollRef={viewScrollRef}
           canEdit={canEdit}
           refreshing={refreshing}

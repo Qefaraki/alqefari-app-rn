@@ -46,7 +46,7 @@ export const BEZIER_CONFIG = {
 } as const;
 
 // Dev-only instrumentation to trace tidy curve geometry when needed
-const DEBUG_TIDY_CURVES = __DEV__ && false;
+const DEBUG_TIDY_CURVES = __DEV__ && true;
 let tidyCurveDebugSamples = 0;
 
 /**
