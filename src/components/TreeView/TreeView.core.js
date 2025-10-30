@@ -1736,7 +1736,9 @@ const TreeViewCore = ({
         store.actions.removeHighlight(userLineageIdRef.current);
       }
     };
-  }, [highlightMyLine, authProfile?.id, nodes.length, store.actions]);
+  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData]);
+  // NOTE: store.actions intentionally REMOVED from deps to prevent circular dependency
+  // Circular loop: addHighlight() → highlights state changes → store.actions changes → useEffect triggers → infinite loop
 
   // Clear all highlights (glow + path) - called when X button clicked
   const clearAllHighlights = useCallback(() => {

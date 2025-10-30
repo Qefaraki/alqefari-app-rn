@@ -74,11 +74,13 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // dx controls vertical spacing between siblings/cousins (breadth axis)
   // dy controls horizontal spacing between generations (depth axis)
   const dx = 41;  // Increased to account for larger tidy nodes (extra sibling separation)
-  const dy = (viewportWidth / (root.height + 1)) * 1.56;  // Wider generation spacing for larger nodes
+  const dyBase = (viewportWidth / (root.height + 1)) * 1.6;
+  const generationPadding = 56; // Extra vertical breathing room between generations
+  const depthSpacing = dyBase + generationPadding;
 
   // Create tree layout
   const treeLayout = tree()
-    .nodeSize([dx, dy])
+    .nodeSize([dx, depthSpacing])
     .separation((a, b) => (a.parent === b.parent ? 0.8 : 1.2));
 
   // Sort by name (optional, D3 example does this)
@@ -114,7 +116,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
     let layoutY = d.depth * depthSpacing;
 
     if (d.depth === 0 && !d.data.father_id) {
-      layoutY -= 60; // visual gap above root (scaled down for tidy mode)
+      layoutY -= generationPadding; // visual gap above root
     }
 
     const layoutNode = {
@@ -137,19 +139,22 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
   // Top-align nodes within each generation (text-only heights for progressive layout)
   depthGroups.forEach((nodesAtDepth, depth) => {
     const minHeight = Math.min(
-      ...nodesAtDepth.map((node) =>
-        depth === 0 && !node.data.father_id
-          ? TIDY_RECT.ROOT.HEIGHT
-          : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY,
-      )
+      ...nodesAtDepth.map((node) => {
+        if (depth === 0 && !node.data.father_id) {
+          return TIDY_RECT.ROOT.HEIGHT;
+        }
+        return TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY;
+      })
     );
 
     nodesAtDepth.forEach((node) => {
-      const nodeHeight =
+      const baseHeight =
         depth === 0 && !node.data.father_id
           ? TIDY_RECT.ROOT.HEIGHT
           : TIDY_RECT.STANDARD.HEIGHT_TEXT_ONLY;
-      node.layoutY += (nodeHeight - minHeight) / 2;
+      const depthBonus = depth === 0 ? generationPadding * 0.6 : generationPadding * 0.35;
+      const layoutHeight = baseHeight + depthBonus;
+      node.layoutY += (layoutHeight - minHeight) / 2;
     });
   });
 
@@ -175,6 +180,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
           x: parentLayout.layoutX,
           y: parentLayout.layoutY,
           id: parentId,
+          depth: parentLayout.depth,
           photo_url: d.parent.data.photo_url,
           father_id: d.parent.data.father_id,
         },
@@ -186,6 +192,7 @@ export function calculateCurvesLayout(familyData, viewportWidth = 800) {
       x: childLayout.layoutX,
       y: childLayout.layoutY,
       id: d.data.id,
+      depth: childLayout.depth,
       photo_url: d.data.photo_url,
       father_id: d.data.father_id,
     });

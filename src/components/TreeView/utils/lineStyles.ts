@@ -347,9 +347,14 @@ export function generateBezierPaths(
       // Start from parent bottom
       pathBuilder.moveTo(parent.x, parentBottomY);
 
-      // PHASE 2: Calculate horizontal offset for fan-out effect
+      // Dynamic spread tuned for tidy mode with small vertical distances
       const offsetFromCenter = index - centerIndex;
-      const horizontalSpread = offsetFromCenter * spreadFactor;
+      const spreadMultiplier = lineStyle === LINE_STYLES.CURVES
+        ? parentDepth <= 1
+          ? 0.95
+          : 0.7
+        : 1;
+      const horizontalSpread = offsetFromCenter * spreadFactor * spreadMultiplier;
 
       // Calculate control points for elegant branching
       const deltaX = child.x - parent.x;
@@ -357,18 +362,32 @@ export function generateBezierPaths(
       const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
       // Control point strength based on distance
-      const baseStrength = Math.min(
-        totalDistance * BEZIER_CONFIG.CURVE_STRENGTH,
-        60,
+      const minStrength = lineStyle === LINE_STYLES.CURVES
+        ? parentDepth === 0
+          ? 34
+          : parentDepth === 1
+          ? 26
+          : 18
+        : 0;
+      const maxStrength = lineStyle === LINE_STYLES.CURVES ? 110 : 60;
+      const baseStrength = Math.max(
+        minStrength,
+        Math.min(totalDistance * BEZIER_CONFIG.CURVE_STRENGTH, maxStrength),
       );
 
       // PHASE 2: First control point - spread horizontally from parent
-      const cp1X = parent.x + deltaX * 0.2 + horizontalSpread;
-      const cp1Y = parentBottomY + baseStrength * 0.6;
+      const cp1X = parent.x + deltaX * 0.28 + horizontalSpread;
+      const cp1YFactor = lineStyle === LINE_STYLES.CURVES
+        ? parentDepth <= 1 ? 0.92 : 0.78
+        : 0.6;
+      const cp1Y = parentBottomY + baseStrength * cp1YFactor;
 
       // Second control point - converge to child
       const cp2X = child.x - deltaX * 0.1;
-      const cp2Y = childPos.topY - baseStrength * 0.4;
+      const cp2YFactor = lineStyle === LINE_STYLES.CURVES
+        ? parentDepth <= 1 ? 0.55 : 0.48
+        : 0.4;
+      const cp2Y = childPos.topY - baseStrength * cp2YFactor;
 
       pathBuilder.cubicTo(
         cp1X,
@@ -429,9 +448,13 @@ export function generateTidyCurvePaths(
   const parentCenterX = parent.x;
   const parentBottom = parentBottomY;
   const parentLabelHeight = getLabelHeight(parent, nodeStyle, lineStyle);
-
-  const stemAnchorY = parentBottom + parentLabelHeight;
-  const BASE_CHILD_ANCHOR_OFFSET = 16;
+  const parentDepth = (parent as any).depth ?? 0;
+  const depthFactor = parentDepth === 0 ? 1.45 : parentDepth === 1 ? 1.2 : 1;
+  const baseStem = tidyCircular ? 12 : tidyRect ? 14 : 10;
+  const styleStem = baseStem * (tidyCircular ? 1.0 : tidyRect ? 1.05 : 1);
+  const stemAnchorY = parentBottom + Math.max(parentLabelHeight, styleStem * depthFactor);
+  const baseAnchorRaw = tidyCircular ? 18 : tidyRect ? 20 : 16;
+  const BASE_CHILD_ANCHOR_OFFSET = baseAnchorRaw * depthFactor;
 
   const childMetadata = children.map((child) => {
     const childHeight = calculateActualNodeHeight(
@@ -466,13 +489,13 @@ export function generateTidyCurvePaths(
   childMetadata.forEach(({ childCenterX, childTopY }) => {
     const startY = stemAnchorY;
     const anchorOffset = tidyCircular
-      ? BASE_CHILD_ANCHOR_OFFSET * 0.65
+      ? BASE_CHILD_ANCHOR_OFFSET * 0.72
       : tidyRect
-      ? BASE_CHILD_ANCHOR_OFFSET * 1.0
+      ? BASE_CHILD_ANCHOR_OFFSET * 1.12
       : BASE_CHILD_ANCHOR_OFFSET;
     const desiredAnchor = childTopY - anchorOffset;
     const childAnchorY = Math.min(childTopY - 4, desiredAnchor);
-    const minimumGap = tidyCircular ? 2 : tidyRect ? 5 : 4;
+    const minimumGap = Math.max(4, Math.round(BASE_CHILD_ANCHOR_OFFSET * 0.18));
     const safeAnchorY = childAnchorY <= startY ? startY + minimumGap : childAnchorY;
     const midY = startY + (safeAnchorY - startY) / 2;
 
