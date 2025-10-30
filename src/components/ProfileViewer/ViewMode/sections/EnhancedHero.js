@@ -38,7 +38,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
-import tokens, { useAccessibilitySize } from '../../../ui/tokens';
+import tokens, { useAccessibilitySize, hexWithOpacity } from '../../../ui/tokens';
 import { formatNameWithTitle } from '../../../../services/professionalTitleService';
 import { useTreeStore } from '../../../../stores/useTreeStore';
 import { toArabicNumerals } from '../../../../utils/dateUtils';
@@ -131,67 +131,67 @@ const EnhancedHero = ({
 
   // Social connectivity configuration
   const connectivityMethods = useMemo(() => {
-    const methods = [];
+    const primaryActions = [];
+    const socialActions = [];
+    const normalizedPhone = person?.phone?.replace(/[^0-9]/g, '') || null;
 
-    // Phone
     if (person?.phone) {
-      methods.push({
+      primaryActions.push({
         id: 'phone',
         icon: 'call',
-        color: '#34C759', // iOS green
         label: 'اتصال',
         url: `tel:${person.phone}`,
+        priority: 0,
       });
     }
 
-    // WhatsApp
-    if (person?.phone) {
-      methods.push({
+    if (normalizedPhone) {
+      primaryActions.push({
         id: 'whatsapp',
         icon: 'logo-whatsapp',
-        color: '#25D366', // WhatsApp green
         label: 'واتساب',
-        url: `https://wa.me/${person.phone.replace(/[^0-9]/g, '')}`,
+        url: `https://wa.me/${normalizedPhone}`,
+        priority: 0,
+        accentColor: '#25D366',
       });
     }
 
-    // Email
     if (person?.email) {
-      methods.push({
+      primaryActions.push({
         id: 'email',
         icon: 'mail',
-        color: '#007AFF', // iOS blue
         label: 'بريد',
         url: `mailto:${person.email}`,
+        priority: 0,
       });
     }
 
-    // Social media platforms
     const socialPlatforms = [
-      { key: 'twitter', icon: 'logo-twitter', color: '#1DA1F2', label: 'تويتر' },
-      { key: 'instagram', icon: 'logo-instagram', color: '#E1306C', label: 'إنستغرام' },
-      { key: 'linkedin', icon: 'logo-linkedin', color: '#0A66C2', label: 'لينكدإن' },
-      { key: 'facebook', icon: 'logo-facebook', color: '#1877F2', label: 'فيسبوك' },
-      { key: 'youtube', icon: 'logo-youtube', color: '#FF0000', label: 'يوتيوب' },
-      { key: 'tiktok', icon: 'logo-tiktok', color: '#000000', label: 'تيك توك' },
+      { key: 'twitter', icon: 'logo-twitter', accentColor: colors.socialMedia?.twitter || '#1DA1F2', label: 'تويتر' },
+      { key: 'instagram', icon: 'logo-instagram', accentColor: colors.socialMedia?.instagram || '#E1306C', label: 'إنستغرام' },
+      { key: 'linkedin', icon: 'logo-linkedin', accentColor: colors.socialMedia?.linkedin || '#0A66C2', label: 'لينكدإن' },
+      { key: 'facebook', icon: 'logo-facebook', accentColor: colors.socialMedia?.facebook || '#1877F2', label: 'فيسبوك' },
+      { key: 'youtube', icon: 'logo-youtube', accentColor: colors.socialMedia?.youtube || '#FF0000', label: 'يوتيوب' },
+      { key: 'tiktok', icon: 'logo-tiktok', accentColor: colors.socialMedia?.tiktok || '#000000', label: 'تيك توك' },
     ];
 
     if (person?.social_links) {
-      socialPlatforms.forEach(platform => {
+      socialPlatforms.forEach((platform) => {
         const url = person.social_links[platform.key];
-        if (url && typeof url === 'string') {
-          methods.push({
+        if (typeof url === 'string' && url.length > 0) {
+          socialActions.push({
             id: platform.key,
             icon: platform.icon,
-            color: platform.color,
             label: platform.label,
             url,
+            priority: 1,
+            accentColor: platform.accentColor,
           });
         }
       });
     }
 
-    return methods;
+    return [...primaryActions, ...socialActions];
   }, [person?.phone, person?.email, person?.social_links]);
 
   // Handle connectivity method press
@@ -328,19 +328,44 @@ const EnhancedHero = ({
         connectivityBar: {
           flexDirection: 'row',
           flexWrap: 'wrap',
-          gap: 12,
           justifyContent: 'center',
+          gap: spacing.sm,
           marginTop: spacing.md,
         },
         connectivityButton: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: `${colors.najdi.container}12`, // Camel Hair 12%
+          width: tokens.touchTarget.minimum,
+          height: tokens.touchTarget.minimum,
+          borderRadius: tokens.touchTarget.minimum / 2,
+          backgroundColor: hexWithOpacity(colors.najdi.primary, 0.08),
           alignItems: 'center',
           justifyContent: 'center',
-          // Ensure 44px touch target
-          padding: 4,
+          borderWidth: 1,
+          borderColor: hexWithOpacity(colors.najdi.primary, 0.12),
+          ...Platform.select({
+            ios: {
+              shadowColor: colors.najdi.text,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+            },
+            android: {
+              elevation: 2,
+            },
+          }),
+        },
+        connectivityButtonPrimary: {
+          backgroundColor: colors.najdi.primary,
+          borderColor: hexWithOpacity(colors.najdi.primary, 0.4),
+        },
+        connectivityIcon: {
+          marginTop: 2,
+        },
+        connectivityBadge: {
+          position: 'absolute',
+          top: 10,
+          width: 8,
+          height: 8,
+          borderRadius: 4,
         },
       }),
     [shouldUseAlternateLayout]
@@ -502,24 +527,51 @@ const EnhancedHero = ({
         {/* Social Connectivity Bar */}
         {connectivityMethods.length > 0 && (
           <View style={styles.connectivityBar}>
-            {connectivityMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={styles.connectivityButton}
-                onPress={() => handleConnectivityPress(method)}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel={`${method.label}`}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={method.icon}
-                  size={18}
-                  color={method.color}
-                  accessible={false}
-                />
-              </TouchableOpacity>
-            ))}
+            {connectivityMethods.map((method) => {
+              const isPrimaryAction = method.priority === 0;
+              const buttonStyles = [
+                styles.connectivityButton,
+                isPrimaryAction ? styles.connectivityButtonPrimary : null,
+                !isPrimaryAction && method.accentColor
+                  ? { borderColor: hexWithOpacity(method.accentColor, 0.45) }
+                  : null,
+              ];
+              const iconColor = isPrimaryAction
+                ? colors.najdi.background
+                : colors.najdi.primary;
+
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  style={buttonStyles}
+                  onPress={() => handleConnectivityPress(method)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={method.label}
+                  activeOpacity={0.85}
+                >
+                  {!isPrimaryAction && method.accentColor ? (
+                    <View
+                      style={[
+                        styles.connectivityBadge,
+                        I18nManager.isRTL
+                          ? { left: 10 }
+                          : { right: 10 },
+                        { backgroundColor: method.accentColor },
+                      ]}
+                      accessible={false}
+                    />
+                  ) : null}
+                  <Ionicons
+                    name={method.icon}
+                    size={20}
+                    color={iconColor}
+                    style={styles.connectivityIcon}
+                    accessible={false}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>

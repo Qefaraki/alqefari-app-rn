@@ -340,10 +340,23 @@ class HighlightingServiceV2 {
         break;
       }
 
+      // Create segment with connection object for curved rendering (Oct 30, 2025)
+      // The renderer needs connection.parent and connection.children to call generateLinePaths()
+      // which ensures highlights match tree connection curves perfectly
       segments.push({
         from: current.id,
         to: parent.id,
-        x1: current.x,
+        connection: {
+          parent: parent,
+          children: [current],  // Single child for ancestry path
+        },
+        bounds: {
+          minX: Math.min(current.x, parent.x),
+          maxX: Math.max(current.x, parent.x),
+          minY: Math.min(current.y, parent.y),
+          maxY: Math.max(current.y, parent.y),
+        },
+        x1: current.x,  // Keep for backward compatibility
         y1: current.y,
         x2: parent.x,
         y2: parent.y,

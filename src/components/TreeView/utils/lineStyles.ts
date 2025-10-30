@@ -452,9 +452,27 @@ export function generateTidyCurvePaths(
   const parentLabelHeight = getLabelHeight(parent, nodeStyle, lineStyle);
   const parentDepth = (parent as any).depth ?? 0;
   const depthFactor = parentDepth === 0 ? 1.45 : parentDepth === 1 ? 1.2 : 1;
+  const isParentRoot = !parent.father_id;
+  const parentHasChildren = (parent as any)._hasChildren;
+  const isParentG2 = (parent as any).generation === 2 && parentHasChildren;
+  const variantPadding = (() => {
+    if (tidyCircular) {
+      const config = isParentRoot
+        ? TIDY_CIRCLE.ROOT
+        : isParentG2
+        ? TIDY_CIRCLE.G2
+        : TIDY_CIRCLE.STANDARD;
+      return (config.LABEL_OFFSET ?? 6) * depthFactor;
+    }
+    if (tidyRect) {
+      return 6 * depthFactor;
+    }
+    return 0;
+  })();
   const baseStem = tidyCircular ? 12 : tidyRect ? 14 : 10;
   const styleStem = baseStem * (tidyCircular ? 1.0 : tidyRect ? 1.05 : 1);
-  const stemAnchorY = parentBottom + Math.max(parentLabelHeight, styleStem * depthFactor);
+  const stemStartY = parentBottom + parentLabelHeight + variantPadding;
+  const stemAnchorY = stemStartY + Math.max(styleStem * depthFactor, 8);
   const baseAnchorRaw = tidyCircular ? 18 : tidyRect ? 20 : 16;
   const BASE_CHILD_ANCHOR_OFFSET = baseAnchorRaw * depthFactor;
 
@@ -484,7 +502,7 @@ export function generateTidyCurvePaths(
   }
 
   // Draw shared vertical stem from parent node to anchor
-  pathBuilder.moveTo(parentCenterX, parentBottom);
+  pathBuilder.moveTo(parentCenterX, stemStartY);
   pathBuilder.lineTo(parentCenterX, stemAnchorY);
 
   // Fan-out curves using single cubic Bezier per child (D3 linkVertical-style)
