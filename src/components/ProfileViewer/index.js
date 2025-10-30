@@ -1136,6 +1136,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         version: newVersion,
       });
 
+      // Clear Skia image cache to force tree to re-render cropped photos immediately
+      skiaImageCache.clear();
+
       // Update parent component via onUpdate callback
       onUpdate?.(updatedPerson);
 
